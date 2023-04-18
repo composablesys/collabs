@@ -344,6 +344,8 @@ export class CValueList<T> extends AbstractList_CObject<T, [T]> {
       for (const [, position, value] of remote.entries()) {
         // OPT: use waypoints to do bulk inserts. Need to be careful about: missing
         // (remotely-deleted) elements; indices that skip over child waypoints.
+        // Also, double-check that CRichText's Insert event handler still works
+        // (it assumes no existing positions in the middle of an Insert event's values).
         if (sourceLoadEvent.isNewLocally(position)) {
           insertEvents.push({
             index: this.list.indexOfPosition(position, "right") + insertedSoFar,

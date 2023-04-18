@@ -243,6 +243,12 @@ export class CRichText<
         positions: e.positions,
         // By non-interleaving and the fact that the positions are new,
         // all inserted chars have the same initial format.
+        // This is true even for merged saved states because:
+        // 1. We load text before spanLog, so any merged formats referencing
+        // new positions have not yet been loaded.
+        // 2. CValueList only emits bulk (multi-char) insert events when the
+        // local state is empty (initial load, not merge), so there can't
+        // be any old tombstones in the middle of values.
         format: this.getFormatInternal(e.positions[0]),
         meta: e.meta,
       })

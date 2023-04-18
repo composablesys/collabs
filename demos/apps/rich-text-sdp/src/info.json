@@ -1,7 +1,0 @@
-{
-  "name": "Rich Text - Semidirect Product",
-  "description": "A collaborative rich text editor using <a href=\"https://quilljs.com/\">Quill</a>. The semidirect product of CRDTs is used to enforce user intention: if a range of text is (e.g.) bolded, while new text is inserted into the range concurrently, then the new text should also be bolded.",
-  "author": "Benito Geordie and Matthew Weidner",
-  "license": "Apache-2.0",
-  "source": "https://github.com/composablesys/collabs/tree/master/demos/apps/rich-text-sdp"
-}

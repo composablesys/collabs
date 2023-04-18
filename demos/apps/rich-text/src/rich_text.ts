@@ -1,160 +1,40 @@
 import * as collabs from "@collabs/collabs";
 import { CContainer } from "@collabs/container";
-import Quill, { DeltaOperation } from "quill";
+import Quill, { Delta as DeltaType, DeltaStatic } from "quill";
 
 // Include CSS
 import "quill/dist/quill.snow.css";
 
-const Delta = Quill.import("delta");
-declare type Delta = {
-  ops: DeltaOperation[];
-};
+const Delta: typeof DeltaType = Quill.import("delta");
 
-interface RichCharEventsRecord extends collabs.CollabEventsRecord {
-  Format: { key: string } & collabs.CollabEvent;
-}
-
-class CRichChar extends collabs.CObject<RichCharEventsRecord> {
-  private readonly _attributes: collabs.CValueMap<string, any>;
-
-  /**
-   * char comes from a Quill Delta's insert field, split
-   * into single characters if a string.  So it is either
-   * a single char, or (for an embed) a JSON-serializable
-   * object with a single property.
-   */
-  constructor(init: collabs.InitToken, readonly char: string | object) {
-    super(init);
-
-    this._attributes = this.registerCollab(
-      "",
-      (init) => new collabs.CValueMap(init)
-    );
-
-    // Events
-    this._attributes.on("Set", (e) => {
-      this.emit("Format", {
-        key: e.key,
-        meta: e.meta,
-      });
-    });
-    this._attributes.on("Delete", (e) => {
-      this.emit("Format", { key: e.key, meta: e.meta });
-    });
-  }
-
-  getAttribute(attribute: string): any | null {
-    return this._attributes.get(attribute) ?? null;
-  }
-
-  /**
-   * null attribute deletes the existing one.
-   */
-  setAttribute(attribute: string, value: any | null) {
-    if (value === null) {
-      this._attributes.delete(attribute);
-    } else {
-      this._attributes.set(attribute, value);
-    }
-  }
-
-  attributes(): { [key: string]: any } {
-    return Object.fromEntries(this._attributes);
-  }
-}
-
-interface RichTextEventsRecord extends collabs.CollabEventsRecord {
-  Insert: { startIndex: number; count: number } & collabs.CollabEvent;
-  Delete: { startIndex: number; count: number } & collabs.CollabEvent;
-  Format: { index: number; key: string } & collabs.CollabEvent;
-}
-
-class CRichText extends collabs.CObject<RichTextEventsRecord> {
-  readonly text: collabs.CList<CRichChar, [char: string | object]>;
-
-  constructor(init: collabs.InitToken) {
-    super(init);
-
-    this.text = this.registerCollab(
-      "",
-      (init) =>
-        new collabs.CList(init, (valueInitToken, char) => {
-          const richChar = new CRichChar(valueInitToken, char);
-          richChar.on("Format", (e) => {
-            this.emit("Format", { index: this.text.indexOf(richChar), ...e });
-          });
-          return richChar;
-        })
-    );
-    this.text.on("Insert", (e) => {
-      this.emit("Insert", {
-        startIndex: e.index,
-        count: e.values.length,
-        meta: e.meta,
-      });
-    });
-    this.text.on("Delete", (e) =>
-      this.emit("Delete", {
-        startIndex: e.index,
-        count: e.values.length,
-        meta: e.meta,
-      })
-    );
-  }
-
-  get(index: number): CRichChar {
-    return this.text.get(index);
-  }
-
-  get length(): number {
-    return this.text.length;
-  }
-
-  insert(
-    index: number,
-    char: string | object,
-    attributes?: Record<string, any>
-  ) {
-    const richChar = this.text.insert(index, char);
-    this.formatChar(richChar, attributes);
-  }
-
-  delete(startIndex: number, count: number) {
-    this.text.delete(startIndex, count);
-  }
-
-  /**
-   * null attribute deletes the existing one.
-   */
-  format(index: number, newAttributes?: Record<string, any>) {
-    this.formatChar(this.get(index), newAttributes);
-  }
-
-  private formatChar(richChar: CRichChar, newAttributes?: Record<string, any>) {
-    if (newAttributes) {
-      for (const entry of Object.entries(newAttributes)) {
-        richChar.setAttribute(...entry);
-      }
-    }
-  }
-}
+const noGrowAtEnd = [
+  // Links (Peritext Example 9)
+  "link",
+  // Paragraph-level (\n) formatting: should only apply to the \n, not
+  // extend to surrounding chars.
+  "header",
+  "blockquote",
+  "code-block",
+  "list",
+  "indent",
+];
 
 function makeInitialSave(): Uint8Array {
   const runtime = new collabs.CRuntime({ debugReplicaID: "INIT" });
   const clientText = runtime.registerCollab(
     "text",
-    (init) => new CRichText(init)
+    (init) => new collabs.CRichText(init, { noGrowAtEnd })
   );
-  runtime.transact(() => clientText.insert(0, "\n"));
+  runtime.transact(() => clientText.insert(0, "\n", {}));
   return runtime.save();
 }
 
 (async function () {
   const container = new CContainer();
 
-  const clientText = container.registerCollab(
+  const text = container.registerCollab(
     "text",
-    (init) => new CRichText(init)
+    (init) => new collabs.CRichText(init, { noGrowAtEnd })
   );
   // "Set the initial state"
   // (a single "\n", required by Quill) by
@@ -163,12 +43,8 @@ function makeInitialSave(): Uint8Array {
 
   const quill = new Quill("#editor", {
     theme: "snow",
-    // Modules list from quilljs example, via
+    // Modules list from quilljs example, based on
     // https://github.com/KillerCodeMonkey/ngx-quill/issues/295#issuecomment-443268064
-    // We remove syntax: true because I can't figure out how
-    // to trick Webpack into importing highlight.js for
-    // side-effects.
-    // Same with "formula" (after "video") and katex.
     modules: {
       toolbar: [
         [{ font: [] }, { size: [] }],
@@ -182,8 +58,14 @@ function makeInitialSave(): Uint8Array {
           { indent: "-1" },
           { indent: "+1" },
         ],
-        ["direction", { align: [] }],
-        ["link", "image", "video"],
+        // Omit embeds (images & videos); they require extra effort since
+        // CRichText doesn't allow "object" elements.
+        // Omit "syntax: true" because I can't figure out how
+        // to trick Webpack into importing highlight.js for
+        // side-effects. Same with "formula" and katex.
+        // Omit "direction" because I am not sure whether it is paragraph-level
+        // or not (need to know for noGrowAtEnd).
+        ["link"],
         ["clean"],
       ],
     },
@@ -200,53 +82,45 @@ function makeInitialSave(): Uint8Array {
 
   // Display loaded state by syncing it to Quill.
   let ourChange = false;
-  function updateContents(delta: Delta) {
+  function updateContents(delta: DeltaStatic) {
     ourChange = true;
-    quill.updateContents(delta as any);
+    quill.updateContents(delta);
     ourChange = false;
   }
-  updateContents(
-    new Delta({
-      ops: clientText.text.map((richChar) => {
-        return {
-          insert: richChar.char,
-          attributes: richChar.attributes(),
-        };
-      }),
-    })
-  );
+  const initDelta = new Delta();
+  for (const { values, format } of text.formatted()) {
+    initDelta.insert(values, format);
+  }
+  updateContents(initDelta);
   // Delete Quill's starting character (a single "\n", now
   // pushed to the end), since it's not in clientText.
-  updateContents(new Delta().retain(clientText.length).delete(1));
+  updateContents(new Delta().retain(text.length).delete(1));
 
   // Reflect Collab operations in Quill.
   // Note that for local operations, Quill has already updated
   // its own representation, so we should skip doing so again.
 
-  clientText.on("Insert", (e) => {
+  text.on("Insert", (e) => {
     if (e.meta.isLocalOp) return;
 
-    for (let index = e.startIndex; index < e.startIndex + e.count; index++) {
-      // Characters start without any formatting.
-      updateContents(
-        new Delta().retain(index).insert(clientText.get(index).char)
-      );
-    }
+    updateContents(new Delta().retain(e.index).insert(e.values, e.format));
   });
 
-  clientText.on("Delete", (e) => {
+  text.on("Delete", (e) => {
     if (e.meta.isLocalOp) return;
 
-    updateContents(new Delta().retain(e.startIndex).delete(e.count));
+    updateContents(new Delta().retain(e.index).delete(e.values.length));
   });
 
-  clientText.on("Format", (e) => {
+  text.on("Format", (e) => {
     if (e.meta.isLocalOp) return;
 
     updateContents(
-      new Delta()
-        .retain(e.index)
-        .retain(1, { [e.key]: clientText.get(e.index).getAttribute(e.key) })
+      new Delta().retain(e.startIndex).retain(e.endIndex - e.startIndex, {
+        // Convert CRichText's undefineds to Quill's nulls (both indicate a
+        // not-present key).
+        [e.key]: e.value ?? null,
+      })
     );
   });
 
@@ -257,13 +131,14 @@ function makeInitialSave(): Uint8Array {
    * having the form { index: first char index, ...DeltaOperation},
    * leaving out ops that do nothing.
    */
-  function getRelevantDeltaOperations(delta: Delta): {
+  function getRelevantDeltaOperations(delta: DeltaStatic): {
     index: number;
     insert?: string | object;
     delete?: number;
     attributes?: Record<string, any>;
     retain?: number;
   }[] {
+    if (delta.ops === undefined) return [];
     const relevantOps = [];
     let index = 0;
     for (const op of delta.ops) {
@@ -299,22 +174,21 @@ function makeInitialSave(): Uint8Array {
       // Insertion
       if (op.insert) {
         if (typeof op.insert === "string") {
-          for (let i = 0; i < op.insert.length; i++) {
-            clientText.insert(op.index + i, op.insert[i], op.attributes);
-          }
+          text.insert(op.index, op.insert, op.attributes ?? {});
         } else {
           // Embed of object
-          clientText.insert(op.index, op.insert, op.attributes);
+          throw new Error("Embeds not supported");
         }
       }
       // Deletion
       else if (op.delete) {
-        clientText.delete(op.index, op.delete);
+        text.delete(op.index, op.delete);
       }
       // Formatting
       else if (op.attributes && op.retain) {
-        for (let i = 0; i < op.retain; i++) {
-          clientText.format(op.index + i, op.attributes);
+        for (const [key, value] of Object.entries(op.attributes)) {
+          // Map null to undefined, for deleted keys.
+          text.format(op.index, op.index + op.retain, key, value ?? undefined);
         }
       }
     }
