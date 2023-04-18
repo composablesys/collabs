@@ -1,60 +1,89 @@
 import { InitToken, ReplicaIDs } from "@collabs/core";
 import { assert } from "chai";
 import seedrandom from "seedrandom";
-import { CRichText, CRuntime, CValueList, TestingRuntimes } from "../../src";
+import { CRichText, CRuntime, RichTextRange, TestingRuntimes } from "../../src";
 import { EventView } from "../event_view";
 import { Source, Traces } from "../traces";
-import { CRichTextView, IListView } from "./views";
+import { CRichTextView } from "./views";
 
-class ValueListSource implements Source<CValueList<string>, string[]> {
+// Instead of RichTextRange[], we use an alternative
+// format that's easier to write out by hand.
+class RichTextSource
+  implements Source<CRichText, [values: string, format: Record<string, any>][]>
+{
   constructor(
     readonly rng: seedrandom.prng,
-    readonly mode: "push" | "unshift LtR" | "unshift RtL" | "insert"
+    readonly mode: "insert" | "delete" | "format"
   ) {}
 
   pre(init: InitToken) {
-    const list = new CValueList<string>(init);
-    new IListView(list, false);
-    return list;
+    const text = new CRichText(init);
+    new CRichTextView(text, false);
+    return text;
   }
-  check(actual: CValueList<string>, expected: string[]): void {
-    assert.deepStrictEqual([...actual], expected);
-    assert.strictEqual(actual.length, expected.length);
-    for (let i = 0; i < actual.length; i++) {
-      assert.strictEqual(actual.get(i), expected[i]);
+  check(
+    actual: CRichText,
+    expected: [values: string, format: Record<string, any>][]
+  ): void {
+    const ranges = this.asRanges(expected);
+    assert.deepStrictEqual(actual.formatted(), ranges);
+    let index = 0;
+    for (const range of ranges) {
+      assert.strictEqual(range.index, index);
+      for (const char of range.values) {
+        assert.strictEqual(actual.charAt(index), char);
+        assert.deepStrictEqual(actual.getFormat(index), range.format);
+        index++;
+      }
     }
+    assert.strictEqual(actual.length, index);
     EventView.check(actual);
   }
-  op(c: CValueList<string>, n: number): void {
-    switch (this.mode) {
-      case "push":
-        c.push(`${n}_0`, `${n}_1`, `${n}_2`, `${n}_3`);
+  private asRanges(
+    expected: [values: string, format: Record<string, any>][]
+  ): RichTextRange[] {
+    const ranges: RichTextRange[] = [];
+    let index = 0;
+    for (const [values, format] of expected) {
+      ranges.push({ index, values, format });
+      index += values.length;
+    }
+    return ranges;
+  }
+  op(c: CRichText, n: number): void {
+    // Each mode tests its operations in conflict with format operations.
+    // (We expect insert & delete to already be okay,
+    // since they just use CValueList.)
+    switch (n) {
+      case 0:
+        c.format(2, 5, "bold", true);
         break;
-      case "unshift LtR":
-        // Do LtR insertions within each op, to test itemization.
-        c.unshift(`${n}_0`, `${n}_1`, `${n}_2`, `${n}_3`);
-        break;
-      case "unshift RtL":
-        // Same sequences as unshift LtR, but inserted RtL.
-        // In all of the traces tested, this gives the same answers.
-        for (let i = 3; i >= 0; i--) {
-          c.unshift(`${n}_${i}`);
+      case 1:
+      case 3:
+        switch (this.mode) {
+          case "insert":
+            c.insert(n + 3, `op${n}`, {});
+            break;
+          case "delete":
+            c.delete(n + 3);
+            break;
+          case "format":
+            c.format(0, 5, "bold", true);
+            break;
         }
         break;
-      case "insert":
-        // Insert in the middle.
-        c.insert(
-          Math.floor(c.length / 2),
-          `${n}_0`,
-          `${n}_1`,
-          `${n}_2`,
-          `${n}_3`
-        );
+      case 2:
+        c.format(3, c.length, "bold", undefined);
         break;
+      default:
+        const startIndex = n % c.length;
+        const endIndex = Math.min(startIndex + 4, c.length);
+        c.format(startIndex, endIndex, "bold", n % 2 === 0 ? true : undefined);
     }
-    // Always delete the middle element. We hope to break up
-    // waypoints with mixed up values & deletions.
-    c.delete(Math.floor(c.length / 2));
+  }
+  setupOp(c: CRichText): void {
+    // Create some elements to do ops within.
+    c.insert(0, "initial", {});
   }
 }
 
@@ -65,314 +94,55 @@ describe("CRichText", () => {
     rng = seedrandom("42");
   });
 
-  describe.skip("traces", () => {
-    let source!: ValueListSource;
-
-    describe("push", () => {
-      beforeEach(() => {
-        source = new ValueListSource(rng, "push");
-      });
-
-      it("initial", () => {
-        Traces.initial(source, []);
-      });
-
-      it("singleOp", () => {
-        Traces.singleOp(source, ["0_0", "0_1", "0_3"]);
-      });
-
-      it("sequential", () => {
-        Traces.sequential(
-          source,
-          ["0_0", "0_1", "0_3"],
-          ["0_0", "0_1", "0_3", "1_1", "1_2", "1_3"],
-          ["0_0", "0_1", "0_3", "1_1", "1_2", "2_0", "2_1", "2_2", "2_3"],
-          [
-            "0_0",
-            "0_1",
-            "0_3",
-            "1_1",
-            "1_2",
-            "2_0",
-            "2_2",
-            "2_3",
-            "3_0",
-            "3_1",
-            "3_2",
-            "3_3",
-          ]
-        );
-      });
-
-      it("concurrent", () => {
-        Traces.concurrent(
-          source,
-          ["0_0", "0_1", "0_3"],
-          ["1_0", "1_1", "1_3"],
-          // Op 0 has lesser sender than op 1, so its waypoint is sorted first.
-          ["0_0", "0_1", "0_3", "1_0", "1_1", "1_3"]
-        );
-      });
-
-      it("diamond", () => {
-        Traces.diamond(
-          source,
-          ["0_0", "0_1", "0_3"],
-          ["0_0", "0_1", "0_3", "1_1", "1_2", "1_3"],
-          ["0_0", "0_1", "0_3", "2_1", "2_2", "2_3"],
-          // Op 1 has lesser sender than op 2, so its waypoint is sorted first.
-          ["0_0", "0_1", "0_3", "1_1", "1_2", "1_3", "2_1", "2_2", "2_3"],
-          [
-            "0_0",
-            "0_1",
-            "0_3",
-            "1_1",
-            "1_2",
-            "1_3",
-            "2_2",
-            "2_3",
-            "3_0",
-            "3_1",
-            "3_2",
-            "3_3",
-          ]
-        );
-      });
-
-      it("partition", () => {
-        Traces.partition(
-          source,
-          [
-            "0_0",
-            "0_1",
-            "0_3",
-            "1_1",
-            "1_2",
-            "2_0",
-            "2_2",
-            "2_3",
-            "3_0",
-            "3_1",
-            "3_2",
-            "3_3",
-          ],
-          [
-            "4_0",
-            "4_1",
-            "4_3",
-            "5_1",
-            "5_2",
-            "6_0",
-            "6_2",
-            "6_3",
-            "7_0",
-            "7_1",
-            "7_2",
-            "7_3",
-          ],
-          // Op 0 has lesser sender than op 4, so its waypoint is sorted first.
-          // The rest in each partition are "attached" and don't interleave.
-          [
-            "0_0",
-            "0_1",
-            "0_3",
-            "1_1",
-            "1_2",
-            "2_0",
-            "2_2",
-            "2_3",
-            "3_0",
-            "3_1",
-            "3_2",
-            "3_3",
-            "4_0",
-            "4_1",
-            "4_3",
-            "5_1",
-            "5_2",
-            "6_0",
-            "6_2",
-            "6_3",
-            "7_0",
-            "7_1",
-            "7_2",
-            "7_3",
-          ]
-        );
-      });
-    });
-
-    for (const unshiftMode of <("unshift LtR" | "unshift RtL")[]>[
-      "unshift LtR",
-      "unshift RtL",
-    ]) {
-      describe(unshiftMode, () => {
-        beforeEach(() => {
-          source = new ValueListSource(rng, unshiftMode);
-        });
-
-        it("initial", () => {
-          Traces.initial(source, []);
-        });
-
-        it("singleOp", () => {
-          Traces.singleOp(source, ["0_0", "0_1", "0_3"]);
-        });
-
-        it("sequential", () => {
-          Traces.sequential(
-            source,
-            ["0_0", "0_1", "0_3"],
-            ["1_0", "1_1", "1_2", "0_0", "0_1", "0_3"],
-            ["2_0", "2_1", "2_2", "2_3", "1_0", "1_2", "0_0", "0_1", "0_3"],
-            [
-              "3_0",
-              "3_1",
-              "3_2",
-              "3_3",
-              "2_0",
-              "2_1",
-              "2_3",
-              "1_0",
-              "1_2",
-              "0_0",
-              "0_1",
-              "0_3",
-            ]
-          );
-        });
-
-        it("concurrent", () => {
-          Traces.concurrent(
-            source,
-            ["0_0", "0_1", "0_3"],
-            ["1_0", "1_1", "1_3"],
-            // Op 0 has lesser sender than op 1, so its waypoint is sorted first.
-            ["0_0", "0_1", "0_3", "1_0", "1_1", "1_3"]
-          );
-        });
-
-        it("diamond", () => {
-          Traces.diamond(
-            source,
-            ["0_0", "0_1", "0_3"],
-            ["1_0", "1_1", "1_2", "0_0", "0_1", "0_3"],
-            ["2_0", "2_1", "2_2", "0_0", "0_1", "0_3"],
-            // Op 1 has lesser sender than op 2, so its waypoint is sorted first.
-            ["1_0", "1_1", "1_2", "2_0", "2_1", "2_2", "0_0", "0_1", "0_3"],
-            [
-              "3_0",
-              "3_1",
-              "3_2",
-              "3_3",
-              "1_0",
-              "1_1",
-              "2_0",
-              "2_1",
-              "2_2",
-              "0_0",
-              "0_1",
-              "0_3",
-            ]
-          );
-        });
-
-        it("partition", () => {
-          Traces.partition(
-            source,
-            [
-              "3_0",
-              "3_1",
-              "3_2",
-              "3_3",
-              "2_0",
-              "2_1",
-              "2_3",
-              "1_0",
-              "1_2",
-              "0_0",
-              "0_1",
-              "0_3",
-            ],
-            [
-              "7_0",
-              "7_1",
-              "7_2",
-              "7_3",
-              "6_0",
-              "6_1",
-              "6_3",
-              "5_0",
-              "5_2",
-              "4_0",
-              "4_1",
-              "4_3",
-            ],
-            // Op 0 has lesser sender than op 4, so its waypoint is sorted first.
-            // The rest in each partition are "attached" and don't interleave.
-            [
-              "3_0",
-              "3_1",
-              "3_2",
-              "3_3",
-              "2_0",
-              "2_1",
-              "2_3",
-              "1_0",
-              "1_2",
-              "0_0",
-              "0_1",
-              "0_3",
-              "7_0",
-              "7_1",
-              "7_2",
-              "7_3",
-              "6_0",
-              "6_1",
-              "6_3",
-              "5_0",
-              "5_2",
-              "4_0",
-              "4_1",
-              "4_3",
-            ]
-          );
-        });
-      });
-    }
+  describe("traces", () => {
+    let source!: RichTextSource;
 
     describe("insert", () => {
       beforeEach(() => {
-        source = new ValueListSource(rng, "insert");
+        source = new RichTextSource(rng, "insert");
       });
 
       it("initial", () => {
-        Traces.initial(source, []);
+        Traces.initial(source, [["initial", {}]]);
       });
 
       it("singleOp", () => {
-        Traces.singleOp(source, ["0_0", "0_1", "0_3"]);
+        Traces.singleOp(source, [
+          // inITIal
+          ["in", {}],
+          ["iti", { bold: true }],
+          ["al", {}],
+        ]);
       });
 
       it("sequential", () => {
         Traces.sequential(
           source,
-          ["0_0", "0_1", "0_3"],
-          ["0_0", "1_0", "1_1", "1_3", "0_1", "0_3"],
-          ["0_0", "1_0", "1_1", "2_0", "2_1", "2_3", "1_3", "0_1", "0_3"],
           [
-            "0_0",
-            "1_0",
-            "1_1",
-            "2_0",
-            "3_0",
-            "3_1",
-            "3_3",
-            "2_1",
-            "2_3",
-            "1_3",
-            "0_1",
-            "0_3",
+            // inITIal
+            ["in", {}],
+            ["iti", { bold: true }],
+            ["al", {}],
+          ],
+          [
+            // inITop1Ial
+            ["in", {}],
+            ["it", { bold: true }],
+            ["op1", {}],
+            ["i", { bold: true }],
+            ["al", {}],
+          ],
+          [
+            // inItop1ial
+            ["in", {}],
+            ["i", { bold: true }],
+            ["top1ial", {}],
+          ],
+          [
+            // inItopop31ial
+            ["in", {}],
+            ["i", { bold: true }],
+            ["topop31ial", {}],
           ]
         );
       });
@@ -380,34 +150,56 @@ describe("CRichText", () => {
       it("concurrent", () => {
         Traces.concurrent(
           source,
-          ["0_0", "0_1", "0_3"],
-          ["1_0", "1_1", "1_3"],
-          // Op 0 has lesser sender than op 1, so its waypoint is sorted first.
-          ["0_0", "0_1", "0_3", "1_0", "1_1", "1_3"]
+          [
+            // inITIal
+            ["in", {}],
+            ["iti", { bold: true }],
+            ["al", {}],
+          ],
+          [["initop1ial", {}]],
+          [
+            // inITOP1Ial
+            ["in", {}],
+            ["itop1i", { bold: true }],
+            ["al", {}],
+          ]
         );
       });
 
       it("diamond", () => {
         Traces.diamond(
           source,
-          ["0_0", "0_1", "0_3"],
-          ["0_0", "1_0", "1_1", "1_3", "0_1", "0_3"],
-          ["0_0", "2_0", "2_1", "2_3", "0_1", "0_3"],
-          // Op 1 has lesser sender than op 2, so its waypoint is sorted first.
-          ["0_0", "1_0", "1_1", "1_3", "2_0", "2_1", "2_3", "0_1", "0_3"],
           [
-            "0_0",
-            "1_0",
-            "1_1",
-            "1_3",
-            "3_0",
-            "3_1",
-            "3_3",
-            "2_0",
-            "2_1",
-            "2_3",
-            "0_1",
-            "0_3",
+            // inITIal
+            ["in", {}],
+            ["iti", { bold: true }],
+            ["al", {}],
+          ],
+          [
+            // inITop1Ial
+            ["in", {}],
+            ["it", { bold: true }],
+            ["op1", {}],
+            ["i", { bold: true }],
+            ["al", {}],
+          ],
+          [
+            // inItial
+            ["in", {}],
+            ["i", { bold: true }],
+            ["tial", {}],
+          ],
+          [
+            // inItop1ial
+            ["in", {}],
+            ["i", { bold: true }],
+            ["top1ial", {}],
+          ],
+          [
+            // inItopop31ial
+            ["in", {}],
+            ["i", { bold: true }],
+            ["topop31ial", {}],
           ]
         );
       });
@@ -416,64 +208,34 @@ describe("CRichText", () => {
         Traces.partition(
           source,
           [
-            "0_0",
-            "1_0",
-            "1_1",
-            "2_0",
-            "3_0",
-            "3_1",
-            "3_3",
-            "2_1",
-            "2_3",
-            "1_3",
-            "0_1",
-            "0_3",
+            // inItopop31ial
+            ["in", {}],
+            ["i", { bold: true }],
+            ["topop31ial", {}],
           ],
           [
-            "4_0",
-            "5_0",
-            "5_1",
-            "6_0",
-            "7_0",
-            "7_1",
-            "7_3",
-            "6_1",
-            "6_3",
-            "5_3",
-            "4_1",
-            "4_3",
+            // initIaL
+            ["init", {}],
+            ["i", { bold: true }],
+            ["a", {}],
+            ["l", { bold: true }],
           ],
-          // Op 0 has lesser sender than op 4, so its waypoint is sorted first.
-          // The rest in each partition are "attached" and don't interleave.
           [
-            "0_0",
-            "1_0",
-            "1_1",
-            "2_0",
-            "3_0",
-            "3_1",
-            "3_3",
-            "2_1",
-            "2_3",
-            "1_3",
-            "0_1",
-            "0_3",
-            "4_0",
-            "5_0",
-            "5_1",
-            "6_0",
-            "7_0",
-            "7_1",
-            "7_3",
-            "6_1",
-            "6_3",
-            "5_3",
-            "4_1",
-            "4_3",
+            // All chars that were bolded at some point:
+            // - "it": bolded by 0, unbolded by 7; 7's Lamport wins.
+            // - 3rd "i": bolded by 4 (and 0), unbolded by 2; 2's Lamport wins.
+            // - "l": bolded by 6, unbolded by 2;
+            // 2's Lamport wins because of 1's extra format op.
+            // So result is initopop31ial.
+            ["initopop31ial", {}],
           ]
         );
       });
     });
+
+    // TODO: delete
+
+    // TODO: format
   });
 
   describe("unit", () => {

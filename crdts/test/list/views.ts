@@ -1,8 +1,7 @@
 import { Collab, IList, Position } from "@collabs/core";
 import { assert } from "chai";
+import { CList, CRichText } from "../../src";
 import { EventView } from "../event_view";
-import { CList, CRichText, Record } from <string>, any >;
-} from "../../src";
 
 export class IListView<
   T,

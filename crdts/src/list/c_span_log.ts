@@ -201,6 +201,8 @@ export class CSpanLog<F extends Record<string, any>> extends PrimitiveCRDT<
             lamport,
             senderID,
           };
+          bySender.push(span);
+
           this.emit("Add", { span, meta });
         }
         spanIndex++;
