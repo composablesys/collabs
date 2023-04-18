@@ -6,8 +6,10 @@ import {
   InitToken,
   Position,
   Serializer,
+  StringSerializer,
   UpdateMeta,
 } from "@collabs/core";
+import { charArraySerializer } from "./char_array_serializer";
 import { CSpanLog, Span } from "./c_span_log";
 import { TextEvent } from "./c_text";
 import { CValueList } from "./c_value_list";
@@ -221,7 +223,14 @@ export class CRichText<
 
     this.noGrowAtEnd = new Set(options?.noGrowAtEnd ?? []);
 
-    this.text = super.registerCollab("", (init) => new CValueList(init));
+    this.text = super.registerCollab(
+      "",
+      (init) =>
+        new CValueList(init, {
+          valueSerializer: StringSerializer.instance,
+          valueArraySerializer: charArraySerializer,
+        })
+    );
     this.spanLog = super.registerCollab(
       "0",
       (init) =>
@@ -454,8 +463,8 @@ export class CRichText<
     // Change formatting to match format.
     // No existing positions can be interleaved with the chars' positions,
     // so the chars all have the same existing formatting.
-    const existing = this.getFormat(index);
     const startPos = this.text.getPosition(index);
+    const existing = this.getFormatInternal(startPos);
     const endPosClosed = this.text.getPosition(index + values.length - 1);
     const endPosOpen =
       index + values.length === this.text.length

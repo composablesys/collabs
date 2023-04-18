@@ -1,4 +1,4 @@
-import { Buffer } from "buffer";
+import * as utf8 from "@protobufjs/utf8";
 import {
   ArrayMessage,
   CollabIDMessage,
@@ -247,10 +247,12 @@ export class StringSerializer implements Serializer<string> {
     // Use StringSerializer.instance instead.
   }
   serialize(value: string): Uint8Array {
-    return new Uint8Array(Buffer.from(value, "utf-8"));
+    const ans = new Uint8Array(utf8.length(value));
+    utf8.write(value, ans, 0);
+    return ans;
   }
   deserialize(message: Uint8Array): string {
-    return Buffer.from(message).toString("utf-8");
+    return utf8.read(message, 0, message.length);
   }
   static readonly instance = new StringSerializer();
 }

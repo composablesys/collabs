@@ -4,21 +4,11 @@ import {
   CollabEventsRecord,
   InitToken,
   Position,
-  Serializer,
   StringSerializer,
 } from "@collabs/core";
+import { charArraySerializer } from "./char_array_serializer";
 import { CValueList } from "./c_value_list";
 import { LocalList } from "./local_list";
-
-const charArraySerializer: Serializer<string[]> = {
-  serialize(value) {
-    return StringSerializer.instance.serialize(value.join(""));
-  },
-
-  deserialize(message) {
-    return [...StringSerializer.instance.deserialize(message)];
-  },
-} as const;
 
 /**
  * Event emitted by [[CText]] when a range of characters (values)
