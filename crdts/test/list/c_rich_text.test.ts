@@ -65,7 +65,7 @@ class RichTextSource
             c.insert(n + 3, `op${n}`, {});
             break;
           case "delete":
-            c.delete(n + 3);
+            c.delete((n + 3) % c.length);
             break;
           case "format":
             c.format(0, 5, "bold", true);
@@ -233,9 +233,277 @@ describe("CRichText", () => {
       });
     });
 
-    // TODO: delete
+    describe("delete", () => {
+      beforeEach(() => {
+        source = new RichTextSource(rng, "delete");
+      });
 
-    // TODO: format
+      it("initial", () => {
+        Traces.initial(source, [["initial", {}]]);
+      });
+
+      it("singleOp", () => {
+        Traces.singleOp(source, [
+          // inITIal
+          ["in", {}],
+          ["iti", { bold: true }],
+          ["al", {}],
+        ]);
+      });
+
+      it("sequential", () => {
+        Traces.sequential(
+          source,
+          [
+            // inITIal
+            ["in", {}],
+            ["iti", { bold: true }],
+            ["al", {}],
+          ],
+          [
+            // inITal
+            ["in", {}],
+            ["it", { bold: true }],
+            ["al", {}],
+          ],
+          [
+            // inItal
+            ["in", {}],
+            ["i", { bold: true }],
+            ["tal", {}],
+          ],
+          [
+            // nItal
+            ["n", {}],
+            ["i", { bold: true }],
+            ["tal", {}],
+          ]
+        );
+      });
+
+      it("concurrent", () => {
+        Traces.concurrent(
+          source,
+          [
+            // inITIal
+            ["in", {}],
+            ["iti", { bold: true }],
+            ["al", {}],
+          ],
+          [["inital", {}]],
+          [
+            // inITal
+            ["in", {}],
+            ["it", { bold: true }],
+            ["al", {}],
+          ]
+        );
+      });
+
+      it("diamond", () => {
+        Traces.diamond(
+          source,
+          [
+            // inITIal
+            ["in", {}],
+            ["iti", { bold: true }],
+            ["al", {}],
+          ],
+          [
+            // inITal
+            ["in", {}],
+            ["it", { bold: true }],
+            ["al", {}],
+          ],
+          [
+            // inItial
+            ["in", {}],
+            ["i", { bold: true }],
+            ["tial", {}],
+          ],
+          [
+            // inItal
+            ["in", {}],
+            ["i", { bold: true }],
+            ["tal", {}],
+          ],
+          [
+            // nItal
+            ["n", {}],
+            ["i", { bold: true }],
+            ["tal", {}],
+          ]
+        );
+      });
+
+      it("partition", () => {
+        Traces.partition(
+          source,
+          [
+            // nItal
+            ["n", {}],
+            ["i", { bold: true }],
+            ["tal", {}],
+          ],
+          [
+            // initIaL
+            ["init", {}],
+            ["i", { bold: true }],
+            ["a", {}],
+            ["l", { bold: true }],
+          ],
+          [
+            // All chars that were bolded at some point:
+            // - "it": bolded by 0, unbolded by 7; 7's Lamport wins.
+            // - 3rd "i": deleted by 1.
+            // - "l": bolded by 6, unbolded by 2; 6 and 2 Lamports tie => 6 wins
+            // by senderID tiebreaker. (Here we depend on the load-save behavior
+            // described in Manager.setup's setupOp comment.)
+            // So result is nitaL.
+            ["nita", {}],
+            ["l", { bold: true }],
+          ]
+        );
+      });
+    });
+
+    describe("format", () => {
+      beforeEach(() => {
+        source = new RichTextSource(rng, "format");
+      });
+
+      it("initial", () => {
+        Traces.initial(source, [["initial", {}]]);
+      });
+
+      it("singleOp", () => {
+        Traces.singleOp(source, [
+          // inITIal
+          ["in", {}],
+          ["iti", { bold: true }],
+          ["al", {}],
+        ]);
+      });
+
+      it("sequential", () => {
+        Traces.sequential(
+          source,
+          [
+            // inITIal
+            ["in", {}],
+            ["iti", { bold: true }],
+            ["al", {}],
+          ],
+          [
+            // INITIal
+            ["initi", { bold: true }],
+            ["al", {}],
+          ],
+          [
+            // INItial
+            ["ini", { bold: true }],
+            ["tial", {}],
+          ],
+          [
+            // INITIal
+            ["initi", { bold: true }],
+            ["al", {}],
+          ]
+        );
+      });
+
+      it("concurrent", () => {
+        Traces.concurrent(
+          source,
+          [
+            // inITIal
+            ["in", {}],
+            ["iti", { bold: true }],
+            ["al", {}],
+          ],
+          [
+            // INITIal
+            ["initi", { bold: true }],
+            ["al", {}],
+          ],
+          [
+            // INITIal
+            ["initi", { bold: true }],
+            ["al", {}],
+          ]
+        );
+      });
+
+      it("diamond", () => {
+        Traces.diamond(
+          source,
+          [
+            // inITIal
+            ["in", {}],
+            ["iti", { bold: true }],
+            ["al", {}],
+          ],
+          [
+            // INITIal
+            ["initi", { bold: true }],
+            ["al", {}],
+          ],
+          [
+            // inItial
+            ["in", {}],
+            ["i", { bold: true }],
+            ["tial", {}],
+          ],
+          [
+            // Lamport timestamps tie for 2 and 1; 2 wins by senderID tiebreaker.
+            // (Here we depend on the load-save behavior
+            // described in Manager.setup's setupOp comment.)
+            // So result is INItial.
+            ["ini", { bold: true }],
+            ["tial", {}],
+          ],
+          [
+            // INITIal
+            ["initi", { bold: true }],
+            ["al", {}],
+          ]
+        );
+      });
+
+      it("partition", () => {
+        Traces.partition(
+          source,
+          [
+            // INITIal
+            ["initi", { bold: true }],
+            ["al", {}],
+          ],
+          [
+            // initIaL
+            ["init", {}],
+            ["i", { bold: true }],
+            ["a", {}],
+            ["l", { bold: true }],
+          ],
+          [
+            // All chars that were bolded at some point:
+            // - "init": Last bolded by 3, last unbolded by 7; 7 wins by senderID tiebreaker.
+            // - 3rd "i": Only bolded.
+            // - "a": Unbolded by end of both partitions.
+            // - "l": bolded by 6, unbolded by 2;
+            // 6 wins by senderID tiebreaker.
+            // (Here we depend on the load-save behavior
+            // described in Manager.setup's setupOp comment.)
+            //
+            // So result is initIaL.
+            ["init", {}],
+            ["i", { bold: true }],
+            ["a", {}],
+            ["l", { bold: true }],
+          ]
+        );
+      });
+    });
   });
 
   describe("unit", () => {
