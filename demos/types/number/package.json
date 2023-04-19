@@ -1,6 +1,6 @@
 {
   "name": "@collabs/number",
-  "version": "0.9.1",
+  "version": "0.10.0",
   "description": "Collabs custom type demo - number via semidirect product",
   "author": "Collabs contributors",
   "license": "Apache-2.0",
@@ -29,9 +29,9 @@
   },
   "sideEffects": false,
   "dependencies": {
-    "@collabs/core": "0.9.1",
-    "@collabs/crdts": "0.9.1",
-    "@collabs/collabs": "0.9.1",
+    "@collabs/core": "0.10.0",
+    "@collabs/crdts": "0.10.0",
+    "@collabs/collabs": "0.10.0",
     "protobufjs": "~6.10.1",
     "tslib": "^2.0.1"
   },
