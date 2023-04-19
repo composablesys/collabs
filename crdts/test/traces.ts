@@ -51,7 +51,7 @@ class Manager<C extends Collab, V> {
       // in op-based vs state-based usage, changing the result of (arbitrary)
       // tiebreakers, which makes it harder to write trace tests. Note that CRDT
       // correctness is not affected in any case - see the comment in
-      // CausalMessageBuffer.processRemoteDelivery.
+      // CausalMessageBuffer.processRemoteDelivery.)
       const setupRuntime = this.gen.newRuntime(this.source.rng);
       const setupC = setupRuntime.registerCollab("", (init) =>
         this.source.pre(init)

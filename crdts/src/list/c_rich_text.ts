@@ -56,7 +56,7 @@ export interface RichTextInsertEvent<
  *
  * A range can be formatted either by [[CRichText.format]],
  * or by [[CRichText.insert]] if its given format does not
- * match the new character's inherited format.
+ * match the new characters' inherited format.
  */
 export interface RichTextFormatEvent<
   // eslint-disable-next-line @typescript-eslint/no-explicit-any
@@ -124,16 +124,17 @@ export interface RichTextEventsRecord<
 // TODO: algorithm description.
 
 // Behavior differences from Peritext:
-// - Does not infer *local* behavior following Peritext's rules (including
+// - Does not infer *local* behavior using Peritext's rules (including
 // edge cases around paragraph starts and tombstones). Instead, you must specify
 // provide the desired format for each inserted char, then CRichText creates
 // new spans if needed to match (i.e., if the existing spans give the
-// wrong format).
-// - Deleting the second half of a non-growEnd span: Peritext gives the deletion
-// an open start, so that the remaining first half of the non-growEnd span is
+// wrong format). This is okay because you're usually using a rich-text editor
+// that infers the local behavior for you.
+// - Unformatting the second half of a noGrowAtEnd span: Peritext gives the unformat
+// span an open start, so that the remaining first half of the noGrowAtEnd span is
 // still closed at the end (won't grow). We don't yet implement this (TODO).
 // - We only support key-value type formats where the latest value overwrites
-// all previous, not "unique" formats like comments. Instead, you should store
+// all previous values, not "unique" formats like comments. Instead, you should store
 // comments yourself together with their start & and end [[Position]]s.
 
 /**
@@ -142,14 +143,13 @@ export interface RichTextEventsRecord<
  * Each character has an associated *format* of type `Record<string, any>`, which
  * maps from format keys to format values. Use [[format]] to format a range, and use
  * [[formatted]] to access an efficient representation of the formatted text.
- * Otherwise, the API
- * is similar to [[CText]].
+ * Otherwise, the API is similar to [[CText]].
  *
  * You can restrict the allowed format keys
  * and their value types by using an interface for the generic type `F`, e.g.,
  * ```ts
  * interface MyFormat {
- *   bold: boolean;
+ *   bold: true;
  *   link: string;
  * }
  * const text = new CRichText<MyFormat>(...);
@@ -198,14 +198,18 @@ export class CRichText<
    */
   private readonly formatList: LocalList<FormatData<F>>;
 
-  private readonly noGrowAtEnd: Set<keyof F>;
+  // Whenever we reference `keyof F`, we add `& string` because we assume
+  // that keys are strings for serialization, but they technically
+  // could be number or Symbol (even though our index signature says
+  // `string`).
+  private readonly noGrowAtEnd: Set<keyof F & string>;
 
   /**
    * Constructs a CRichText.
    *
    * @param options.noGrowAtEnd A collection of format keys whose spans will *not* grow
    * at the end: they will *not* affect concurrent and future characters inserted
-   * at the end of the original range (but will still affect the middle).
+   * at the end of their original range (but will still affect the middle).
    *
    * By default, this is empty. You may wish to include formats like hyperlinks,
    * as described in
@@ -215,7 +219,7 @@ export class CRichText<
   constructor(
     init: InitToken,
     options?: {
-      noGrowAtEnd?: Iterable<keyof F>;
+      noGrowAtEnd?: Iterable<keyof F & string>;
       formatSerializer?: Serializer<F[keyof F & string]>;
     }
   ) {
@@ -354,6 +358,7 @@ export class CRichText<
           const previousValue = getDataValue(data, true, span.key);
 
           data.endClosedSpans.set(span.key, span);
+          // Possible change in the interval [span.endPosition].
           sliceBuilder.add(
             {
               previousValue,
@@ -362,6 +367,9 @@ export class CRichText<
             span.endPosition,
             true
           );
+          // In all cases, call finish with the first position (open/closed)
+          // that span *doesn't* contain (including span.endPosition in the 2nd
+          // case because it doesn't change anyway).
           slices = sliceBuilder.finish(span.endPosition, false);
         } else slices = sliceBuilder.finish(span.endPosition, true);
       } else slices = sliceBuilder.finish(span.endPosition, true);
@@ -418,7 +426,7 @@ export class CRichText<
   }
 
   /**
-   * Returns whether newSpans wins oldSpan, either in the Lamport
+   * Returns whether newSpans wins over oldSpan, either in the Lamport
    * order (with senderID tiebreaker) or because
    * oldSpan is undefined.
    *
@@ -471,7 +479,7 @@ export class CRichText<
         ? null
         : this.text.getPosition(index + values.length);
     for (const [key, value] of Object.entries(format)) {
-      if (existing[key] !== value) {
+      if (value !== undefined && existing[key] !== value) {
         const endClosed = this.noGrowAtEnd.has(key);
         this.spanLog.add(
           key,
@@ -495,7 +503,8 @@ export class CRichText<
   }
 
   /**
-   * Formats the range of text `[startIndex, endIndex)`, setting the
+   * Formats the range of text `[startIndex, endIndex)`
+   * (i.e., `text.slice(startIndex, endIndex)`), setting the
    * given format key to `value`.
    *
    * Internally, this creates a new formatting span, even if it is
@@ -521,7 +530,12 @@ export class CRichText<
         `endIndex out of bound: ${endIndex} (length: ${this.length})`
       );
     }
-    if (endIndex <= startIndex) {
+    if (endIndex < startIndex) {
+      throw new Error(
+        `endIndex ${endIndex} is less than startIndex ${startIndex}`
+      );
+    }
+    if (endIndex === startIndex) {
       // Trivial span.
       return;
     }
@@ -648,7 +662,7 @@ export class CRichText<
 
   // We omit Positions for efficiency. If you want them, use entries().
   /**
-   * Returns an efficient representation of the formatted text,
+   * Returns an efficient representation of the formatted text.
    *
    * Specifically, returns an array of formatted ranges in text order.
    */
@@ -832,19 +846,19 @@ export class CRichText<
 }
 
 /**
- * Set getDataValue.
+ * formatList value type.
  */
 // eslint-disable-next-line @typescript-eslint/no-explicit-any
 interface FormatData<F extends Record<string, any>> {
   /**
-   * Map from formatting key to the winning span for that key,
+   * Map from format key to the winning span for that key,
    * according to the lamport order (w/ senderID tiebreaker).
    *
    * This only includes spans that start or internally contain
-   * this position. To get the actual formatting at this position,
+   * this position. To get the actual format at this position,
    * also consider endClosedSpans.
    */
-  readonly normalSpans: Map<keyof F, Span<F>>;
+  readonly normalSpans: Map<keyof F & string, Span<F>>;
   /**
    * Spans that have a closed end at this position and win
    * over the corresponding normalSpan, overriding it.
@@ -860,7 +874,7 @@ interface FormatData<F extends Record<string, any>> {
    * we will have to change the contract of getFormatByPosition
    * (won't be accurate for deleted positions).
    */
-  readonly endClosedSpans: Map<keyof F, Span<F>>;
+  readonly endClosedSpans: Map<keyof F & string, Span<F>>;
 }
 
 // OPT: remove from CSpanLog any spans that are no longer referenced in
@@ -869,25 +883,30 @@ interface FormatData<F extends Record<string, any>> {
 // which spans are no longer referenced.
 
 /**
- * Returns data's value for key.
+ * Returns data's format value for key.
  *
  * @param includeClosed Whether to consider endClosedSpans, i.e., you are
  * getting the format exactly at data's position.
  */
-// eslint-disable-next-line @typescript-eslint/no-explicit-any
-function getDataValue<F extends Record<string, any>, K extends keyof F>(
-  data: FormatData<F>,
-  includeClosed: boolean,
-  key: K
-): F[K] | undefined {
+function getDataValue<
+  // eslint-disable-next-line @typescript-eslint/no-explicit-any
+  F extends Record<string, any>,
+  K extends keyof F & string
+>(data: FormatData<F>, includeClosed: boolean, key: K): F[K] | undefined {
   // eslint fails to infer types here, but TypeScript is fine.
   if (includeClosed && data.endClosedSpans.has(key)) {
     // eslint-disable-next-line @typescript-eslint/no-unsafe-return
-    return data.endClosedSpans.get(key)!.value as F[K];
+    return data.endClosedSpans.get(key)!.value;
     // eslint-disable-next-line @typescript-eslint/no-unsafe-return
   } else return data.normalSpans.get(key)?.value;
 }
 
+/**
+ * Returns data's complete format.
+ *
+ * @param includeClosed Whether to consider endClosedSpans, i.e., you are
+ * getting the format exactly at data's position.
+ */
 // eslint-disable-next-line @typescript-eslint/no-explicit-any
 function getDataRecord<F extends Record<string, any>>(
   data: FormatData<F>,
@@ -910,8 +929,7 @@ function getDataRecord<F extends Record<string, any>>(
 }
 
 /**
- * An slice of CRichText.text with attached data, used to output
- * non-redundant formatting spans.
+ * A slice of CRichText.text with attached data, used by SliceBuilder.
  */
 interface Slice<D> {
   startIndex: number;
@@ -919,6 +937,12 @@ interface Slice<D> {
   data: D;
 }
 
+/**
+ * Utility class for outputting ranges in Format events and formatted().
+ * This class takes care of converting positions and open/closed flags
+ * to indexes, omitting empty ranges, and merging neighboring ranges
+ * with the same data (according to the constructor's `equals` arg).
+ */
 // eslint-disable-next-line @typescript-eslint/no-explicit-any
 class SliceBuilder<F extends Record<string, any>, D> {
   private readonly slices: Slice<D>[] = [];
@@ -930,6 +954,10 @@ class SliceBuilder<F extends Record<string, any>, D> {
     readonly equals: (a: D, b: D) => boolean
   ) {}
 
+  /**
+   * Add a new range with the given data and interval start (start position
+   * + whether it's closed).
+   */
   add(data: D, startPos: Position | null, startClosed: boolean): void {
     // The index where this new span begins.
     let index: number;
@@ -994,7 +1022,7 @@ function recordEquals(
 
 // eslint-disable-next-line @typescript-eslint/no-explicit-any
 type FormatChange<F extends Record<string, any>> = {
-  previousValue: F[keyof F] | undefined;
+  previousValue: F[keyof F & string] | undefined;
   format: Partial<F>;
 } | null;
 

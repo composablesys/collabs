@@ -1,6 +1,6 @@
 {
   "name": "Rich Text",
-  "description": "A collaborative rich text editor using <a href=\"https://quilljs.com/\">Quill</a>.",
+  "description": "A collaborative rich text editor using <a href=\"https://collabs.readthedocs.io/en/latest/api/collabs/classes/CRichText.html\">CRichText</a> and <a href=\"https://quilljs.com/\">Quill</a>.",
   "author": "Benito Geordie and Matthew Weidner",
   "license": "Apache-2.0",
   "source": "https://github.com/composablesys/collabs/tree/master/demos/apps/rich-text"
