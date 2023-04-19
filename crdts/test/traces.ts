@@ -42,8 +42,23 @@ class Manager<C extends Collab, V> {
     ans.sort((a, b) => (a.replicaID < b.replicaID ? -1 : 1));
 
     if (doSetupOp && this.source.setupOp) {
-      this.source.setupOp(this.cs.get(ans[0])!);
-      this.gen.release(ans[0], ...ans.slice(1));
+      // Do the setupOp on a special replica and inform the others
+      // by loading its saved state.
+      // The ensures that its Lamport timestamp increment is always communicated
+      // to all replicas. (In op-based usage, the Lamport timestamp is only
+      // communicated in messages that request it, but is always communicated via
+      // saved states. That can make future ops have different Lamport timestamps
+      // in op-based vs state-based usage, changing the result of (arbitrary)
+      // tiebreakers, which makes it harder to write trace tests. Note that CRDT
+      // correctness is not affected in any case - see the comment in
+      // CausalMessageBuffer.processRemoteDelivery.)
+      const setupRuntime = this.gen.newRuntime(this.source.rng);
+      const setupC = setupRuntime.registerCollab("", (init) =>
+        this.source.pre(init)
+      );
+      this.source.setupOp(setupC);
+      const setupSave = setupRuntime.save();
+      for (const runtime of ans) runtime.load(setupSave);
     }
 
     return ans;

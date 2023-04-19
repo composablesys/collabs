@@ -4,21 +4,11 @@ import {
   CollabEventsRecord,
   InitToken,
   Position,
-  Serializer,
   StringSerializer,
 } from "@collabs/core";
+import { charArraySerializer } from "./char_array_serializer";
 import { CValueList } from "./c_value_list";
 import { LocalList } from "./local_list";
-
-const charArraySerializer: Serializer<string[]> = {
-  serialize(value) {
-    return StringSerializer.instance.serialize(value.join(""));
-  },
-
-  deserialize(message) {
-    return [...StringSerializer.instance.deserialize(message)];
-  },
-} as const;
 
 /**
  * Event emitted by [[CText]] when a range of characters (values)
@@ -71,6 +61,7 @@ export interface TextEventsRecord extends CollabEventsRecord {
  * but this is not guaranteed.
  *
  * See also:
+ * - [[CRichText]]: for rich text (text with inline formatting).
  * - [[CValueList]], [[CList]]: for general lists.
  * - [[CVar]]`<string>`: for a string that can be set and get atomically instead of
  * edited like text.
@@ -83,6 +74,9 @@ export class CText extends CObject<TextEventsRecord> {
 
   private readonly list: CValueList<string>;
 
+  /**
+   * Constructs a CText.
+   */
   constructor(init: InitToken) {
     super(init);
 
@@ -123,6 +117,8 @@ export class CText extends CObject<TextEventsRecord> {
    * @param index The insertion index in the range
    * `[0, this.length]`. If `this.length`, the values
    * are appended to the end of the list.
+   * @param values The characters to insert. They are inserted
+   * as individual UTF-16 codepoints.
    * @throws If index is not in `[0, this.length]`.
    */
   insert(index: number, values: string): void {
@@ -165,7 +161,11 @@ export class CText extends CObject<TextEventsRecord> {
     return this.list.get(index);
   }
 
-  /** Returns an iterator for characters (values) in the text string, in order. */
+  /**
+   * Returns an iterator for characters (values) in the text string, in order.
+   *
+   * See also: [[toString]], which returns the entire text as a string.
+   */
   values(): IterableIterator<string> {
     return this.list.values();
   }
@@ -173,11 +173,6 @@ export class CText extends CObject<TextEventsRecord> {
   /** Returns an iterator for characters (values) in the text string, in order. */
   [Symbol.iterator]() {
     return this.values();
-  }
-
-  /** Returns an iterator for present positions, in list order. */
-  positions(): IterableIterator<Position> {
-    return this.list.positions();
   }
 
   /**
@@ -204,6 +199,55 @@ export class CText extends CObject<TextEventsRecord> {
     return this.list.slice().join("");
   }
 
+  // Convenience mutators.
+
+  /**
+   * Inserts values as a substring at the end of the text.
+   * Equivalent to `this.insert(this.length, values)`.
+   *
+   * @param values The characters to push. They are inserted
+   * as individual UTF-16 codepoints.
+   */
+  push(values: string): void {
+    this.insert(this.length, values);
+  }
+
+  /**
+   * Inserts values as a substring at the beginning of the text.
+   * Equivalent to `this.insert(0, values)`.
+   *
+   * @param values The characters to unshift. They are inserted
+   * as individual UTF-16 codepoints.
+   */
+  unshift(values: string): void {
+    return this.insert(0, values);
+  }
+
+  /**
+   * Deletes and inserts values like [Array.splice](https://developer.mozilla.org/en-US/docs/Web/JavaScript/Reference/Global_Objects/Array/splice).
+   *
+   * If `deleteCount` is provided, this method first deletes
+   * `deleteCount` values starting at `startIndex`.
+   * Next, this method inserts `values` as a substring at `startIndex`.
+   *
+   * All values currently at or after `startIndex + deleteCount`
+   * shift to accommodate the change in length.
+   *
+   * @param values The characters to insert. They are inserted
+   * as individual UTF-16 codepoints.
+   */
+  splice(startIndex: number, deleteCount?: number, values?: string): void {
+    // Sanitize deleteCount
+    if (deleteCount === undefined || deleteCount > this.length - startIndex)
+      deleteCount = this.length - startIndex;
+    else if (deleteCount < 0) deleteCount = 0;
+    // Delete then insert
+    this.delete(startIndex, deleteCount);
+    if (values !== undefined) {
+      this.insert(startIndex, values);
+    }
+  }
+
   // Convenience accessors.
 
   /**
@@ -226,7 +270,7 @@ export class CText extends CObject<TextEventsRecord> {
   /**
    * Returns a section of this text string,
    * with behavior like
-   * [string.slice](https://developer.mozilla.org/en-US/docs/Web/JavaScript/Reference/Global_Objects/String/slice).
+   * [String.slice](https://developer.mozilla.org/en-US/docs/Web/JavaScript/Reference/Global_Objects/String/slice).
    */
   slice(start?: number, end?: number): string {
     return this.list.slice(start, end).join("");
@@ -275,6 +319,11 @@ export class CText extends CObject<TextEventsRecord> {
    */
   getByPosition(position: Position): string | undefined {
     return this.list.getByPosition(position);
+  }
+
+  /** Returns an iterator for present positions, in list order. */
+  positions(): IterableIterator<Position> {
+    return this.list.positions();
   }
 
   /**

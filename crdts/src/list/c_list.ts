@@ -123,7 +123,7 @@ class CListEntry<C extends Collab> extends CObject {
  * will attempt to throw an exception if it detects such modification,
  * but this is not guaranteed.
  *
- * See also: [[CValueList]], [[CText]].
+ * See also: [[CValueList]], [[CText]], [[CRichText]].
  *
  * @typeParam C The value type, which is a Collab.
  * @typeParam InsertArgs The type of arguments to [[insert]].

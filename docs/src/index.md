@@ -19,10 +19,9 @@ api/index
 
 - [@collabs/collabs npm package](https://www.npmjs.com/package/@collabs/collabs) (see also [All Packages](./packages.html))
 - [Quick Start](./quick_start.html)
-- [Docs](./guide/)
+- [Guide](./guide/)
 - [API](./api/)
 - [Github](https://github.com/composablesys/collabs)
-
 
 ## Install
 

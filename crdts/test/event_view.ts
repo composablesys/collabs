@@ -1,5 +1,6 @@
 import { Collab } from "@collabs/core";
 import { assert } from "chai";
+import { CRuntime } from "../src";
 
 /**
  * A local view of a Collab that is maintained by listening to
@@ -39,12 +40,27 @@ export abstract class EventView<C extends Collab> {
    * @param collab
    * @param autoCheck If true, automatically check the view after
    * every event.
+   * @param autoCheckTrOnly If true, when autoCheck is true, wait
+   * until the end of the transaction before auto-checking.
    */
-  constructor(readonly collab: C, autoCheck: boolean) {
+  constructor(readonly collab: C, autoCheck: boolean, autoCheckTrOnly = false) {
     EventView.views.set(collab, this);
     if (autoCheck) {
       // TODO: errors here print, but don't fail the test.
-      collab.on("Any", () => this.checkInstance());
+      if (autoCheckTrOnly) {
+        let checkPending = false;
+        collab.on("Any", () => {
+          if (!checkPending) {
+            checkPending = true;
+            (collab.runtime as CRuntime).on("Transaction", () => {
+              checkPending = false;
+              this.checkInstance();
+            });
+          }
+        });
+      } else {
+        collab.on("Any", () => this.checkInstance());
+      }
     }
   }
 
