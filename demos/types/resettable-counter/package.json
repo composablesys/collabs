@@ -1,6 +1,6 @@
 {
   "name": "@collabs/resettable-counter",
-  "version": "0.10.0",
+  "version": "0.10.1",
   "description": "Collabs custom type demo - oblivious resettable counter",
   "author": "Collabs contributors",
   "license": "Apache-2.0",
@@ -29,8 +29,8 @@
   },
   "sideEffects": false,
   "dependencies": {
-    "@collabs/collabs": "0.10.0",
-    "@collabs/core": "0.10.0",
+    "@collabs/collabs": "0.10.1",
+    "@collabs/core": "0.10.1",
     "protobufjs": "~6.10.1",
     "tslib": "^2.0.1"
   },
