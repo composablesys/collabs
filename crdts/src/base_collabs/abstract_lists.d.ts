@@ -1,4 +1,4 @@
-import { IList, ListEventsRecord } from "@collabs/core";
+import { IList, ListEventsRecord, Position } from "@collabs/core";
 import { PrimitiveCRDT } from "./primitive_crdt";
 
 /**
