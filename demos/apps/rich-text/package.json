@@ -27,7 +27,8 @@
     "@types/copy-webpack-plugin": "^8.0.1",
     "pkg-ok": "^2.3.1",
     "prettier": "^2.2.1",
-    "rimraf": "^2.7.1"
+    "rimraf": "^2.7.1",
+    "style-loader": "^3.2.1"
   },
   "scripts": {
     "start": "container-testing-server dist/rich_text.html",

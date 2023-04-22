@@ -1,6 +1,6 @@
 import { CObject, CPrimitive } from "../base_collabs";
 import { Collab } from "../core";
-import { IList, ListEventsRecord } from "./i_list";
+import { IList, ListEventsRecord, Position } from "./i_list";
 
 // See MakeAbstractList for the rationale behind this file.
 
