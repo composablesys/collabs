@@ -31,7 +31,8 @@ export interface IRuntime extends IParent {
    * An ID that uniquely identifies this replica among
    * all connected replicas.
    *
-   * Usually obtained from [[ReplicaIDs]].
+   * You often access this through [[Collab.runtime]], e.g.,
+   * `this.runtime.replicaID` in a Collab subclass.
    */
   readonly replicaID: string;
 

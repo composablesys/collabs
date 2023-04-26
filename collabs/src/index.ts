@@ -10,6 +10,7 @@ export {
   AbstractSet_Collab,
   AbstractSet_CPrimitive,
   Bytes,
+  CAwarenessMap,
   CConst,
   CLazyMap,
   CMessenger,
