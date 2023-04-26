@@ -1,11 +1,13 @@
 import * as collabs from "@collabs/collabs";
 import { CContainer } from "@collabs/container";
 import Quill, { Delta as DeltaType, DeltaStatic } from "quill";
+import QuillCursors from "quill-cursors";
 
 // Include CSS
 import "quill/dist/quill.snow.css";
 
 const Delta: typeof DeltaType = Quill.import("delta");
+Quill.register("modules/cursors", QuillCursors);
 
 const noGrowAtEnd = [
   // Links (Peritext Example 9)
@@ -18,6 +20,8 @@ const noGrowAtEnd = [
   "list",
   "indent",
 ];
+
+const nameParts = ["Cat", "Doc", "Rabbit", "Mouse", "Elephant"];
 
 function makeInitialSave(): Uint8Array {
   const runtime = new collabs.CRuntime({ debugReplicaID: "INIT" });
@@ -36,6 +40,19 @@ function makeInitialSave(): Uint8Array {
     "text",
     (init) => new collabs.CRichText(init, { noGrowAtEnd })
   );
+  const awareness1 = container.registerCollab(
+    "awareness1",
+    (init) =>
+      new collabs.CValueMap<string, { name: string; color: string }>(init)
+  );
+  const awareness2 = container.registerCollab(
+    "awareness2",
+    (init) =>
+      new collabs.CAwarenessMap<{
+        anchor: collabs.Cursor;
+        head: collabs.Cursor;
+      } | null>(init)
+  );
   // "Set the initial state"
   // (a single "\n", required by Quill) by
   // loading it from a separate doc.
@@ -46,6 +63,7 @@ function makeInitialSave(): Uint8Array {
     // Modules list from quilljs example, based on
     // https://github.com/KillerCodeMonkey/ngx-quill/issues/295#issuecomment-443268064
     modules: {
+      cursors: true,
       toolbar: [
         [{ font: [] }, { size: [] }],
         ["bold", "italic", "underline", "strike"],
@@ -192,6 +210,75 @@ function makeInitialSave(): Uint8Array {
         }
       }
     }
+  });
+
+  // Awareness.
+  // TODO: better var names
+  // TODO: this separate-map model won't work if you join after someone set their
+  // name & color, unless we store it in a proper map.
+  // TODO: display initial values.
+  // TODO: seeing existing users will be slow (spawn over 30 seconds)
+  const name =
+    nameParts[Math.floor(Math.random() * nameParts.length)] +
+    " " +
+    (1 + Math.floor(Math.random() * 9));
+  const color = `hsl(${Math.floor(Math.random() * 360)},100%,50%)`;
+  awareness1.set(container.runtime.replicaID, { name, color });
+
+  const quillCursors = quill.getModule("cursors") as QuillCursors;
+  function moveCursor(replicaID: string): void {
+    if (replicaID === container.runtime.replicaID) return;
+    const value = awareness2.get(replicaID);
+    if (value === undefined) return;
+    else if (value === null) quillCursors.removeCursor(replicaID);
+    else {
+      const anchorIndex = collabs.Cursors.toIndex(value.anchor, text);
+      const headIndex = collabs.Cursors.toIndex(value.head, text);
+      quillCursors.moveCursor(replicaID, {
+        index: anchorIndex,
+        length: headIndex - anchorIndex,
+      });
+    }
+  }
+  awareness2.on("Set", (e) => {
+    if (e.key === container.runtime.replicaID) return;
+    if (!awareness1.has(e.key)) return;
+    if (e.value === null) quillCursors.removeCursor(e.key);
+    else {
+      const { name, color } = awareness1.get(e.key)!;
+      quillCursors.createCursor(e.key, name, color);
+      moveCursor(e.key);
+    }
+  });
+  awareness2.on("Delete", (e) => quillCursors.removeCursor(e.key));
+  quill.on("editor-change", () => {
+    // Send our cursor state, if changed or timed out (TODO: will be slightly too slow).
+    // Only do this when the user does something (not in reaction to
+    // remote Collab events).
+    if (!ourChange) {
+      const selection = quill.getSelection();
+      if (selection === null) {
+        if (awareness2.getOurs() !== null) awareness2.setOurs(null);
+      } else {
+        const anchor = collabs.Cursors.fromIndex(selection.index, text);
+        const head = collabs.Cursors.fromIndex(
+          selection.index + selection.length,
+          text
+        );
+        const old = awareness2.getOurs();
+        if (
+          old === undefined ||
+          old === null ||
+          old.anchor !== anchor ||
+          old.head !== head
+        ) {
+          awareness2.setOurs({ anchor, head });
+        }
+      }
+    }
+
+    // Move everyone else's cursors locally.
+    for (const replicaID of awareness2.keys()) moveCursor(replicaID);
   });
 
   // Ready.

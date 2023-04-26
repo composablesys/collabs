@@ -54,21 +54,23 @@ export class CAwarenessMap<V> extends CObject<MapEventsRecord<string, V>> {
    *
    * Configure using the constructor's `options.ttlMS`.
    * Defaults to 30000 (30 seconds).
+   *
+   * TODO: doc null
    */
-  readonly ttlMS: number;
+  readonly ttlMS: number | null;
 
   /**
    * Constructs a CAwarenessMap.
    *
    * @param options.valueSerializer Serializer for values. Defaults to [[DefaultSerializer]].
    * @param options.ttlMS The value of [[ttlMS]].
-   * Defaults to 30000 (30 seconds).
+   * Defaults to 30000 (30 seconds). TODO: doc null
    */
   constructor(
     init: InitToken,
     options: {
       valueSerializer?: Serializer<V>;
-      ttlMS?: number;
+      ttlMS?: number | null;
     } = {}
   ) {
     super(init);
@@ -119,15 +121,19 @@ export class CAwarenessMap<V> extends CObject<MapEventsRecord<string, V>> {
       let previousValue: Optional<V>;
       if (this.state.has(replicaID)) {
         previousValue = Optional.of(this.state.get(replicaID)!);
-        clearTimeout(this.timeoutIDs.get(replicaID)!);
-        this.timeoutIDs.delete(replicaID);
+        if (this.ttlMS !== null) {
+          clearTimeout(this.timeoutIDs.get(replicaID)!);
+          this.timeoutIDs.delete(replicaID);
+        }
       } else previousValue = Optional.empty();
 
       this.state.set(replicaID, value);
-      const timeoutID = setTimeout(() => {
-        this.deleteLocally(replicaID);
-      }, this.ttlMS);
-      this.timeoutIDs.set(replicaID, timeoutID);
+      if (this.ttlMS !== null) {
+        const timeoutID = setTimeout(() => {
+          this.deleteLocally(replicaID);
+        }, this.ttlMS);
+        this.timeoutIDs.set(replicaID, timeoutID);
+      }
 
       // We emit even if it's redundant (e.g., the sender is re-setting its value
       // to indicate that it's still present). That way, you can lazily update
@@ -177,8 +183,10 @@ export class CAwarenessMap<V> extends CObject<MapEventsRecord<string, V>> {
 
     const value = this.state.get(replicaID)!;
     this.state.delete(replicaID);
-    clearTimeout(this.timeoutIDs.get(replicaID)!);
-    this.timeoutIDs.delete(replicaID);
+    if (this.ttlMS !== null) {
+      clearTimeout(this.timeoutIDs.get(replicaID)!);
+      this.timeoutIDs.delete(replicaID);
+    }
 
     this.emit("Delete", {
       key: replicaID,
@@ -193,6 +201,13 @@ export class CAwarenessMap<V> extends CObject<MapEventsRecord<string, V>> {
    */
   get(replicaID: string): V | undefined {
     return this.state.get(replicaID);
+  }
+
+  /**
+   * Returns our value, i.e., the value at key [[IRuntime.replicaID]].
+   */
+  getOurs(): V | undefined {
+    return this.get(this.runtime.replicaID);
   }
 
   /**
