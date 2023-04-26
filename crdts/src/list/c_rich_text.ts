@@ -3,6 +3,7 @@ import {
   CollabEvent,
   CollabEventsRecord,
   DefaultSerializer,
+  ICursorList,
   InitToken,
   Position,
   Serializer,
@@ -181,11 +182,14 @@ export interface RichTextEventsRecord<
  * Default: `Record<string, any>`.
  */
 export class CRichText<
-  // We need to use any (not unknown) or else TypeScript complains about
-  // a missing index signature when you try to use an interface for F.
-  // eslint-disable-next-line @typescript-eslint/no-explicit-any
-  F extends Record<string, any> = Record<string, any>
-> extends CObject<RichTextEventsRecord<F>> {
+    // We need to use any (not unknown) or else TypeScript complains about
+    // a missing index signature when you try to use an interface for F.
+    // eslint-disable-next-line @typescript-eslint/no-explicit-any
+    F extends Record<string, any> = Record<string, any>
+  >
+  extends CObject<RichTextEventsRecord<F>>
+  implements ICursorList
+{
   // OPT: If CText becomes optimized relative to CValueList<string>,
   // we can use that instead.
   private readonly text: CValueList<string>;

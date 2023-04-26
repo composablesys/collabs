@@ -1,4 +1,5 @@
 export * from "./bytes";
+export * from "./cursors";
 export * from "./optional";
 export * from "./safe_weak_ref";
 export * from "./serializers";

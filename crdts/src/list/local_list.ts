@@ -1,4 +1,4 @@
-import { Position, Serializer } from "@collabs/core";
+import { ICursorList, Position, Serializer } from "@collabs/core";
 import { LocalListSave } from "../../generated/proto_compiled";
 import {
   CPositionSource,
@@ -72,7 +72,7 @@ type ValuesOrChild<T> =
  *
  * @typeParam T The value type.
  */
-export class LocalList<T> {
+export class LocalList<T> implements ICursorList {
   /**
    * Only includes nontrivial entries (total > 0).
    */

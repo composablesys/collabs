@@ -22,6 +22,7 @@ and limitations under the License.
 */
 
 import { Collab, CollabEvent, CollabEventsRecord } from "../core";
+import { ICursorList } from "../util/cursors";
 
 /**
  * A position in a collaborative list (e.g. [[CList]], [[CValueList]], [[CText]]),
@@ -111,7 +112,8 @@ export interface IList<
   T,
   InsertArgs extends unknown[] = [T],
   Events extends ListEventsRecord<T> = ListEventsRecord<T>
-> extends Collab<Events> {
+> extends Collab<Events>,
+    ICursorList {
   /**
    * Inserts a value at the given index using args.
    *
@@ -155,27 +157,10 @@ export interface IList<
    */
   get(index: number): T;
 
-  /**
-   * Returns the position currently at index.
-   */
+  // Docs inherited from ICursorList.
   getPosition(index: number): Position;
 
-  /**
-   * Returns the current index of position.
-   *
-   * If position is not currently present in the list
-   * ([[hasPosition]] returns false), then the result depends on searchDir:
-   * - "none" (default): Returns -1.
-   * - "left": Returns the next index to the left of position.
-   * If there are no values to the left of position,
-   * returns -1.
-   * - "right": Returns the next index to the right of position.
-   * If there are no values to the right of position,
-   * returns [[length]].
-   *
-   * To find the index where a position would be if
-   * present, use `searchDir = "right"`.
-   */
+  // Docs inherited from ICursorList.
   indexOfPosition(
     position: Position,
     searchDir?: "none" | "left" | "right"

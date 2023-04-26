@@ -2,6 +2,7 @@ import {
   CObject,
   CollabEvent,
   CollabEventsRecord,
+  ICursorList,
   InitToken,
   Position,
   StringSerializer,
@@ -66,7 +67,7 @@ export interface TextEventsRecord extends CollabEventsRecord {
  * - [[CVar]]`<string>`: for a string that can be set and get atomically instead of
  * edited like text.
  */
-export class CText extends CObject<TextEventsRecord> {
+export class CText extends CObject<TextEventsRecord> implements ICursorList {
   // Internally, CText uses a CValueList containing its list of Unicode code
   // points. CText just wraps the API so that e.g. passing a multi-char
   // string to insert does a bulk character insert, instead of accidentally
