@@ -5,18 +5,17 @@ import { Position } from "../data_types";
  *
  * A `Cursor` points to a particular spot in a list, in between
  * two list elements (or text characters).
- * You can use `Cursor`s as ordinary cursors, selection endpoints,
- * range endpoints for a comment or formatting span, etc.
+ * You can use `Cursor`s as ordinary cursors or selection endpoints.
  *
  * Use the [[Cursors]] class to convert between indices and `Cursor`s.
  *
- * Internally, a cursor is represented as a [[Position]] or null.
- * Specifically, it is the position of the list element
- * to its left, or null if it is at the beginning
+ * Internally, a cursor is represented as a string.
+ * Specifically, it is the [[Position]] of the list element
+ * to its left, or "START" if it is at the beginning
  * of the list. If that position is later deleted, the cursor stays the
  * same, but its index shifts to the next element on its left.
  */
-export type Cursor = Position | null;
+export type Cursor = Position | "START";
 
 /**
  * Interface for a list that supports [[Cursor]]s.
@@ -68,7 +67,7 @@ export class Cursors {
    * @param list The target list.
    */
   static fromIndex(index: number, list: ICursorList): Cursor {
-    return index === 0 ? null : list.getPosition(index - 1);
+    return index === 0 ? "START" : list.getPosition(index - 1);
   }
 
   /**
@@ -79,6 +78,6 @@ export class Cursors {
    * @param list The target list.
    */
   static toIndex(cursor: Cursor, list: ICursorList): number {
-    return cursor === null ? 0 : list.indexOfPosition(cursor, "left") + 1;
+    return cursor === "START" ? 0 : list.indexOfPosition(cursor, "left") + 1;
   }
 }

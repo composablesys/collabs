@@ -36,8 +36,10 @@ import { ICursorList } from "../util/cursors";
  * its current index (or where it would be if present).
  *
  * You can use positions
- * as [React keys](https://reactjs.org/docs/lists-and-keys.html#keys), cursors, range endpoints
+ * as [React keys](https://reactjs.org/docs/lists-and-keys.html#keys), range endpoints
  * for a comment on a document, etc.
+ *
+ * See also: [[Cursor]]
  */
 export type Position = string;
 
