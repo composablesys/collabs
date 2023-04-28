@@ -21,7 +21,7 @@ const noGrowAtEnd = [
   "indent",
 ];
 
-const nameParts = ["Cat", "Doc", "Rabbit", "Mouse", "Elephant"];
+const nameParts = ["Cat", "Dog", "Rabbit", "Mouse", "Elephant"];
 
 function makeInitialSave(): Uint8Array {
   const runtime = new collabs.CRuntime({ debugReplicaID: "INIT" });
@@ -40,15 +40,14 @@ function makeInitialSave(): Uint8Array {
     "text",
     (init) => new collabs.CRichText(init, { noGrowAtEnd })
   );
-  const awareness1 = container.registerCollab(
-    "awareness1",
-    (init) =>
-      new collabs.CValueMap<string, { name: string; color: string }>(init)
+  const presence1 = container.registerCollab(
+    "presence1",
+    (init) => new collabs.CPresenceMap<{ name: string; color: string }>(init)
   );
-  const awareness2 = container.registerCollab(
-    "awareness2",
+  const presence2 = container.registerCollab(
+    "presence2",
     (init) =>
-      new collabs.CAwarenessMap<{
+      new collabs.CPresenceMap<{
         anchor: collabs.Cursor;
         head: collabs.Cursor;
       } | null>(init)
@@ -214,21 +213,16 @@ function makeInitialSave(): Uint8Array {
 
   // Awareness.
   // TODO: better var names
-  // TODO: this separate-map model won't work if you join after someone set their
-  // name & color, unless we store it in a proper map.
-  // TODO: display initial values.
-  // TODO: seeing existing users will be slow (spawn over 30 seconds)
   const name =
     nameParts[Math.floor(Math.random() * nameParts.length)] +
     " " +
     (1 + Math.floor(Math.random() * 9));
   const color = `hsl(${Math.floor(Math.random() * 360)},100%,50%)`;
-  awareness1.set(container.runtime.replicaID, { name, color });
 
   const quillCursors = quill.getModule("cursors") as QuillCursors;
   function moveCursor(replicaID: string): void {
     if (replicaID === container.runtime.replicaID) return;
-    const value = awareness2.get(replicaID);
+    const value = presence2.get(replicaID);
     if (value === undefined) return;
     else if (value === null) quillCursors.removeCursor(replicaID);
     else {
@@ -240,47 +234,53 @@ function makeInitialSave(): Uint8Array {
       });
     }
   }
-  awareness2.on("Set", (e) => {
+  presence2.on("Set", (e) => {
     if (e.key === container.runtime.replicaID) return;
-    if (!awareness1.has(e.key)) return;
+    if (!presence1.has(e.key)) return;
     if (e.value === null) quillCursors.removeCursor(e.key);
     else {
-      const { name, color } = awareness1.get(e.key)!;
+      const { name, color } = presence1.get(e.key)!;
       quillCursors.createCursor(e.key, name, color);
       moveCursor(e.key);
     }
   });
-  awareness2.on("Delete", (e) => quillCursors.removeCursor(e.key));
+  presence2.on("Delete", (e) => quillCursors.removeCursor(e.key));
   quill.on("editor-change", () => {
-    // Send our cursor state, if changed or timed out (TODO: will be slightly too slow).
+    // Send our cursor state.
     // Only do this when the user does something (not in reaction to
     // remote Collab events).
     if (!ourChange) {
       const selection = quill.getSelection();
       if (selection === null) {
-        if (awareness2.getOurs() !== null) awareness2.setOurs(null);
+        presence2.setOurs(null);
       } else {
         const anchor = collabs.Cursors.fromIndex(selection.index, text);
         const head = collabs.Cursors.fromIndex(
           selection.index + selection.length,
           text
         );
-        const old = awareness2.getOurs();
-        if (
-          old === undefined ||
-          old === null ||
-          old.anchor !== anchor ||
-          old.head !== head
-        ) {
-          awareness2.setOurs({ anchor, head });
-        }
+        presence2.setOurs({ anchor, head });
       }
     }
 
     // Move everyone else's cursors locally.
-    for (const replicaID of awareness2.keys()) moveCursor(replicaID);
+    // TODO: is this necessary? Will Quill OT it for us (possibly slightly inaccurate
+    // but oh well)?
+    for (const replicaID of presence2.keys()) moveCursor(replicaID);
   });
 
   // Ready.
   container.ready();
+
+  // Set our presence and request initial presence data from others.
+  // Since we request presence1 first, we're guaranteed that we'll receive
+  // it from peers before presence2, so presence2's Set handler will indeed
+  // have access to presence1.
+  // TODO: what if we get presence2 accidentally first? Won't get new Set
+  // event. Also, this is confusing.
+  // Also, we don't need to display initial presence state (due to further
+  // messages) because we'll get new Set events on join anyway.
+  // TODO: same bug as above.
+  presence1.setOurs({ name, color });
+  presence2.join();
 })();
