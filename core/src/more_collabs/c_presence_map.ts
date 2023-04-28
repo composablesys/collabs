@@ -8,8 +8,7 @@ enum MessageType {
   Set = 1,
   Delete = 2,
   Heartbeat = 3,
-  RequestAll = 4,
-  SetRequestAll = 5,
+  None = 4,
 }
 
 interface TimedValue<V> {
@@ -22,12 +21,12 @@ interface TimedValue<V> {
  * A map for sharing *presence info* between present (simultaneously online)
  * replicas, e.g., usernames or shared cursors.
  *
- * Each replica controls a fixed key, namely, its [[IRuntime.replicaID]].
- * Its value should contain presence info about itself, e.g.,
+ * Each replica controls a fixed key: its [[IRuntime.replicaID]].
+ * Its value should contain presence info about itself, such as
  * its user's latest [[Cursor]] location in a collaborative text editor.
  *
- * Values are ephemeral: they expire at a fixed interval after they are received
- * (30 seconds by default), and they are not saved.
+ * Values are ephemeral: they expire at a fixed interval after the sender's
+ * last heartbeat (default 30 seconds), and they are not saved.
  * This helps ensure that you only see values for currently-online peers.
  *
  * When a value is deleted due to its expiration, we emit a [[MapEventsRecord.Delete]]
@@ -73,8 +72,7 @@ export class CPresenceMap<V> extends CPrimitive<MapEventsRecord<string, V>> {
    * Constructs a CPresenceMap.
    *
    * @param options.valueSerializer Serializer for values. Defaults to [[DefaultSerializer]].
-   * @param options.ttlMS The value of [[ttlMS]].
-   * Defaults to [[TTL_MS_DEFAULT]].
+   * @param options.ttlMS The value of [[ttlMS]]. Defaults to [[TTL_MS_DEFAULT]].
    */
   constructor(
     init: InitToken,
@@ -96,23 +94,39 @@ export class CPresenceMap<V> extends CPrimitive<MapEventsRecord<string, V>> {
     this.on("Delete", () => this._size--);
   }
 
+  /**
+   * Requests that all currently-online peers send their current presence
+   * values.
+   *
+   * Call this near the start of your app if you do not call [[setOurs]]
+   * right away.
+   *
+   * TODO: omit, set null in CRichText instead? What about read-only users?
+   * TODO: doc: also useful after you've deletedLocally folks and now need
+   * their values again.
+   */
   requestAll(): void {
     this.joined = true;
     super.sendPrimitive(
-      PresenceMapMessage.encode({ type: MessageType.RequestAll }).finish()
+      PresenceMapMessage.encode({
+        type: MessageType.None,
+        requestAll: true,
+      }).finish()
     );
   }
 
   /**
    * Sets our value, i.e., the value at key [[IRuntime.replicaID]].
    *
-   * Since the value expires after [[ttlMS]], you should call this method
-   * slightly more often, even if your value has not changed.
+   * The first time this is called (typically at the beginning of your
+   * app), this also requests that all currently-online peers send their
+   * current presence values.
    */
   setOurs(value: V): void {
     const message = PresenceMapMessage.create({
-      type: this.joined ? MessageType.Set : MessageType.SetRequestAll,
+      type: MessageType.Set,
       value: this.valueSerializer.serialize(value),
+      requestAll: !this.joined ? true : undefined,
     });
     this.joined = true;
     super.sendPrimitive(PresenceMapMessage.encode(message).finish());
@@ -128,9 +142,11 @@ export class CPresenceMap<V> extends CPrimitive<MapEventsRecord<string, V>> {
   }
 
   private heartbeat() {
-    super.sendPrimitive(
-      PresenceMapMessage.encode({ type: MessageType.Heartbeat }).finish()
-    );
+    if (this.has(this.runtime.replicaID)) {
+      super.sendPrimitive(
+        PresenceMapMessage.encode({ type: MessageType.Heartbeat }).finish()
+      );
+    }
   }
 
   /**
@@ -160,8 +176,7 @@ export class CPresenceMap<V> extends CPrimitive<MapEventsRecord<string, V>> {
     const decoded = PresenceMapMessage.decode(<Uint8Array>message);
 
     switch (decoded.type as MessageType) {
-      case MessageType.Set:
-      case MessageType.SetRequestAll: {
+      case MessageType.Set: {
         // If the message is forRequestAll and its value is already present,
         // treat it as a heartbeat. Else treat it as a normal Set.
         if (decoded.forRequestAll && this.has(replicaID)) {
@@ -174,14 +189,13 @@ export class CPresenceMap<V> extends CPrimitive<MapEventsRecord<string, V>> {
           ? Optional.of(this.get(replicaID)!)
           : Optional.empty<V>();
 
-        let timedValue = this.state.get(replicaID);
-        if (timedValue === undefined) {
-          timedValue = { value, timeoutID: null, present: true };
-          this.state.set(replicaID, timedValue);
+        const oldTimeoutID = this.state.get(replicaID)?.timeoutID;
+        if (oldTimeoutID !== undefined && oldTimeoutID !== null) {
+          clearTimeout(oldTimeoutID);
         }
 
-        timedValue.value = value;
-        this.resetTimeout(replicaID, timedValue);
+        this.state.set(replicaID, { value, timeoutID: null, present: true });
+        this.resetTimeout(replicaID);
 
         this.emit("Set", {
           key: replicaID,
@@ -191,19 +205,28 @@ export class CPresenceMap<V> extends CPrimitive<MapEventsRecord<string, V>> {
         });
         break;
       }
-      case MessageType.Delete:
-        this.deleteLocallyInternal(replicaID, meta);
+      case MessageType.Delete: {
+        const timedValue = this.state.get(replicaID);
+        if (timedValue !== undefined) {
+          if (timedValue.timeoutID !== null) clearTimeout(timedValue.timeoutID);
+          this.state.delete(replicaID);
+          if (timedValue.present) {
+            this.emit("Delete", {
+              key: replicaID,
+              value: timedValue.value,
+              meta,
+            });
+          }
+        }
         break;
+      }
       case MessageType.Heartbeat: {
         this.processHeartbeat(replicaID, meta);
         break;
       }
     }
 
-    if (
-      decoded.type === MessageType.RequestAll ||
-      decoded.type === MessageType.SetRequestAll
-    ) {
+    if (decoded.requestAll) {
       // Send our state to the requester.
       // Do it in a separate task because Collabs does not allow message sends
       // while processing a message.
@@ -225,11 +248,9 @@ export class CPresenceMap<V> extends CPrimitive<MapEventsRecord<string, V>> {
     const timedValue = this.state.get(replicaID);
     if (timedValue === undefined) return;
 
-    const wasPresent = timedValue.present;
-    this.resetTimeout(replicaID, timedValue);
+    this.resetTimeout(replicaID);
 
-    if (!wasPresent) {
-      // Make it present again.
+    if (!timedValue.present) {
       timedValue.present = true;
       this.emit("Set", {
         key: replicaID,
@@ -240,18 +261,20 @@ export class CPresenceMap<V> extends CPrimitive<MapEventsRecord<string, V>> {
     }
   }
 
-  private resetTimeout(replicaID: string, timedValue: TimedValue<V>): void {
+  private resetTimeout(replicaID: string): void {
+    const timedValue = this.state.get(replicaID);
+    if (timedValue === undefined) return;
+
     if (timedValue.timeoutID !== null) clearTimeout(timedValue.timeoutID);
     timedValue.timeoutID = setTimeout(
-      () => this.deleteLocallyInternal(replicaID, null),
+      () => this.hideLocally(replicaID),
       this.ttlMS
     );
-    timedValue.present = true;
   }
 
   /**
    * Deletes the key `replicaID` in our *local* copy of the map, without
-   * affecting other replicas.
+   * affecting other replicas. TODO: only until next set/hearbeat.
    *
    * You may wish to call this method when you know that a replica has disconnected,
    * instead of waiting for its current value to expire.
@@ -259,24 +282,15 @@ export class CPresenceMap<V> extends CPrimitive<MapEventsRecord<string, V>> {
    * if you know that the local device has gone offline, to show the local user
    * that they are no longer collaborating live.
    */
-  deleteLocally(replicaID: string): void {
-    this.deleteLocallyInternal(replicaID, null);
-  }
-
-  private deleteLocallyInternal(
-    replicaID: string,
-    meta: UpdateMeta | null
-  ): void {
+  hideLocally(replicaID: string): void {
     if (!this.has(replicaID)) return;
 
-    if (meta === null) {
-      meta = {
-        updateType: "message",
-        senderID: replicaID,
-        isLocalOp: false,
-        runtimeExtra: undefined,
-      };
-    }
+    const meta: UpdateMeta = {
+      updateType: "message",
+      senderID: replicaID,
+      isLocalOp: false,
+      runtimeExtra: undefined,
+    };
 
     const timedValue = this.state.get(replicaID)!;
     if (timedValue.timeoutID !== null) clearTimeout(timedValue.timeoutID);

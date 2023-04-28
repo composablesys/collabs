@@ -2,5 +2,6 @@ message PresenceMapMessage {
   // MessageType enum
   required int32 type = 1;
   optional bytes value = 2;
-  optional bool forRequestAll = 3 [default=false];
+  optional bool requestAll = 3 [default=false];
+  optional bool forRequestAll = 4 [default=false];
 }

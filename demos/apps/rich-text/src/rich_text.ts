@@ -282,5 +282,5 @@ function makeInitialSave(): Uint8Array {
   // messages) because we'll get new Set events on join anyway.
   // TODO: same bug as above.
   presence1.setOurs({ name, color });
-  presence2.join();
+  presence2.requestAll();
 })();
