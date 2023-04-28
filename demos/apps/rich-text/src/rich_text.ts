@@ -23,6 +23,12 @@ const noGrowAtEnd = [
 
 const nameParts = ["Cat", "Dog", "Rabbit", "Mouse", "Elephant"];
 
+interface PresenceState {
+  name: string;
+  color: string;
+  selection: { anchor: collabs.Cursor; head: collabs.Cursor } | null;
+}
+
 function makeInitialSave(): Uint8Array {
   const runtime = new collabs.CRuntime({ debugReplicaID: "INIT" });
   const clientText = runtime.registerCollab(
@@ -40,17 +46,14 @@ function makeInitialSave(): Uint8Array {
     "text",
     (init) => new collabs.CRichText(init, { noGrowAtEnd })
   );
-  const presence1 = container.registerCollab(
-    "presence1",
-    (init) => new collabs.CPresenceMap<{ name: string; color: string }>(init)
-  );
-  const presence2 = container.registerCollab(
-    "presence2",
+  const presence = container.registerCollab(
+    "presence",
     (init) =>
-      new collabs.CPresenceMap<{
-        anchor: collabs.Cursor;
-        head: collabs.Cursor;
-      } | null>(init)
+      new collabs.CPresenceMap<PresenceState>(init, {
+        name: "Unknown",
+        color: "hsl(0,50%,50%)",
+        selection: null,
+      })
   );
   // "Set the initial state"
   // (a single "\n", required by Quill) by
@@ -211,40 +214,37 @@ function makeInitialSave(): Uint8Array {
     }
   });
 
-  // Awareness.
-  // TODO: better var names
+  // Presence (shared cursors).
   const name =
     nameParts[Math.floor(Math.random() * nameParts.length)] +
     " " +
     (1 + Math.floor(Math.random() * 9));
-  const color = `hsl(${Math.floor(Math.random() * 360)},100%,50%)`;
+  const color = `hsl(${Math.floor(Math.random() * 360)},50%,50%)`;
 
   const quillCursors = quill.getModule("cursors") as QuillCursors;
   function moveCursor(replicaID: string): void {
     if (replicaID === container.runtime.replicaID) return;
-    const value = presence2.get(replicaID);
+    const value = presence.get(replicaID);
     if (value === undefined) return;
-    else if (value === null) quillCursors.removeCursor(replicaID);
+    else if (value.selection === null) quillCursors.removeCursor(replicaID);
     else {
-      const anchorIndex = collabs.Cursors.toIndex(value.anchor, text);
-      const headIndex = collabs.Cursors.toIndex(value.head, text);
+      const anchorIndex = collabs.Cursors.toIndex(value.selection.anchor, text);
+      const headIndex = collabs.Cursors.toIndex(value.selection.head, text);
       quillCursors.moveCursor(replicaID, {
         index: anchorIndex,
         length: headIndex - anchorIndex,
       });
     }
   }
-  presence2.on("Set", (e) => {
+  presence.on("Set", (e) => {
     if (e.key === container.runtime.replicaID) return;
-    if (!presence1.has(e.key)) return;
-    if (e.value === null) quillCursors.removeCursor(e.key);
+    if (e.value.selection === null) quillCursors.removeCursor(e.key);
     else {
-      const { name, color } = presence1.get(e.key)!;
-      quillCursors.createCursor(e.key, name, color);
+      quillCursors.createCursor(e.key, e.value.name, e.value.color);
       moveCursor(e.key);
     }
   });
-  presence2.on("Delete", (e) => quillCursors.removeCursor(e.key));
+  presence.on("Delete", (e) => quillCursors.removeCursor(e.key));
   quill.on("editor-change", () => {
     // Send our cursor state.
     // Only do this when the user does something (not in reaction to
@@ -252,35 +252,37 @@ function makeInitialSave(): Uint8Array {
     if (!ourChange) {
       const selection = quill.getSelection();
       if (selection === null) {
-        presence2.setOurs(null);
+        presence.updateOurs("selection", null);
       } else {
         const anchor = collabs.Cursors.fromIndex(selection.index, text);
         const head = collabs.Cursors.fromIndex(
           selection.index + selection.length,
           text
         );
-        presence2.setOurs({ anchor, head });
+        presence.updateOurs("selection", { anchor, head });
       }
     }
 
     // Move everyone else's cursors locally.
     // TODO: is this necessary? Will Quill OT it for us (possibly slightly inaccurate
     // but oh well)?
-    for (const replicaID of presence2.keys()) moveCursor(replicaID);
+    for (const replicaID of presence.keys()) moveCursor(replicaID);
   });
+
+  // Display loaded presence state.
+  // (Technically, it can only come from further messages, not literal loading.)
+  for (const [replicaID, state] of presence) {
+    if (state.selection !== null) {
+      quillCursors.createCursor(replicaID, state.name, state.color);
+      moveCursor(replicaID);
+    }
+  }
 
   // Ready.
   container.ready();
 
-  // Set our presence and request initial presence data from others.
-  // Since we request presence1 first, we're guaranteed that we'll receive
-  // it from peers before presence2, so presence2's Set handler will indeed
-  // have access to presence1.
-  // TODO: what if we get presence2 accidentally first? Won't get new Set
-  // event. Also, this is confusing.
-  // Also, we don't need to display initial presence state (due to further
-  // messages) because we'll get new Set events on join anyway.
-  // TODO: same bug as above.
-  presence1.setOurs({ name, color });
-  presence2.requestAll();
+  // Starting & ending presence.
+  presence.setOurs({ name, color, selection: null });
+  // TODO: not working. Perhaps container/IFrame related?
+  window.addEventListener("beforeunload", () => presence.deleteOurs());
 })();
