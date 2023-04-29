@@ -13,8 +13,6 @@ enum MessageType {
   Set = 1,
   Update = 2,
   Delete = 3,
-  Heartbeat = 4,
-  None = 5,
 }
 
 interface TimedValue<F> {
@@ -33,7 +31,7 @@ interface TimedValue<F> {
  * text editor.
  *
  * Values are ephemeral: they expire at a fixed interval after the sender's
- * last update or heartbeat (default 30 seconds), and they are not saved.
+ * last update (default 30 seconds), and they are not saved.
  * This helps ensure that you only see values for present replicas.
  *
  * Values must be internally immutable;
@@ -48,23 +46,21 @@ interface TimedValue<F> {
  * about a single replica.
  */
 // eslint-disable-next-line @typescript-eslint/no-explicit-any
-export class CPresence<F extends Record<string, any>> extends CPrimitive<
-  MapEventsRecord<string, F>
+export class CPresence<V extends Record<string, any>> extends CPrimitive<
+  MapEventsRecord<string, V>
 > {
   /**
    * The default [[ttlMS]]: 30 seconds.
    */
   static readonly TTL_MS_DEFAULT = 30000;
 
-  private readonly value = new Map<string, TimedValue<F>>();
+  private readonly value = new Map<string, TimedValue<V>>();
   /** Cached size. */
   private _size = 0;
 
   private joined = false;
-  private heartbeats: boolean;
-  private heartbeatIntervalID: ReturnType<typeof setInterval> | null = null;
 
-  private readonly updateSerializer: Serializer<Partial<F>>;
+  private readonly updateSerializer: Serializer<Partial<V>>;
   /**
    * The time-to-live for received values in milliseconds,
    * i.e., how long until a value expires locally. The time is measured from
@@ -82,15 +78,12 @@ export class CPresence<F extends Record<string, any>> extends CPrimitive<
    * [[updateOurs]]), which change a subset of F's keys.
    * Defaults to [[DefaultSerializer]].
    * @param options.ttlMS The value of [[ttlMS]]. Defaults to [[TTL_MS_DEFAULT]].
-   * @param options.heartbeats Whether to send heartbeats that prevent our value
-   * from expiring even when it has not been updated recently. Defaults to true.
    */
   constructor(
     init: InitToken,
     options: {
-      updateSerializer?: Serializer<Partial<F>>;
+      updateSerializer?: Serializer<Partial<V>>;
       ttlMS?: number;
-      heartbeats?: boolean;
     } = {}
   ) {
     super(init);
@@ -98,7 +91,6 @@ export class CPresence<F extends Record<string, any>> extends CPrimitive<
     this.updateSerializer =
       options?.updateSerializer ?? DefaultSerializer.getInstance();
     this.ttlMS = options?.ttlMS ?? CPresence.TTL_MS_DEFAULT;
-    this.heartbeats = options?.heartbeats ?? true;
 
     // Maintain this._size as a view of the externally-visible map's size.
     this.on("Set", (e) => {
@@ -118,7 +110,7 @@ export class CPresence<F extends Record<string, any>> extends CPrimitive<
    * requesting that all present replicas send their current presence
    * values.
    */
-  setOurs(value: F): void {
+  setOurs(value: V): void {
     const message = PresenceMessage.create({
       type: MessageType.Set,
       updates: this.updateSerializer.serialize(value),
@@ -126,36 +118,17 @@ export class CPresence<F extends Record<string, any>> extends CPrimitive<
     });
     this.joined = true;
     super.sendPrimitive(PresenceMessage.encode(message).finish());
-
-    if (this.heartbeats) {
-      // Start heartbeats.
-      if (this.heartbeatIntervalID !== null) {
-        clearInterval(this.heartbeatIntervalID);
-      }
-      this.heartbeatIntervalID = setInterval(
-        () => this.heartbeat(),
-        Math.floor(this.ttlMS / 2)
-      );
-    }
-  }
-
-  private heartbeat() {
-    if (this.has(this.runtime.replicaID)) {
-      super.sendPrimitive(
-        PresenceMessage.encode({ type: MessageType.Heartbeat }).finish()
-      );
-    }
   }
 
   /**
    * Updates a property of our value. Other properties are unchanged.
    */
-  updateOurs<K extends keyof F & string>(property: K, value: F[K]): void {
+  updateOurs<K extends keyof V & string>(property: K, value: V[K]): void {
     if (!this.joined) {
       throw new Error("Must call setOurs before updateOurs");
     }
 
-    const updates: Partial<F> = {};
+    const updates: Partial<V> = {};
     updates[property] = value;
     super.sendPrimitive(
       PresenceMessage.encode({
@@ -177,11 +150,6 @@ export class CPresence<F extends Record<string, any>> extends CPrimitive<
     super.sendPrimitive(
       PresenceMessage.encode({ type: MessageType.Delete }).finish()
     );
-
-    // Stop heartbeats.
-    if (this.heartbeatIntervalID !== null) {
-      clearInterval(this.heartbeatIntervalID);
-    }
   }
 
   protected receivePrimitive(
@@ -195,20 +163,31 @@ export class CPresence<F extends Record<string, any>> extends CPrimitive<
       case MessageType.Set:
       case MessageType.Update: {
         // If the message is forRequestAll and its value is already present,
-        // treat it as a heartbeat. Else treat it as a normal Set.
+        // treat it as a heartbeat - keep the value alive without changing
+        // it (only emitting Set if it had expired).
         if (decoded.forRequestAll && this.has(replicaID)) {
-          this.processHeartbeat(replicaID, meta);
+          const timedValue = this.value.get(replicaID)!;
+          this.resetTimeout(replicaID);
+          if (!timedValue.present) {
+            timedValue.present = true;
+            this.emit("Set", {
+              key: replicaID,
+              value: timedValue.value,
+              previousValue: Optional.empty(),
+              meta,
+            });
+          }
           break;
         }
 
         const previousValue = this.has(replicaID)
           ? Optional.of(this.get(replicaID)!)
-          : Optional.empty<F>();
+          : Optional.empty<V>();
 
         const updates = this.updateSerializer.deserialize(decoded.updates);
-        let value: F;
+        let value: V;
         if (decoded.type === MessageType.Set) {
-          value = updates as F;
+          value = updates as V;
         } else {
           const oldTimedState = this.value.get(replicaID);
           if (oldTimedState === undefined) {
@@ -254,10 +233,6 @@ export class CPresence<F extends Record<string, any>> extends CPrimitive<
         }
         break;
       }
-      case MessageType.Heartbeat: {
-        this.processHeartbeat(replicaID, meta);
-        break;
-      }
     }
 
     if (decoded.requestAll) {
@@ -278,23 +253,6 @@ export class CPresence<F extends Record<string, any>> extends CPrimitive<
     }
   }
 
-  private processHeartbeat(replicaID: string, meta: UpdateMeta): void {
-    const timedValue = this.value.get(replicaID);
-    if (timedValue === undefined) return;
-
-    this.resetTimeout(replicaID);
-
-    if (!timedValue.present) {
-      timedValue.present = true;
-      this.emit("Set", {
-        key: replicaID,
-        value: timedValue.value,
-        previousValue: Optional.empty(),
-        meta,
-      });
-    }
-  }
-
   private resetTimeout(replicaID: string): void {
     const timedValue = this.value.get(replicaID);
     if (timedValue === undefined) return;
@@ -308,7 +266,7 @@ export class CPresence<F extends Record<string, any>> extends CPrimitive<
 
   /**
    * Deletes the key `replicaID` in our *local* copy of the map, without
-   * affecting other replicas. TODO: only until next set/hearbeat.
+   * affecting other replicas. TODO: only until next set/update.
    *
    * You may wish to call this method when you know that a replica has disconnected,
    * instead of waiting for its current value to expire.
@@ -316,7 +274,7 @@ export class CPresence<F extends Record<string, any>> extends CPrimitive<
    * if you know that the local device has gone offline, to show the local user
    * that they are no longer collaborating live.
    */
-  private deleteLocally(replicaID: string): void {
+  deleteLocally(replicaID: string): void {
     if (!this.has(replicaID)) return;
 
     const meta: UpdateMeta = {
@@ -342,7 +300,7 @@ export class CPresence<F extends Record<string, any>> extends CPrimitive<
    * Returns the value associated to key `replicaID`, or undefined if
    * `replicaID` is not present.
    */
-  get(replicaID: string): F | undefined {
+  get(replicaID: string): V | undefined {
     if (this.has(replicaID)) return this.value.get(replicaID)!.value;
     else return undefined;
   }
@@ -350,7 +308,7 @@ export class CPresence<F extends Record<string, any>> extends CPrimitive<
   /**
    * Returns our value, i.e., the value at key [[IRuntime.replicaID]].
    */
-  getOurs(): F | undefined {
+  getOurs(): V | undefined {
     return this.get(this.runtime.replicaID);
   }
 
@@ -374,7 +332,7 @@ export class CPresence<F extends Record<string, any>> extends CPrimitive<
    * The iteration order is NOT eventually consistent:
    * it may differ on replicas with the same value.
    */
-  [Symbol.iterator](): IterableIterator<[string, F]> {
+  [Symbol.iterator](): IterableIterator<[string, V]> {
     return this.entries();
   }
 
@@ -384,7 +342,7 @@ export class CPresence<F extends Record<string, any>> extends CPrimitive<
    * The iteration order is NOT eventually consistent:
    * it may differ on replicas with the same value.
    */
-  *entries(): IterableIterator<[string, F]> {
+  *entries(): IterableIterator<[string, V]> {
     for (const [key, timedValue] of this.value) {
       if (timedValue.present) yield [key, timedValue.value];
     }
@@ -406,7 +364,7 @@ export class CPresence<F extends Record<string, any>> extends CPrimitive<
    * The iteration order is NOT eventually consistent:
    * it may differ on replicas with the same value.
    */
-  *values(): IterableIterator<F> {
+  *values(): IterableIterator<V> {
     for (const [, value] of this.entries()) yield value;
   }
 
@@ -419,7 +377,7 @@ export class CPresence<F extends Record<string, any>> extends CPrimitive<
    * @param thisArg Value to use as `this` when executing `callbackfn`.
    */
   forEach(
-    callbackfn: (value: F, key: string, map: this) => void,
+    callbackfn: (value: V, key: string, map: this) => void,
     thisArg?: any //eslint-disable-line @typescript-eslint/no-explicit-any
   ): void {
     // Not sure if this gives the exact same semantics
