@@ -1,4 +1,4 @@
-message PresenceMapMessage {
+message PresenceMessage {
   // MessageType enum
   required int32 type = 1;
   optional bytes updates = 2;

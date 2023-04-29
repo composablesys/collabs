@@ -49,7 +49,7 @@ function makeInitialSave(): Uint8Array {
   const presence = container.registerCollab(
     "presence",
     (init) =>
-      new collabs.CPresenceMap<PresenceState>(init, {
+      new collabs.CPresence<PresenceState>(init, {
         name: "Unknown",
         color: "hsl(0,50%,50%)",
         selection: null,
