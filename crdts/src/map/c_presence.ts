@@ -44,14 +44,16 @@ export class CPresence<V extends Record<string, any>> extends PrimitiveCRDT<
   private ourValue: V | null = null;
   private heartbeatTimeout: ReturnType<typeof setTimeout> | null = null;
   private _connected = false;
+  /** Whether we have joined, i.e., ever connected. */
+  private joined = false;
 
   private readonly ttlMS: number;
   private readonly heartbeatInterval: number;
   private readonly updateSerializer: Serializer<Partial<V>>;
   /**
-   * The default [[ttlMS]]: 30 seconds.
+   * The default [[ttlMS]]: 10 seconds.
    */
-  static readonly TTL_MS_DEFAULT = 30000;
+  static readonly TTL_MS_DEFAULT = 10000;
 
   constructor(
     init: InitToken,
@@ -70,31 +72,17 @@ export class CPresence<V extends Record<string, any>> extends PrimitiveCRDT<
     this.heartbeatInterval = Math.ceil(this.ttlMS / 2);
   }
 
-  /**
-   *
-   * TODO: first time, sets connected = true.
-   * (What if you want to use the value normally but you're currently
-   * offline? I guess just set connected = false right away?)
-   * @param value
-   */
   setOurs(value: V): void {
-    const isJoin = this.ourValue === null;
-    const previousValue = isJoin
-      ? Optional.empty<V>()
-      : Optional.of(this.ourValue!);
+    const previousValue =
+      this.ourValue === null ? Optional.empty<V>() : Optional.of(this.ourValue);
+    if (this.ourValue === null) this._size++;
     this.ourValue = value;
-
-    if (isJoin) {
-      this._size++;
-      this._connected = true;
-    }
 
     if (this.connected) {
       super.sendCRDT(
         PresenceMessage.encode({
           set: {
             value: this.updateSerializer.serialize(this.ourValue),
-            isJoin,
           },
         }).finish()
       );
@@ -146,36 +134,42 @@ export class CPresence<V extends Record<string, any>> extends PrimitiveCRDT<
     });
   }
 
+  connect(): void {
+    if (this._connected) return;
+    if (this.ourValue === null) {
+      throw new Error(
+        "You must set our value with setOurs before calling connect()"
+      );
+    }
+
+    // Connect, (re-)sending our current state, since setOurs/updateOurs do not
+    // send messages while disconnected.
+    super.sendCRDT(
+      PresenceMessage.encode({
+        set: {
+          value: this.updateSerializer.serialize(this.ourValue),
+          isJoin: !this.joined,
+        },
+      }).finish()
+    );
+
+    this._connected = true;
+    this.joined = true;
+    // Start heartbeats.
+    this.resetHeartbeat();
+  }
+
   /**
    * Disconnection affects others' view of you, but not your own view (you even still process received updates).
    * Though you may want to hide/fade other users if you can't see their changes
    * anymore.
    */
-  set connected(connected: boolean) {
-    if (connected === this._connected) return;
+  disconnect(): void {
+    if (!this._connected) return;
 
-    if (connected) {
-      if (this.ourValue === null) {
-        throw new Error(
-          "You must set our value with setOurs before setting connected=true (note: setOurs sets connected=true for you)"
-        );
-      }
-
-      // Connect, re-sending our current state, since setOurs/updateOurs do not
-      // send messages while disconnected.
-      super.sendCRDT(
-        PresenceMessage.encode({
-          set: {
-            value: this.updateSerializer.serialize(this.ourValue),
-          },
-        }).finish()
-      );
-    } else {
-      super.sendCRDT(PresenceMessage.encode({ disconnect: true }).finish());
-    }
-
-    this._connected = connected;
-    // Start/stop heartbeats according to this._connected.
+    super.sendCRDT(PresenceMessage.encode({ disconnect: true }).finish());
+    this._connected = false;
+    // Stop heartbeats.
     this.resetHeartbeat();
   }
 
@@ -207,10 +201,10 @@ export class CPresence<V extends Record<string, any>> extends PrimitiveCRDT<
     // Ignore own messages. Their methods emit events, for consistency with
     // disconnected periods.
     if (meta.isLocalOp) return;
-    // Before setOurs is called (= first connection), ignore remote messages,
+    // Before joining (= first connection), ignore remote messages,
     // in case they are being replayed as part of loading (hence are old).
     // Instead, we'll get up-to-date states from joining.
-    if (this.ourValue === null) return;
+    if (!this.joined) return;
 
     const decoded = PresenceMessage.decode(<Uint8Array>message);
 
@@ -255,6 +249,7 @@ export class CPresence<V extends Record<string, any>> extends PrimitiveCRDT<
           if (info.timeout !== null) clearTimeout(info.timeout);
           this.state.delete(meta.senderID);
           this._size--;
+          this.emit("Delete", { key: meta.senderID, value: info.value, meta });
         }
         break;
       }
@@ -311,13 +306,14 @@ export class CPresence<V extends Record<string, any>> extends PrimitiveCRDT<
     // Loading might give us a causally newer value but with an earlier timestamp
     // than our current value. Take the max to avoid going backwards.
     info.time = Math.max(info.time, time);
-    if (info.time + this.ttlMS >= Date.now()) {
+    const ttlRemaining = info.time + this.ttlMS - Date.now();
+    if (ttlRemaining > 0) {
       // The entry is now present.
       if (!info.present) this._size++;
       info.present = true;
       info.timeout = setTimeout(
         () => this.processTimeout(meta.senderID, info!, meta),
-        this.ttlMS
+        ttlRemaining
       );
 
       if (!previousValue.isPresent || newValue !== null) {
@@ -406,11 +402,44 @@ export class CPresence<V extends Record<string, any>> extends PrimitiveCRDT<
    * The iteration order is NOT eventually consistent:
    * it may differ on replicas with the same value.
    */
-  *[Symbol.iterator](): IterableIterator<[string, V]> {
+  *entries(): IterableIterator<[string, V]> {
     if (this.ourValue !== null) yield [this.runtime.replicaID, this.ourValue];
     for (const [key, info] of this.state) {
       if (info.present) yield [key, info.value];
     }
+  }
+
+  /**
+   * Returns an iterator for entries in the map.
+   *
+   * The iteration order is NOT eventually consistent:
+   * it may differ on replicas with the same value.
+   */
+  [Symbol.iterator](): IterableIterator<[string, V]> {
+    return this.entries();
+  }
+
+  forEach(
+    callbackfn: (value: V, key: string, map: this) => void,
+    thisArg?: any // eslint-disable-line @typescript-eslint/no-explicit-any
+  ): void {
+    // Not sure if this gives the exact same semantics
+    // as Map if callbackfn modifies this during the
+    // loop.  (Given that Array.forEach has a rather
+    // funky polyfill on MDN, I expect Map.forEach is
+    // similarly funky.)  Although users probably shouldn't
+    // be doing that anyway.
+    for (const [key, value] of this) {
+      callbackfn.call(thisArg, value, key, this);
+    }
+  }
+
+  *keys(): IterableIterator<string> {
+    for (const [key] of this) yield key;
+  }
+
+  *values(): IterableIterator<V> {
+    for (const [, value] of this) yield value;
   }
 
   protected saveCRDT(): Uint8Array {

@@ -1,6 +1,6 @@
 import * as collabs from "@collabs/collabs";
 import { CContainer } from "@collabs/container";
-import Quill, { Delta as DeltaType, DeltaStatic } from "quill";
+import Quill, { DeltaStatic, Delta as DeltaType } from "quill";
 import QuillCursors from "quill-cursors";
 
 // Include CSS
@@ -48,12 +48,7 @@ function makeInitialSave(): Uint8Array {
   );
   const presence = container.registerCollab(
     "presence",
-    (init) =>
-      new collabs.CPresence<PresenceState>(init, {
-        name: "Unknown",
-        color: "hsl(0,50%,50%)",
-        selection: null,
-      })
+    (init) => new collabs.CPresence<PresenceState>(init)
   );
   // "Set the initial state"
   // (a single "\n", required by Quill) by
@@ -220,6 +215,7 @@ function makeInitialSave(): Uint8Array {
     " " +
     (1 + Math.floor(Math.random() * 9));
   const color = `hsl(${Math.floor(Math.random() * 360)},50%,50%)`;
+  presence.setOurs({ name, color, selection: null });
 
   const quillCursors = quill.getModule("cursors") as QuillCursors;
   function moveCursor(replicaID: string): void {
@@ -264,13 +260,11 @@ function makeInitialSave(): Uint8Array {
     }
 
     // Move everyone else's cursors locally.
-    // TODO: is this necessary? Will Quill OT it for us (possibly slightly inaccurate
-    // but oh well)?
+    // TODO: is this necessary? Will Quill OT it for us?
     for (const replicaID of presence.keys()) moveCursor(replicaID);
   });
 
   // Display loaded presence state.
-  // (Technically, it can only come from further messages, not literal loading.)
   for (const [replicaID, state] of presence) {
     if (state.selection !== null) {
       quillCursors.createCursor(replicaID, state.name, state.color);
@@ -278,11 +272,15 @@ function makeInitialSave(): Uint8Array {
     }
   }
 
+  // Presence connect & disconnect.
+  // Since the demo server delivers old messages shortly after starting, wait
+  // a second for those to pass before connecting. Otherwise the messages
+  // (which look new) make old users appear present.
+  setTimeout(() => presence.connect(), 1000);
+  // Note: apparently beforeunload disables some opts in Firefox; consider removing.
+  // https://web.dev/bfcache/#only-add-beforeunload-listeners-conditionally
+  window.addEventListener("beforeunload", () => presence.disconnect());
+
   // Ready.
   container.ready();
-
-  // Starting & ending presence.
-  presence.setOurs({ name, color, selection: null });
-  // TODO: not working. Perhaps container/IFrame related?
-  window.addEventListener("beforeunload", () => presence.deleteOurs());
 })();
