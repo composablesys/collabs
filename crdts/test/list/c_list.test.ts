@@ -596,12 +596,7 @@ describe("CList", () => {
     });
   });
 
-  describe("ordering", () => {
-    // These tests are a subset of the CValueList ordering tests.
-    // In theory these aren't exercising anything that CValueList didn't
-    // already test, but we want to make sure CList is not using
-    // CPositionSource/LocalList incorrectly.
-
+  describe("unit", () => {
     let runtimeGen: TestingRuntimes;
     let alice: CRuntime;
     let bob: CRuntime;
@@ -638,110 +633,209 @@ describe("CList", () => {
       new CListView(bobList, true);
     });
 
-    it("inserts once", () => {
-      const ans = [0];
-      aliceList.insert(0, 0);
-      runtimeGen.releaseAll();
-      assert.deepStrictEqual(values(aliceList), ans);
-      assert.deepStrictEqual(values(bobList), ans);
-    });
+    describe("ordering", () => {
+      // These tests are a subset of the CValueList ordering tests.
+      // In theory these aren't exercising anything that CValueList didn't
+      // already test, but we want to make sure CList is not using
+      // CPositionSource/LocalList incorrectly.
 
-    it("inserts LtR", () => {
-      const ans = [0, 1, 2, 3, 4];
-      for (let i = 0; i < 5; i++) {
-        aliceList.insert(i, i);
+      it("inserts once", () => {
+        const ans = [0];
+        aliceList.insert(0, 0);
         runtimeGen.releaseAll();
-      }
-      assert.deepStrictEqual(values(aliceList), ans);
-      assert.deepStrictEqual(values(bobList), ans);
-    });
+        assert.deepStrictEqual(values(aliceList), ans);
+        assert.deepStrictEqual(values(bobList), ans);
+      });
 
-    it("inserts RtL", () => {
-      const ans = [4, 3, 2, 1, 0];
-      for (let i = 0; i < 5; i++) {
-        aliceList.insert(0, i);
-        runtimeGen.releaseAll();
-      }
-      assert.deepStrictEqual(values(aliceList), ans);
-      assert.deepStrictEqual(values(bobList), ans);
-    });
-
-    it("inserts LtR, then in middle", () => {
-      const ans = [0, 1, 10, 2, 3, 4];
-      for (let i = 0; i < 5; i++) {
-        aliceList.insert(i, i);
-        runtimeGen.releaseAll();
-      }
-      aliceList.insert(2, 10);
-      runtimeGen.releaseAll();
-      assert.deepStrictEqual(values(aliceList), ans);
-      assert.deepStrictEqual(values(bobList), ans);
-    });
-
-    it("inserts RtL, then in middle", () => {
-      const ans = [4, 3, 10, 2, 1, 0];
-      for (let i = 0; i < 5; i++) {
-        aliceList.insert(0, i);
-        runtimeGen.releaseAll();
-      }
-      aliceList.insert(2, 10);
-      runtimeGen.releaseAll();
-      assert.deepStrictEqual(values(aliceList), ans);
-      assert.deepStrictEqual(values(bobList), ans);
-    });
-
-    it("deletes one element", () => {
-      const ans = [0, 1, 3, 4];
-      for (let i = 0; i < 5; i++) {
-        aliceList.insert(i, i);
-        runtimeGen.releaseAll();
-      }
-      aliceList.delete(2);
-      runtimeGen.releaseAll();
-      assert.deepStrictEqual(values(aliceList), ans);
-      assert.deepStrictEqual(values(bobList), ans);
-    });
-
-    describe("inserts sequentially", () => {
-      it("LtR", () => {
-        const ans = [0, 1, 2, 3, 4, 5, 6, 7, 8, 9];
+      it("inserts LtR", () => {
+        const ans = [0, 1, 2, 3, 4];
         for (let i = 0; i < 5; i++) {
           aliceList.insert(i, i);
           runtimeGen.releaseAll();
         }
-        for (let i = 5; i < 10; i++) {
-          bobList.insert(i, i);
-          runtimeGen.releaseAll();
-        }
         assert.deepStrictEqual(values(aliceList), ans);
         assert.deepStrictEqual(values(bobList), ans);
       });
 
-      it("RtL", () => {
-        const ans = [9, 8, 7, 6, 5, 4, 3, 2, 1, 0];
+      it("inserts RtL", () => {
+        const ans = [4, 3, 2, 1, 0];
         for (let i = 0; i < 5; i++) {
           aliceList.insert(0, i);
           runtimeGen.releaseAll();
         }
-        for (let i = 5; i < 10; i++) {
-          bobList.insert(0, i);
-          runtimeGen.releaseAll();
-        }
         assert.deepStrictEqual(values(aliceList), ans);
         assert.deepStrictEqual(values(bobList), ans);
       });
 
-      it("alternating", () => {
-        const ans = [0, 1, 2, 3, 4, 5, 6, 7, 8, 9];
+      it("inserts LtR, then in middle", () => {
+        const ans = [0, 1, 10, 2, 3, 4];
         for (let i = 0; i < 5; i++) {
-          aliceList.insert(2 * i, 2 * i);
-          runtimeGen.releaseAll();
-          bobList.insert(2 * i + 1, 2 * i + 1);
+          aliceList.insert(i, i);
           runtimeGen.releaseAll();
         }
+        aliceList.insert(2, 10);
+        runtimeGen.releaseAll();
         assert.deepStrictEqual(values(aliceList), ans);
         assert.deepStrictEqual(values(bobList), ans);
       });
+
+      it("inserts RtL, then in middle", () => {
+        const ans = [4, 3, 10, 2, 1, 0];
+        for (let i = 0; i < 5; i++) {
+          aliceList.insert(0, i);
+          runtimeGen.releaseAll();
+        }
+        aliceList.insert(2, 10);
+        runtimeGen.releaseAll();
+        assert.deepStrictEqual(values(aliceList), ans);
+        assert.deepStrictEqual(values(bobList), ans);
+      });
+
+      it("deletes one element", () => {
+        const ans = [0, 1, 3, 4];
+        for (let i = 0; i < 5; i++) {
+          aliceList.insert(i, i);
+          runtimeGen.releaseAll();
+        }
+        aliceList.delete(2);
+        runtimeGen.releaseAll();
+        assert.deepStrictEqual(values(aliceList), ans);
+        assert.deepStrictEqual(values(bobList), ans);
+      });
+
+      describe("inserts sequentially", () => {
+        it("LtR", () => {
+          const ans = [0, 1, 2, 3, 4, 5, 6, 7, 8, 9];
+          for (let i = 0; i < 5; i++) {
+            aliceList.insert(i, i);
+            runtimeGen.releaseAll();
+          }
+          for (let i = 5; i < 10; i++) {
+            bobList.insert(i, i);
+            runtimeGen.releaseAll();
+          }
+          assert.deepStrictEqual(values(aliceList), ans);
+          assert.deepStrictEqual(values(bobList), ans);
+        });
+
+        it("RtL", () => {
+          const ans = [9, 8, 7, 6, 5, 4, 3, 2, 1, 0];
+          for (let i = 0; i < 5; i++) {
+            aliceList.insert(0, i);
+            runtimeGen.releaseAll();
+          }
+          for (let i = 5; i < 10; i++) {
+            bobList.insert(0, i);
+            runtimeGen.releaseAll();
+          }
+          assert.deepStrictEqual(values(aliceList), ans);
+          assert.deepStrictEqual(values(bobList), ans);
+        });
+
+        it("alternating", () => {
+          const ans = [0, 1, 2, 3, 4, 5, 6, 7, 8, 9];
+          for (let i = 0; i < 5; i++) {
+            aliceList.insert(2 * i, 2 * i);
+            runtimeGen.releaseAll();
+            bobList.insert(2 * i + 1, 2 * i + 1);
+            runtimeGen.releaseAll();
+          }
+          assert.deepStrictEqual(values(aliceList), ans);
+          assert.deepStrictEqual(values(bobList), ans);
+        });
+      });
+    });
+
+    describe("archive", () => {
+      beforeEach(() => {
+        for (let i = 0; i < 5; i++) aliceList.push(i);
+        runtimeGen.releaseAll();
+      });
+
+      it("restore wins", () => {
+        function go(
+          charlieList: CList<CVar<number>, [number]>,
+          daveList: CList<CVar<number>, [number]>
+        ) {
+          const charlie2 = charlieList.get(2);
+          const dave2 = daveList.get(2);
+
+          charlieList.archive(2);
+          runtimeGen.releaseAll();
+
+          // Concurrent non-redundant archive & restore.
+          charlieList.restore(charlie2);
+          charlieList.archive(2);
+          daveList.restore(dave2);
+          runtimeGen.releaseAll();
+
+          const ans = [0, 1, 2, 3, 4];
+          assert.deepStrictEqual(values(charlieList), ans);
+          assert.deepStrictEqual(values(daveList), ans);
+        }
+
+        // Try in both orders, to ensure it's not a lucky
+        // senderID tiebreaker.
+        go(aliceList, bobList);
+        go(bobList, aliceList);
+      });
+
+      it("redundant restore wins", () => {
+        function go(
+          charlieList: CList<CVar<number>, [number]>,
+          daveList: CList<CVar<number>, [number]>
+        ) {
+          charlieList.archive(2);
+          daveList.restore(daveList.get(2));
+          runtimeGen.releaseAll();
+
+          const ans = [0, 1, 2, 3, 4];
+          assert.deepStrictEqual(values(charlieList), ans);
+          assert.deepStrictEqual(values(daveList), ans);
+        }
+
+        // Try in both orders, to ensure it's not a lucky
+        // senderID tiebreaker.
+        go(aliceList, bobList);
+        go(bobList, aliceList);
+      });
+
+      it("move vs archive", () => {
+        const bobValue = bobList.get(2);
+
+        aliceList.archive(2);
+        bobList.move(2, 5);
+        runtimeGen.releaseAll();
+
+        bobList.restore(bobValue);
+        runtimeGen.releaseAll();
+
+        // Should be restored in the moved position.
+        const ans = [0, 1, 3, 4, 2];
+        assert.deepStrictEqual(values(aliceList), ans);
+        assert.deepStrictEqual(values(bobList), ans);
+      });
+
+      it("bulk archive", () => {
+        aliceList.archive(1, 3);
+        runtimeGen.releaseAll();
+
+        const ans = [0, 4];
+        assert.deepStrictEqual(values(aliceList), ans);
+        assert.deepStrictEqual(values(bobList), ans);
+      });
+    });
+
+    it("bulk delete", () => {
+      for (let i = 0; i < 5; i++) aliceList.push(i);
+      runtimeGen.releaseAll();
+
+      aliceList.delete(1, 3);
+      runtimeGen.releaseAll();
+
+      const ans = [0, 4];
+      assert.deepStrictEqual(values(aliceList), ans);
+      assert.deepStrictEqual(values(bobList), ans);
     });
   });
 });
