@@ -1,322 +1,396 @@
 import {
-  CPrimitive,
   DefaultSerializer,
   InitToken,
   MapEventsRecord,
   Optional,
   Serializer,
   UpdateMeta,
+  int64AsNumber,
 } from "@collabs/core";
-import { PresenceMessage } from "../../generated/proto_compiled";
+import {
+  IPresenceInfoSave,
+  PresenceMessage,
+  PresenceSave,
+  PresenceSetMessage,
+} from "../../generated/proto_compiled";
+import { PrimitiveCRDT } from "../base_collabs";
+import { CRDTMessageMeta, CRDTSavedStateMeta } from "../runtime";
 
-enum MessageType {
-  Set = 1,
-  Update = 2,
-  Delete = 3,
-}
-
-interface TimedValue<F> {
-  value: F;
+// eslint-disable-next-line @typescript-eslint/no-explicit-any
+interface Info<V extends Record<string, any>> {
+  value: V;
   present: boolean;
-  timeoutID: ReturnType<typeof setTimeout> | null;
+  timeout: ReturnType<typeof setTimeout> | null;
+  // For saved states:
+  time: number;
 }
 
 /**
- * A map for sharing *presence info* between present (simultaneously online)
- * replicas, e.g., usernames or shared cursors.
- *
- * Each replica controls a fixed key: its [[IRuntime.replicaID]].
- * Its value should be a plain object that contains presence info about
- * itself, such as its user's latest [[Cursor]] location in a collaborative
- * text editor.
- *
- * Values are ephemeral: they expire at a fixed interval after the sender's
- * last update (default 30 seconds), and they are not saved.
- * This helps ensure that you only see values for present replicas.
- *
- * Values must be internally immutable;
- * mutating a value internally will not change it on
- * other replicas. Instead, use [[updateOurs]].
- *
- * See also:
- * - [[CValueMap]]: for an ordinary collaborative map.
- * - [[CMessenger]]: for sending ephemeral (non-saved) messages in general.
- *
- * @typeParam F The value type: a plain object that contains presence info
- * about a single replica.
+ * - may want to hide other entries if you know they're unreachable (e.g. you're disconnected)
+ * - prefer set once, update throughout: less traffic
+ * - version changes could lead to type-proof undefineds; use defaults if you do that.
+ * - designed to work okay with op and state-based networks, incl p2p, but is imperfect at detecting online/offline (slow start, ttl). So you may wish to do your own thing if you have (e.g.) a server that reliably describes presence.
+ * - map includes us once set for the first time,
+ * regardless of current connection status.
  */
 // eslint-disable-next-line @typescript-eslint/no-explicit-any
-export class CPresence<V extends Record<string, any>> extends CPrimitive<
+export class CPresence<V extends Record<string, any>> extends PrimitiveCRDT<
   MapEventsRecord<string, V>
 > {
+  /** Excludes us. */
+  private readonly state = new Map<string, Info<V>>();
+  private _size = 0;
+
+  private ourValue: V | null = null;
+  private heartbeatTimeout: ReturnType<typeof setTimeout> | null = null;
+  private _connected = false;
+
+  private readonly ttlMS: number;
+  private readonly heartbeatInterval: number;
+  private readonly updateSerializer: Serializer<Partial<V>>;
   /**
    * The default [[ttlMS]]: 30 seconds.
    */
   static readonly TTL_MS_DEFAULT = 30000;
 
-  private readonly value = new Map<string, TimedValue<V>>();
-  /** Cached size. */
-  private _size = 0;
-
-  private joined = false;
-
-  private readonly updateSerializer: Serializer<Partial<V>>;
-  /**
-   * The time-to-live for received values in milliseconds,
-   * i.e., how long until a value expires locally. The time is measured from
-   * when we receive the value, not when it was sent.
-   *
-   * Configure using the constructor's `options.ttlMS`.
-   * Defaults to [[TTL_MS_DEFAULT]].
-   */
-  readonly ttlMS: number;
-
-  /**
-   * Constructs a CPresence.
-   *
-   * @param options.updatesSerializer Serializer for updates ([[setOurs]] and
-   * [[updateOurs]]), which change a subset of F's keys.
-   * Defaults to [[DefaultSerializer]].
-   * @param options.ttlMS The value of [[ttlMS]]. Defaults to [[TTL_MS_DEFAULT]].
-   */
   constructor(
     init: InitToken,
-    options: {
-      updateSerializer?: Serializer<Partial<V>>;
-      ttlMS?: number;
-    } = {}
+    options: { ttlMS?: number; updateSerializer?: Serializer<Partial<V>> } = {}
   ) {
     super(init);
 
     this.updateSerializer =
-      options?.updateSerializer ?? DefaultSerializer.getInstance();
-    this.ttlMS = options?.ttlMS ?? CPresence.TTL_MS_DEFAULT;
-
-    // Maintain this._size as a view of the externally-visible map's size.
-    this.on("Set", (e) => {
-      if (!e.previousValue.isPresent) this._size++;
-    });
-    this.on("Delete", () => this._size--);
+      options.updateSerializer ?? DefaultSerializer.getInstance();
+    this.ttlMS = options.ttlMS ?? CPresence.TTL_MS_DEFAULT;
+    if (!(Number.isInteger(this.ttlMS) && this.ttlMS > 0)) {
+      throw new Error(
+        `options.ttlMS must be a positive integer; got ${this.ttlMS}`
+      );
+    }
+    this.heartbeatInterval = Math.ceil(this.ttlMS / 2);
   }
 
   /**
-   * Sets our value, i.e., the value at key [[IRuntime.replicaID]].
    *
-   * Typically, you call this once at the start of your app with semi-constant
-   * data (e.g., the local user's name), then use [[updateOurs]] for
-   * future updates (e.g., cursor positions).
-   *
-   * The first time this is called, it also "joins" the group,
-   * requesting that all present replicas send their current presence
-   * values.
+   * TODO: first time, sets connected = true.
+   * (What if you want to use the value normally but you're currently
+   * offline? I guess just set connected = false right away?)
+   * @param value
    */
   setOurs(value: V): void {
-    const message = PresenceMessage.create({
-      type: MessageType.Set,
-      updates: this.updateSerializer.serialize(value),
-      requestAll: !this.joined ? true : undefined,
-    });
-    this.joined = true;
-    super.sendPrimitive(PresenceMessage.encode(message).finish());
-  }
+    const isJoin = this.ourValue === null;
+    const previousValue = isJoin
+      ? Optional.empty<V>()
+      : Optional.of(this.ourValue!);
+    this.ourValue = value;
 
-  /**
-   * Updates a property of our value. Other properties are unchanged.
-   */
-  updateOurs<K extends keyof V & string>(property: K, value: V[K]): void {
-    if (!this.joined) {
-      throw new Error("Must call setOurs before updateOurs");
+    if (isJoin) {
+      this._size++;
+      this._connected = true;
     }
 
-    const updates: Partial<V> = {};
-    updates[property] = value;
-    super.sendPrimitive(
-      PresenceMessage.encode({
-        type: MessageType.Update,
-        updates: this.updateSerializer.serialize(updates),
-      }).finish()
-    );
+    if (this.connected) {
+      super.sendCRDT(
+        PresenceMessage.encode({
+          set: {
+            value: this.updateSerializer.serialize(this.ourValue),
+            isJoin,
+          },
+        }).finish()
+      );
+      this.resetHeartbeat();
+    }
+
+    this.emitOwnSetEvent(previousValue);
+  }
+
+  updateOurs<K extends keyof V & string>(
+    property: K,
+    propertyValue: V[K]
+  ): void {
+    if (this.ourValue === null) {
+      throw new Error(
+        "You must set our value with setOurs before updating it with updateOurs"
+      );
+    }
+
+    const previousValue = Optional.of(this.ourValue);
+
+    this.ourValue = { ...this.ourValue, [property]: propertyValue };
+
+    if (this.connected) {
+      const updates: Partial<V> = {};
+      updates[property] = propertyValue;
+      super.sendCRDT(
+        PresenceMessage.encode({
+          update: this.updateSerializer.serialize(updates),
+        }).finish()
+      );
+      this.resetHeartbeat();
+    }
+
+    this.emitOwnSetEvent(previousValue);
+  }
+
+  private emitOwnSetEvent(previousValue: Optional<V>) {
+    this.emit("Set", {
+      key: this.runtime.replicaID,
+      value: this.ourValue!,
+      previousValue,
+      meta: {
+        isLocalOp: true,
+        senderID: this.runtime.replicaID,
+        updateType: "message",
+        runtimeExtra: undefined,
+      },
+    });
   }
 
   /**
-   * Deletes our value, i.e., the value at key [[IRuntime.replicaID]].
-   *
-   * It is a good idea to call this method if the user is about to disconnect or if
-   * they stopped using the relevant app/component.
-   * That way, other users immediately see that this user is no longer
-   * present, instead of waiting for the current value to expire.
+   * Disconnection affects others' view of you, but not your own view (you even still process received updates).
+   * Though you may want to hide/fade other users if you can't see their changes
+   * anymore.
    */
-  deleteOurs(): void {
-    super.sendPrimitive(
-      PresenceMessage.encode({ type: MessageType.Delete }).finish()
-    );
+  set connected(connected: boolean) {
+    if (connected === this._connected) return;
+
+    if (connected) {
+      if (this.ourValue === null) {
+        throw new Error(
+          "You must set our value with setOurs before setting connected=true (note: setOurs sets connected=true for you)"
+        );
+      }
+
+      // Connect, re-sending our current state, since setOurs/updateOurs do not
+      // send messages while disconnected.
+      super.sendCRDT(
+        PresenceMessage.encode({
+          set: {
+            value: this.updateSerializer.serialize(this.ourValue),
+          },
+        }).finish()
+      );
+    } else {
+      super.sendCRDT(PresenceMessage.encode({ disconnect: true }).finish());
+    }
+
+    this._connected = connected;
+    // Start/stop heartbeats according to this._connected.
+    this.resetHeartbeat();
   }
 
-  protected receivePrimitive(
-    message: Uint8Array | string,
-    meta: UpdateMeta
+  get connected(): boolean {
+    return this._connected;
+  }
+
+  private resetHeartbeat() {
+    if (this.heartbeatTimeout !== null) clearTimeout(this.heartbeatTimeout);
+    if (!this.connected) {
+      this.heartbeatTimeout = null;
+      return;
+    }
+    this.heartbeatTimeout = setTimeout(this.heartbeat, this.heartbeatInterval);
+  }
+
+  private heartbeat = () => {
+    if (this.connected) {
+      super.sendCRDT(PresenceMessage.encode({ heartbeat: true }).finish());
+    }
+    this.resetHeartbeat();
+  };
+
+  protected receiveCRDT(
+    message: string | Uint8Array,
+    meta: UpdateMeta,
+    _crdtMeta: CRDTMessageMeta
   ): void {
-    const replicaID = meta.senderID;
+    // Ignore own messages. Their methods emit events, for consistency with
+    // disconnected periods.
+    if (meta.isLocalOp) return;
+    // Before setOurs is called (= first connection), ignore remote messages,
+    // in case they are being replayed as part of loading (hence are old).
+    // Instead, we'll get up-to-date states from joining.
+    if (this.ourValue === null) return;
+
     const decoded = PresenceMessage.decode(<Uint8Array>message);
 
-    switch (decoded.type as MessageType) {
-      case MessageType.Set:
-      case MessageType.Update: {
-        // If the message is forRequestAll and its value is already present,
-        // treat it as a heartbeat - keep the value alive without changing
-        // it (only emitting Set if it had expired).
-        if (decoded.forRequestAll && this.has(replicaID)) {
-          const timedValue = this.value.get(replicaID)!;
-          this.resetTimeout(replicaID);
-          if (!timedValue.present) {
-            timedValue.present = true;
-            this.emit("Set", {
-              key: replicaID,
-              value: timedValue.value,
-              previousValue: Optional.empty(),
-              meta,
-            });
-          }
-          break;
-        }
-
-        const previousValue = this.has(replicaID)
-          ? Optional.of(this.get(replicaID)!)
-          : Optional.empty<V>();
-
-        const updates = this.updateSerializer.deserialize(decoded.updates);
-        let value: V;
-        if (decoded.type === MessageType.Set) {
-          value = updates as V;
+    switch (decoded.type) {
+      case "heartbeat": {
+        this.processHeartbeat(null, meta);
+        break;
+      }
+      case "set": {
+        const set = decoded.set as PresenceSetMessage;
+        if (set.isResponse && this.state.has(meta.senderID)) {
+          // It's a response that (probably) just repeats our current state.
+          // Treat as a heartbeat, to avoid a redundant event.
+          this.processHeartbeat(null, meta);
         } else {
-          const oldTimedState = this.value.get(replicaID);
-          if (oldTimedState === undefined) {
-            // We don't have a base value to update; skip.
-            break;
-          }
-          value = { ...oldTimedState.value, ...updates };
+          const value = this.updateSerializer.deserialize(set.value) as V;
+          this.processHeartbeat(value, meta);
         }
-
-        const oldTimeoutID = this.value.get(replicaID)?.timeoutID;
-        if (oldTimeoutID !== undefined && oldTimeoutID !== null) {
-          clearTimeout(oldTimeoutID);
+        if (set.isJoin) this.sendResponse();
+        break;
+      }
+      case "update": {
+        // Single-field update.
+        const info = this.state.get(meta.senderID);
+        if (info === undefined) {
+          // We don't have the state to update; treat as a heartbeat, which
+          // will trigger us to request the full state.
+          this.processHeartbeat(null, meta);
+        } else {
+          const newValue = {
+            ...info.value,
+            ...this.updateSerializer.deserialize(decoded.update),
+          };
+          this.processHeartbeat(newValue, meta);
         }
+        break;
+      }
+      case "disconnect": {
+        // Delete the entry. If they reconnect, they'll resend their whole state.
+        const info = this.state.get(meta.senderID);
+        if (info !== undefined) {
+          if (info.timeout !== null) clearTimeout(info.timeout);
+          this.state.delete(meta.senderID);
+          this._size--;
+        }
+        break;
+      }
+      case "request": {
+        if (decoded.request === this.runtime.replicaID) this.sendResponse();
+        // Requests don't count as a heartbeat.
+        break;
+      }
+    }
+  }
 
-        this.value.set(replicaID, {
-          value,
-          timeoutID: null,
-          present: true,
-        });
-        this.resetTimeout(replicaID);
+  /**
+   *
+   * @param newValue
+   * @param meta
+   * @param time The time of receipt. Defaults to now.
+   * @returns
+   */
+  private processHeartbeat(
+    newValue: V | null,
+    meta: UpdateMeta,
+    time = Date.now()
+  ): void {
+    let info = this.state.get(meta.senderID);
+    if (info === undefined) {
+      if (newValue === null) {
+        // The sender has state but we don't know it; request it.
+        // Send in a separate task because Collabs does not allow
+        // send-during-receive.
+        // OPT: Wait a bit after connecting, since our join may have already
+        // triggered a response.
+        setTimeout(
+          () =>
+            super.sendCRDT(
+              PresenceMessage.encode({
+                request: meta.senderID,
+              }).finish()
+            ),
+          // Requests don't count as heartbeats, so don't call resetHeartbeat().
+          0
+        );
+        return;
+      } else {
+        info = { value: newValue, present: false, time: 0, timeout: null };
+        this.state.set(meta.senderID, info);
+      }
+    }
 
+    const previousValue = info.present
+      ? Optional.of(info.value)
+      : Optional.empty<V>();
+    if (newValue !== null) info.value = newValue;
+    if (info.timeout !== null) clearTimeout(info.timeout);
+    // Loading might give us a causally newer value but with an earlier timestamp
+    // than our current value. Take the max to avoid going backwards.
+    info.time = Math.max(info.time, time);
+    if (info.time + this.ttlMS >= Date.now()) {
+      // The entry is now present.
+      if (!info.present) this._size++;
+      info.present = true;
+      info.timeout = setTimeout(
+        () => this.processTimeout(meta.senderID, info!, meta),
+        this.ttlMS
+      );
+
+      if (!previousValue.isPresent || newValue !== null) {
+        // The value changed (possibly from timedout to not-timedout)
+        // and is present.
         this.emit("Set", {
-          key: replicaID,
-          // TODO: rename value to value to match this?
-          value: value,
+          key: meta.senderID,
+          value: info.value,
           previousValue,
           meta,
         });
-        break;
       }
-      case MessageType.Delete: {
-        const timedValue = this.value.get(replicaID);
-        if (timedValue !== undefined) {
-          if (timedValue.timeoutID !== null) clearTimeout(timedValue.timeoutID);
-          this.value.delete(replicaID);
-          if (timedValue.present) {
-            this.emit("Delete", {
-              key: replicaID,
-              value: timedValue.value,
-              meta,
-            });
-          }
-        }
-        break;
-      }
-    }
-
-    if (decoded.requestAll) {
-      // Send our value to the requester.
-      // Do it in a separate task because Collabs does not allow message sends
-      // while processing a message.
-      // TODO: rate limit? consider case where everyone joins at once.
-      setTimeout(() => {
-        if (this.has(this.runtime.replicaID)) {
-          const message = PresenceMessage.create({
-            type: MessageType.Set,
-            updates: this.updateSerializer.serialize(this.getOurs()!),
-            forRequestAll: true,
-          });
-          super.sendPrimitive(PresenceMessage.encode(message).finish());
-        }
-      }, 0);
     }
   }
 
-  private resetTimeout(replicaID: string): void {
-    const timedValue = this.value.get(replicaID);
-    if (timedValue === undefined) return;
-
-    if (timedValue.timeoutID !== null) clearTimeout(timedValue.timeoutID);
-    timedValue.timeoutID = setTimeout(
-      () => this.deleteLocally(replicaID),
-      this.ttlMS
-    );
+  private processTimeout(senderID: string, info: Info<V>, meta: UpdateMeta) {
+    info.timeout = null;
+    if (!info.present) return;
+    info.present = false;
+    this._size--;
+    this.emit("Delete", { key: senderID, value: info.value, meta });
   }
 
   /**
-   * Deletes the key `replicaID` in our *local* copy of the map, without
-   * affecting other replicas. TODO: only until next set/update.
-   *
-   * You may wish to call this method when you know that a replica has disconnected,
-   * instead of waiting for its current value to expire.
-   * In particular, you may wish to call this method for every `replicaID` in [[keys]]
-   * if you know that the local device has gone offline, to show the local user
-   * that they are no longer collaborating live.
+   * If connected, sends our state in response to a request/join.
    */
-  deleteLocally(replicaID: string): void {
-    if (!this.has(replicaID)) return;
-
-    const meta: UpdateMeta = {
-      updateType: "message",
-      senderID: replicaID,
-      isLocalOp: false,
-      runtimeExtra: undefined,
-    };
-
-    const timedValue = this.value.get(replicaID)!;
-    if (timedValue.timeoutID !== null) clearTimeout(timedValue.timeoutID);
-    timedValue.timeoutID = null;
-    timedValue.present = false;
-
-    this.emit("Delete", {
-      key: replicaID,
-      value: timedValue.value,
-      meta,
+  private sendResponse() {
+    // Send in a separate task because Collabs does not allow
+    // send-during-receive.
+    // OPT: wait a minimum amount of time between responses, to avoid flooding
+    // at startup.
+    setTimeout(() => {
+      if (!this.connected) return;
+      super.sendCRDT(
+        PresenceMessage.encode({
+          set: {
+            value: this.updateSerializer.serialize(this.ourValue!),
+            isResponse: true,
+          },
+        }).finish()
+      );
+      this.resetHeartbeat();
     });
+  }
+
+  /**
+   * Returns our value, i.e., the value at key [[IRuntime.replicaID]].
+   *
+   * TODO: even if disconnected (= not present in other replicas).
+   */
+  getOurs(): V | undefined {
+    return this.ourValue ?? undefined;
   }
 
   /**
    * Returns the value associated to key `replicaID`, or undefined if
    * `replicaID` is not present.
+   *
+   * Don't mutate return values
    */
   get(replicaID: string): V | undefined {
-    if (this.has(replicaID)) return this.value.get(replicaID)!.value;
-    else return undefined;
-  }
-
-  /**
-   * Returns our value, i.e., the value at key [[IRuntime.replicaID]].
-   */
-  getOurs(): V | undefined {
-    return this.get(this.runtime.replicaID);
+    if (replicaID === this.runtime.replicaID) return this.getOurs();
+    const info = this.state.get(replicaID);
+    if (info === undefined || !info.present) return undefined;
+    else return info.value;
   }
 
   /**
    * Returns whether key `replicaID` is present in the map.
    */
   has(replicaID: string): boolean {
-    return this.value.get(replicaID)?.present ?? false;
+    if (replicaID === this.runtime.replicaID) return this.ourValue !== null;
+    return this.state.get(replicaID)?.present ?? false;
   }
 
   /**
@@ -332,74 +406,59 @@ export class CPresence<V extends Record<string, any>> extends CPrimitive<
    * The iteration order is NOT eventually consistent:
    * it may differ on replicas with the same value.
    */
-  [Symbol.iterator](): IterableIterator<[string, V]> {
-    return this.entries();
-  }
-
-  /**
-   * Returns an iterator of key (replicaID), value pairs for every entry in the map.
-   *
-   * The iteration order is NOT eventually consistent:
-   * it may differ on replicas with the same value.
-   */
-  *entries(): IterableIterator<[string, V]> {
-    for (const [key, timedValue] of this.value) {
-      if (timedValue.present) yield [key, timedValue.value];
+  *[Symbol.iterator](): IterableIterator<[string, V]> {
+    if (this.ourValue !== null) yield [this.runtime.replicaID, this.ourValue];
+    for (const [key, info] of this.state) {
+      if (info.present) yield [key, info.value];
     }
   }
 
-  /**
-   * Returns an iterator for keys (replicaIDs) in the map.
-   *
-   * The iteration order is NOT eventually consistent:
-   * it may differ on replicas with the same value.
-   */
-  *keys(): IterableIterator<string> {
-    for (const [key] of this.entries()) yield key;
-  }
-
-  /**
-   * Returns an iterator for states in the map.
-   *
-   * The iteration order is NOT eventually consistent:
-   * it may differ on replicas with the same value.
-   */
-  *values(): IterableIterator<V> {
-    for (const [, value] of this.entries()) yield value;
-  }
-
-  /**
-   * Executes a provided function once for each (key, value) pair in
-   * the map, in the same order as [[entries]].
-   *
-   * @param callbackfn Function to execute for each key.
-   * Its arguments are the value, key, and this map.
-   * @param thisArg Value to use as `this` when executing `callbackfn`.
-   */
-  forEach(
-    callbackfn: (value: V, key: string, map: this) => void,
-    thisArg?: any //eslint-disable-line @typescript-eslint/no-explicit-any
-  ): void {
-    // Not sure if this gives the exact same semantics
-    // as Map if callbackfn modifies this during the
-    // loop.  (Given that Array.forEach has a rather
-    // funky polyfill on MDN, I expect Map.forEach is
-    // similarly funky.)  Although users probably shouldn't
-    // be doing that anyway.
-    for (const [key, value] of this) {
-      callbackfn.call(thisArg, value, key, this);
+  protected saveCRDT(): Uint8Array {
+    const state: Record<string, IPresenceInfoSave> = {};
+    for (const [replicaID, info] of this.state) {
+      if (info.present) {
+        state[replicaID] = {
+          value: this.updateSerializer.serialize(info.value),
+          time: info.time,
+        };
+      }
     }
+    if (this.connected) {
+      state[this.runtime.replicaID] = {
+        value: this.updateSerializer.serialize(this.ourValue!),
+        time: Date.now(),
+      };
+    }
+    return PresenceSave.encode({ state }).finish();
   }
 
-  protected savePrimitive(): Uint8Array {
-    // No saved value.
-    return new Uint8Array();
-  }
-
-  protected loadPrimitive(
-    _savedState: Uint8Array | null,
-    _meta: UpdateMeta
+  protected loadCRDT(
+    savedState: Uint8Array | null,
+    meta: UpdateMeta,
+    crdtMeta: CRDTSavedStateMeta
   ): void {
-    // No saved value.
+    if (savedState === null) return;
+
+    const decoded = PresenceSave.decode(savedState);
+    for (const [replicaID, infoSave] of Object.entries(decoded.state)) {
+      if (
+        crdtMeta.remoteVectorClock.get(replicaID) >
+        crdtMeta.localVectorClock.get(replicaID)
+      ) {
+        // The saved entry is newer; use it.
+        // Note this also causes us to skip overwriting our own value.
+        const value = this.updateSerializer.deserialize(infoSave.value) as V;
+        let time = int64AsNumber(infoSave.time);
+        if (time > Date.now()) {
+          // Impossible future time due to clock drift.
+          // Reverse the drift direction so that in case of clock desync,
+          // both users timeout for each other simultaneously
+          // (neglecting network latency).
+          time = 2 * Date.now() - time;
+        }
+        // Process the value and emit events if appropriate.
+        this.processHeartbeat(value, meta, time);
+      }
+    }
   }
 }
