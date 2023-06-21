@@ -26,12 +26,35 @@ interface Info<V extends Record<string, any>> {
 }
 
 /**
- * - may want to hide other entries if you know they're unreachable (e.g. you're disconnected)
- * - prefer set once, update throughout: less traffic
- * - version changes could lead to type-proof undefineds; use defaults if you do that.
- * - designed to work okay with op and state-based networks, incl p2p, but is imperfect at detecting online/offline (slow start, ttl). So you may wish to do your own thing if you have (e.g.) a server that reliably describes presence.
- * - map includes us once set for the first time,
- * regardless of current connection status.
+ * A map for sharing *presence info* between present (simultaneously online)
+ * replicas, e.g., usernames or shared cursors.
+ *
+ * Each replica controls a fixed key: its [[IRuntime.replicaID]].
+ * Its value should be a plain object that contains presence info about
+ * itself, such as its user's latest [[Cursor]] location in a collaborative
+ * text editor.
+ *
+ * To make yourself present and start listening to others, call [[setOurs]]
+ * followed by [[connect]]. To update your value, call [[updateOurs]]
+ * or [[setOurs]] again. If you know you are about to go offline, try to call
+ * [[disconnect]] to let others know; otherwise, they will infer it from
+ * a timeout (default 10 seconds).
+ *
+ * CPresence attempts to detect presence accurately on a variety
+ * of networks (centralized, peer-to-peer, op-based, state-based). You may
+ * prefer a custom solution if you can detect presence more accurately,
+ * e.g., by asking a central server who is connected.
+ *
+ * Values must be internally immutable;
+ * mutating a value internally will not change it on
+ * other replicas. Instead, use [[updateOurs]].
+ *
+ * See also:
+ * - [[CValueMap]]: for an ordinary collaborative map.
+ * - [[CMessenger]]: for sending ephemeral messages in general.
+ *
+ * @typeParam V The value type: a plain object that contains presence info
+ * about a single replica.
  */
 // eslint-disable-next-line @typescript-eslint/no-explicit-any
 export class CPresence<V extends Record<string, any>> extends PrimitiveCRDT<
@@ -51,10 +74,20 @@ export class CPresence<V extends Record<string, any>> extends PrimitiveCRDT<
   private readonly heartbeatInterval: number;
   private readonly updateSerializer: Serializer<Partial<V>>;
   /**
-   * The default [[ttlMS]]: 10 seconds.
+   * The default time-to-live: 10 seconds.
    */
   static readonly TTL_MS_DEFAULT = 10000;
 
+  /**
+   * Constructs a CPresence.
+   *
+   * @param options.ttlMS The time-to-live for users who we have not heard from,
+   * after which their entry is deleted. Heartbeats sent twice as often
+   * keep present users alive. Default: [[TTL_MS_DEFAULT]].
+   * @param options.updatesSerializer Serializer for updates ([[setOurs]] and
+   * [[updateOurs]]), which change a subset of V's keys.
+   * Defaults to [[DefaultSerializer]].
+   */
   constructor(
     init: InitToken,
     options: { ttlMS?: number; updateSerializer?: Serializer<Partial<V>> } = {}
@@ -72,6 +105,11 @@ export class CPresence<V extends Record<string, any>> extends PrimitiveCRDT<
     this.heartbeatInterval = Math.ceil(this.ttlMS / 2);
   }
 
+  /**
+   * Sets our value, overwriting the current value.
+   *
+   * To become present, call this method followed by [[connect]].
+   */
   setOurs(value: V): void {
     const previousValue =
       this.ourValue === null ? Optional.empty<V>() : Optional.of(this.ourValue);
@@ -92,6 +130,12 @@ export class CPresence<V extends Record<string, any>> extends PrimitiveCRDT<
     this.emitOwnSetEvent(previousValue);
   }
 
+  /**
+   * Updates a single property in our value, leaving the other
+   * properties unchanged.
+   *
+   * Use this method for frequently-changed properties like cursor positions.
+   */
   updateOurs<K extends keyof V & string>(
     property: K,
     propertyValue: V[K]
@@ -134,6 +178,10 @@ export class CPresence<V extends Record<string, any>> extends PrimitiveCRDT<
     });
   }
 
+  /**
+   * Connects to the group, marking us as present.
+   * This method must only be called after setting our value with [[setOurs]].
+   */
   connect(): void {
     if (this._connected) return;
     if (this.ourValue === null) {
@@ -160,9 +208,15 @@ export class CPresence<V extends Record<string, any>> extends PrimitiveCRDT<
   }
 
   /**
-   * Disconnection affects others' view of you, but not your own view (you even still process received updates).
-   * Though you may want to hide/fade other users if you can't see their changes
-   * anymore.
+   * Disconnects from the group, marking us as not present.
+   *
+   * If you know the local user is about to go offline, try to call
+   * this method to let others know; otherwise, they will infer it from
+   * a timeout (default 10 seconds).
+   *
+   * Disconnection affects others' view of us, not our view of them.
+   * In your display, you may wish to treat others as offline even though
+   * CPresence still has their state.
    */
   disconnect(): void {
     if (!this._connected) return;
@@ -173,6 +227,9 @@ export class CPresence<V extends Record<string, any>> extends PrimitiveCRDT<
     this.resetHeartbeat();
   }
 
+  /**
+   * Whether we are connected.
+   */
   get connected(): boolean {
     return this._connected;
   }
@@ -361,8 +418,6 @@ export class CPresence<V extends Record<string, any>> extends PrimitiveCRDT<
 
   /**
    * Returns our value, i.e., the value at key [[IRuntime.replicaID]].
-   *
-   * TODO: even if disconnected (= not present in other replicas).
    */
   getOurs(): V | undefined {
     return this.ourValue ?? undefined;
@@ -371,8 +426,6 @@ export class CPresence<V extends Record<string, any>> extends PrimitiveCRDT<
   /**
    * Returns the value associated to key `replicaID`, or undefined if
    * `replicaID` is not present.
-   *
-   * Don't mutate return values
    */
   get(replicaID: string): V | undefined {
     if (replicaID === this.runtime.replicaID) return this.getOurs();
@@ -419,6 +472,14 @@ export class CPresence<V extends Record<string, any>> extends PrimitiveCRDT<
     return this.entries();
   }
 
+  /**
+   * Executes a provided function once for each (key, value) pair in
+   * the map, in the same order as [[entries]].
+   *
+   * @param callbackfn Function to execute for each value.
+   * Its arguments are the value, key, and this map.
+   * @param thisArg Value to use as `this` when executing `callbackfn`.
+   */
   forEach(
     callbackfn: (value: V, key: string, map: this) => void,
     thisArg?: any // eslint-disable-line @typescript-eslint/no-explicit-any
@@ -434,10 +495,22 @@ export class CPresence<V extends Record<string, any>> extends PrimitiveCRDT<
     }
   }
 
+  /**
+   * Returns an iterator for keys (replicaIDs) in the map.
+   *
+   * The iteration order is NOT eventually consistent:
+   * it may differ on replicas with the same state.
+   */
   *keys(): IterableIterator<string> {
     for (const [key] of this) yield key;
   }
 
+  /**
+   * Returns an iterator for values in the map.
+   *
+   * The iteration order is NOT eventually consistent:
+   * it may differ on replicas with the same state.
+   */
   *values(): IterableIterator<V> {
     for (const [, value] of this) yield value;
   }
