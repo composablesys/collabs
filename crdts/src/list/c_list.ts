@@ -11,8 +11,9 @@ import {
   PairSerializer,
   Position,
   Serializer,
+  StringSerializer,
 } from "@collabs/core";
-import { EntryStatusMessage } from "../../generated/proto_compiled";
+import { CBoolean } from "../boolean";
 import { CSet } from "../set";
 import { CVar } from "../var";
 import { CPositionSource } from "./c_position_source";
@@ -42,52 +43,29 @@ export interface ListExtendedEventsRecord<C> extends ListEventsRecord<C> {
   Move: ListMoveEvent<C>;
 }
 
-interface EntryStatus {
-  position: Position;
-  isPresent: boolean;
-}
-
-class EntryStatusSerializer implements Serializer<EntryStatus> {
-  private constructor() {
-    // Singleton.
-  }
-
-  static instance = new this();
-
-  serialize(value: EntryStatus): Uint8Array {
-    const message = EntryStatusMessage.create({
-      position: value.position,
-      notIsPresent: value.isPresent ? undefined : true,
-    });
-    return EntryStatusMessage.encode(message).finish();
-  }
-
-  deserialize(message: Uint8Array): EntryStatus {
-    const decoded = EntryStatusMessage.decode(message);
-    return {
-      position: decoded.position,
-      isPresent: !decoded.notIsPresent,
-    };
-  }
-}
-
 class CListEntry<C extends Collab> extends CObject {
   readonly value: C;
-  /**
-   * Position and archival status.
-   */
-  readonly status: CVar<EntryStatus>;
+  readonly position: CVar<Position>;
+  // OPT: Store presence together with position in a CValueMap, or in a
+  // CValueSet for the whole list, to reduce memory usage.
+  /** Used by archive/restore. delete() really deletes elements. */
+  readonly present: CBoolean;
 
   constructor(
     init: InitToken,
     valueCallback: (valueInit: InitToken) => C,
-    initialStatus: EntryStatus
+    initialPosition: Position
   ) {
     super(init);
     this.value = super.registerCollab("", valueCallback);
-    this.status = super.registerCollab(
+    this.position = super.registerCollab(
       "0",
-      (init) => new CVar(init, initialStatus)
+      (init) => new CVar(init, initialPosition)
+    );
+    // Restore-wins, with initial value "present".
+    this.present = super.registerCollab(
+      "1",
+      (init) => new CBoolean(init, { initialValue: true, winner: true })
     );
   }
 }
@@ -132,7 +110,7 @@ export class CList<
   C extends Collab,
   InsertArgs extends unknown[]
 > extends AbstractList_CObject<C, InsertArgs, ListExtendedEventsRecord<C>> {
-  private readonly set: CSet<CListEntry<C>, [EntryStatus, InsertArgs]>;
+  private readonly set: CSet<CListEntry<C>, [Position, InsertArgs]>;
   private readonly positionSource: CPositionSource;
 
   private readonly list: LocalList<C>;
@@ -172,7 +150,7 @@ export class CList<
       (init) =>
         new CSet(init, this.entryConstructor.bind(this), {
           argsSerializer: new PairSerializer(
-            EntryStatusSerializer.instance,
+            StringSerializer.instance,
             argsSerializer
           ),
         })
@@ -185,7 +163,7 @@ export class CList<
     // the corresponding entry.
     // Also dispatch our own events.
     this.set.on("Add", (event) => {
-      const position = event.value.status.value.position;
+      const position = event.value.position.value;
       this.list.set(position, event.value.value);
       this.emit("Insert", {
         index: this.list.indexOfPosition(position),
@@ -196,14 +174,14 @@ export class CList<
       });
     });
     this.set.on("Delete", (event) => {
-      const status = event.value.status.value;
-      if (status.isPresent) {
-        const index = this.list.indexOfPosition(status.position);
-        this.list.delete(status.position);
+      if (event.value.present.value) {
+        const position = event.value.position.value;
+        const index = this.list.indexOfPosition(position);
+        this.list.delete(position);
         this.emit("Delete", {
           index,
           values: [event.value.value],
-          positions: [status.position],
+          positions: [position],
           method: "delete",
           meta: event.meta,
         });
@@ -215,60 +193,63 @@ export class CList<
 
   private entryConstructor(
     entryInit: InitToken,
-    initialStatus: EntryStatus,
+    initialPosition: Position,
     args: InsertArgs
   ) {
     const entry = new CListEntry<C>(
       entryInit,
       (valueInit) => this.valueConstructor(valueInit, ...args),
-      initialStatus
+      initialPosition
     );
-    // OPT: avoid creating a closure per entry here?
-    entry.status.on("Set", (event) => {
-      // Maintain positionSource's values as a cache of
-      // of the currently set locations, mapping to
-      // the corresponding entry.
-      // Also dispatch our own events.
-      // Note that for the initial position, this is done
-      // in set's Add event listener, not here.
-      // Also note that entry is always non-deleted, since
-      // restore() skips deleted values.
-      if (event.value.isPresent && !event.previousValue.isPresent) {
-        // entry was un-archived.
-        this.list.set(event.value.position, entry.value);
-        this.emit("Insert", {
-          index: this.list.indexOfPosition(event.value.position),
+    // Maintain positionSource's values as a cache of
+    // of the currently set locations, mapping to
+    // the corresponding entry.
+    // Also dispatch our own events.
+    // Note that for the initial position, this is done
+    // in set's Add event listener, not here.
+    // Also note that entry is always non-deleted, since
+    // restore() skips deleted values.
+    // OPT: avoid creating closures for each entry here?
+    entry.position.on("Set", (event) => {
+      // Handle move ops.
+      // Note that we only do this when the value is present (not archived).
+      if (entry.present.value) {
+        const previousIndex = this.list.indexOfPosition(event.previousValue);
+        this.list.delete(event.previousValue);
+        this.list.set(event.value, entry.value);
+        this.emit("Move", {
+          index: this.list.indexOfPosition(event.value),
+          previousIndex,
           values: [entry.value],
-          positions: [event.value.position],
+          previousPositions: [event.previousValue],
+          positions: [event.value],
+          meta: event.meta,
+        });
+      }
+    });
+    entry.present.on("Set", (event) => {
+      const position = entry.position.value;
+      // Here we rely on the fact that CBoolean only emits events when
+      // the value actually changes.
+      if (event.value) {
+        // entry was un-archived.
+        this.list.set(position, entry.value);
+        this.emit("Insert", {
+          index: this.list.indexOfPosition(position),
+          values: [entry.value],
+          positions: [position],
           method: "restore",
           meta: event.meta,
         });
-      } else if (!event.value.isPresent && event.previousValue.isPresent) {
+      } else {
         // entry was archived.
-        const index = this.list.indexOfPosition(event.value.position);
-        this.list.delete(event.value.position);
+        const index = this.list.indexOfPosition(position);
+        this.list.delete(position);
         this.emit("Delete", {
           index,
           values: [entry.value],
-          positions: [event.value.position],
+          positions: [position],
           method: "archive",
-          meta: event.meta,
-        });
-      } else if (event.value.isPresent) {
-        // status changed, but isPresent did not, so position must have changed:
-        // entry was moved.
-        // Note that we only do this when the value is present (not archived).
-        const previousIndex = this.list.indexOfPosition(
-          event.previousValue.position
-        );
-        this.list.delete(event.previousValue.position);
-        this.list.set(event.value.position, entry.value);
-        this.emit("Move", {
-          index: this.list.indexOfPosition(event.value.position),
-          previousIndex,
-          values: [entry.value],
-          previousPositions: [event.previousValue.position],
-          positions: [event.value.position],
           meta: event.meta,
         });
       }
@@ -303,7 +284,7 @@ export class CList<
   insert(index: number, ...args: InsertArgs): C {
     const prevPos = index === 0 ? null : this.list.getPosition(index - 1);
     const position = this.positionSource.createPositions(prevPos, 1)[0];
-    return this.set.add({ position, isPresent: true }, args).value;
+    return this.set.add(position, args).value;
   }
 
   /**
@@ -358,14 +339,11 @@ export class CList<
     // Get the values to archive.
     const toArchive = this.list.slice(startIndex, startIndex + count);
     toArchive.reverse();
-    // Archive them. We "remember" the current position for when they are
-    // restored.
+    // Archive them. Note the entry.position will "remember" the current
+    // position (and concurrent moves) for when we are restored.
     for (const value of toArchive) {
       const entry = this.entryFromValue(value)!;
-      entry.status.value = {
-        position: entry.status.value.position,
-        isPresent: false,
-      };
+      entry.present.value = false;
     }
   }
 
@@ -377,8 +355,13 @@ export class CList<
    * All values after that position shift to the right,
    * incrementing their indices.
    *
-   * If value is deleted (not just archived), this
+   * In case of concurrent restore and [[archive]] operations, the restore
+   * wins. If the value is deleted (not just archived), this
    * method has no effect.
+   *
+   * One usage pattern is to call restore on a value each time you
+   * mutate that value. That way, if one user archives a value while
+   * it is still in use by another user, the archive will be canceled.
    */
   restore(value: C): void {
     const entry = this.entryFromValue(value);
@@ -386,10 +369,10 @@ export class CList<
       // Already deleted, or invalid.
       return;
     }
-    entry.status.value = {
-      position: entry.status.value.position,
-      isPresent: true,
-    };
+    // For "keepalive" behavior (restore on every op), here we rely
+    // on the fact that CBoolean performs this set op even if it's redundant
+    // (already present).
+    entry.present.value = true;
   }
 
   /**
@@ -425,10 +408,7 @@ export class CList<
     // Move them.
     for (let i = 0; i < count; i++) {
       const entry = this.entryFromValue(toMove[i])!;
-      entry.status.value = {
-        position: positions[i],
-        isPresent: true,
-      };
+      entry.position.value = positions[i];
     }
     // Return the new index of toMove[0].
     return this.list.indexOfPosition(positions[0]);
@@ -513,8 +493,8 @@ export class CList<
 
   indexOf(searchElement: C, fromIndex = 0): number {
     const entry = this.entryFromValue(searchElement);
-    if (entry !== null && this.set.has(entry) && entry.status.value.isPresent) {
-      const index = this.list.indexOfPosition(entry.status.value.position);
+    if (entry !== null && this.set.has(entry) && entry.present.value) {
+      const index = this.list.indexOfPosition(entry.position.value);
       if (fromIndex < 0) fromIndex += this.length;
       if (index >= fromIndex) return index;
     }
@@ -532,8 +512,8 @@ export class CList<
 
   positionOf(searchElement: C): Position | undefined {
     const entry = this.entryFromValue(searchElement);
-    if (entry !== null && this.set.has(entry) && entry.status.value.isPresent) {
-      return entry.status.value.position;
+    if (entry !== null && this.set.has(entry) && entry.present.value) {
+      return entry.position.value;
     }
     return undefined;
   }

@@ -1,0 +1,36 @@
+message PresenceSetMessage {
+  required bytes value = 1;
+  // If true, it's our first setOurs call. Receivers should respond
+  // with their current state.
+  optional bool isJoin = 2 [default=false];
+  // If true, we override the existing value iff we didn't have it before.
+  optional bool isResponse = 3 [default=false];
+}
+
+message PresenceRequestMessage {
+  required string replicaID = 1;
+}
+
+message PresenceMessage {
+  oneof type {
+    bool heartbeat = 1;
+    PresenceSetMessage set = 2;
+    // The serialized update.
+    bytes update = 3;
+    bool disconnect = 4;
+    // The replicaID whose state is being requested.
+    string request = 5;
+  }
+}
+
+message PresenceInfoSave {
+  required bytes value = 1;
+  required uint64 time = 2;
+}
+
+message PresenceSave {
+  // Only includes entries present at the time of saving.
+  // Unlike CPresence.state, includes the local state if connected,
+  // with the time of saving.
+  map<string, PresenceInfoSave> state = 1;
+}

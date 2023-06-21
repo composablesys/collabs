@@ -1,11 +1,13 @@
 import * as collabs from "@collabs/collabs";
 import { CContainer } from "@collabs/container";
-import Quill, { Delta as DeltaType, DeltaStatic } from "quill";
+import Quill, { DeltaStatic, Delta as DeltaType } from "quill";
+import QuillCursors from "quill-cursors";
 
 // Include CSS
 import "quill/dist/quill.snow.css";
 
 const Delta: typeof DeltaType = Quill.import("delta");
+Quill.register("modules/cursors", QuillCursors);
 
 const noGrowAtEnd = [
   // Links (Peritext Example 9)
@@ -18,6 +20,14 @@ const noGrowAtEnd = [
   "list",
   "indent",
 ];
+
+const nameParts = ["Cat", "Dog", "Rabbit", "Mouse", "Elephant"];
+
+interface PresenceState {
+  name: string;
+  color: string;
+  selection: { anchor: collabs.Cursor; head: collabs.Cursor } | null;
+}
 
 function makeInitialSave(): Uint8Array {
   const runtime = new collabs.CRuntime({ debugReplicaID: "INIT" });
@@ -36,6 +46,10 @@ function makeInitialSave(): Uint8Array {
     "text",
     (init) => new collabs.CRichText(init, { noGrowAtEnd })
   );
+  const presence = container.registerCollab(
+    "presence",
+    (init) => new collabs.CPresence<PresenceState>(init)
+  );
   // "Set the initial state"
   // (a single "\n", required by Quill) by
   // loading it from a separate doc.
@@ -46,6 +60,7 @@ function makeInitialSave(): Uint8Array {
     // Modules list from quilljs example, based on
     // https://github.com/KillerCodeMonkey/ngx-quill/issues/295#issuecomment-443268064
     modules: {
+      cursors: true,
       toolbar: [
         [{ font: [] }, { size: [] }],
         ["bold", "italic", "underline", "strike"],
@@ -193,6 +208,78 @@ function makeInitialSave(): Uint8Array {
       }
     }
   });
+
+  // Presence (shared cursors).
+  const name =
+    nameParts[Math.floor(Math.random() * nameParts.length)] +
+    " " +
+    (1 + Math.floor(Math.random() * 9));
+  const color = `hsl(${Math.floor(Math.random() * 360)},50%,50%)`;
+  presence.setOurs({ name, color, selection: null });
+
+  const quillCursors = quill.getModule("cursors") as QuillCursors;
+  function moveCursor(replicaID: string): void {
+    if (replicaID === container.runtime.replicaID) return;
+    const value = presence.get(replicaID);
+    if (value === undefined) return;
+    else if (value.selection === null) quillCursors.removeCursor(replicaID);
+    else {
+      const anchorIndex = collabs.Cursors.toIndex(value.selection.anchor, text);
+      const headIndex = collabs.Cursors.toIndex(value.selection.head, text);
+      quillCursors.moveCursor(replicaID, {
+        index: anchorIndex,
+        length: headIndex - anchorIndex,
+      });
+    }
+  }
+  presence.on("Set", (e) => {
+    if (e.key === container.runtime.replicaID) return;
+    if (e.value.selection === null) quillCursors.removeCursor(e.key);
+    else {
+      quillCursors.createCursor(e.key, e.value.name, e.value.color);
+      moveCursor(e.key);
+    }
+  });
+  presence.on("Delete", (e) => quillCursors.removeCursor(e.key));
+  quill.on("editor-change", () => {
+    // Send our cursor state.
+    // Only do this when the user does something (not in reaction to
+    // remote Collab events).
+    if (!ourChange) {
+      const selection = quill.getSelection();
+      if (selection === null) {
+        presence.updateOurs("selection", null);
+      } else {
+        const anchor = collabs.Cursors.fromIndex(selection.index, text);
+        const head = collabs.Cursors.fromIndex(
+          selection.index + selection.length,
+          text
+        );
+        presence.updateOurs("selection", { anchor, head });
+      }
+    }
+
+    // Move everyone else's cursors locally.
+    // TODO: is this necessary? Will Quill OT it for us?
+    for (const replicaID of presence.keys()) moveCursor(replicaID);
+  });
+
+  // Display loaded presence state.
+  for (const [replicaID, state] of presence) {
+    if (state.selection !== null) {
+      quillCursors.createCursor(replicaID, state.name, state.color);
+      moveCursor(replicaID);
+    }
+  }
+
+  // Presence connect & disconnect.
+  // Since the demo server delivers old messages shortly after starting, wait
+  // a second for those to pass before connecting. Otherwise the messages
+  // (which look new) make old users appear present.
+  setTimeout(() => presence.connect(), 1000);
+  // Note: apparently beforeunload disables some opts in Firefox; consider removing.
+  // https://web.dev/bfcache/#only-add-beforeunload-listeners-conditionally
+  window.addEventListener("beforeunload", () => presence.disconnect());
 
   // Ready.
   container.ready();

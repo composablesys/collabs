@@ -22,6 +22,7 @@ and limitations under the License.
 */
 
 import { Collab, CollabEvent, CollabEventsRecord } from "../core";
+import { ICursorList } from "../util/cursors";
 
 /**
  * A position in a collaborative list (e.g. [[CList]], [[CValueList]], [[CText]]),
@@ -35,8 +36,10 @@ import { Collab, CollabEvent, CollabEventsRecord } from "../core";
  * its current index (or where it would be if present).
  *
  * You can use positions
- * as [React keys](https://reactjs.org/docs/lists-and-keys.html#keys), cursors, range endpoints
+ * as [React keys](https://reactjs.org/docs/lists-and-keys.html#keys), range endpoints
  * for a comment on a document, etc.
+ *
+ * See also: [[Cursor]]
  */
 export type Position = string;
 
@@ -111,7 +114,8 @@ export interface IList<
   T,
   InsertArgs extends unknown[] = [T],
   Events extends ListEventsRecord<T> = ListEventsRecord<T>
-> extends Collab<Events> {
+> extends Collab<Events>,
+    ICursorList {
   /**
    * Inserts a value at the given index using args.
    *
@@ -157,6 +161,8 @@ export interface IList<
 
   /**
    * Returns the position currently at index.
+   *
+   * @throws If index is not in `[0, this.length)`.
    */
   getPosition(index: number): Position;
 
@@ -164,7 +170,8 @@ export interface IList<
    * Returns the current index of position.
    *
    * If position is not currently present in the list
-   * ([[hasPosition]] returns false), then the result depends on searchDir:
+   * ([[hasPosition]] returns false),
+   * then the result depends on searchDir:
    * - "none" (default): Returns -1.
    * - "left": Returns the next index to the left of position.
    * If there are no values to the left of position,
