@@ -84,7 +84,7 @@ export class CPresence<V extends Record<string, any>> extends PrimitiveCRDT<
    * @param options.ttlMS The time-to-live for users who we have not heard from,
    * after which their entry is deleted. Heartbeats sent twice as often
    * keep present users alive. Default: [[TTL_MS_DEFAULT]].
-   * @param options.updatesSerializer Serializer for updates ([[setOurs]] and
+   * @param options.updateSerializer Serializer for updates ([[setOurs]] and
    * [[updateOurs]]), which change a subset of V's keys.
    * Defaults to [[DefaultSerializer]].
    */
@@ -136,9 +136,9 @@ export class CPresence<V extends Record<string, any>> extends PrimitiveCRDT<
    *
    * Use this method for frequently-changed properties like cursor positions.
    */
-  updateOurs<K extends keyof V & string>(
-    property: K,
-    propertyValue: V[K]
+  updateOurs<P extends keyof V & string>(
+    property: P,
+    propertyValue: V[P]
   ): void {
     if (this.ourValue === null) {
       throw new Error(
@@ -215,7 +215,7 @@ export class CPresence<V extends Record<string, any>> extends PrimitiveCRDT<
    * a timeout (default 10 seconds).
    *
    * Disconnection affects others' view of us, not our view of them.
-   * In your display, you may wish to treat others as offline even though
+   * When disconnected, you may wish to treat others as offline even though
    * CPresence still has their state.
    */
   disconnect(): void {
@@ -236,11 +236,12 @@ export class CPresence<V extends Record<string, any>> extends PrimitiveCRDT<
 
   private resetHeartbeat() {
     if (this.heartbeatTimeout !== null) clearTimeout(this.heartbeatTimeout);
-    if (!this.connected) {
-      this.heartbeatTimeout = null;
-      return;
-    }
-    this.heartbeatTimeout = setTimeout(this.heartbeat, this.heartbeatInterval);
+    if (this._connected) {
+      this.heartbeatTimeout = setTimeout(
+        this.heartbeat,
+        this.heartbeatInterval
+      );
+    } else this.heartbeatTimeout = null;
   }
 
   private heartbeat = () => {
@@ -255,12 +256,11 @@ export class CPresence<V extends Record<string, any>> extends PrimitiveCRDT<
     meta: UpdateMeta,
     _crdtMeta: CRDTMessageMeta
   ): void {
-    // Ignore own messages. Their methods emit events, for consistency with
-    // disconnected periods.
+    // Ignore own messages. Their methods emit their own events.
     if (meta.isLocalOp) return;
     // Before joining (= first connection), ignore remote messages,
     // in case they are being replayed as part of loading (hence are old).
-    // Instead, we'll get up-to-date states from joining.
+    // Instead, we'll get up-to-date states in response to joining.
     if (!this.joined) return;
 
     const decoded = PresenceMessage.decode(<Uint8Array>message);
@@ -319,11 +319,7 @@ export class CPresence<V extends Record<string, any>> extends PrimitiveCRDT<
   }
 
   /**
-   *
-   * @param newValue
-   * @param meta
    * @param time The time of receipt. Defaults to now.
-   * @returns
    */
   private processHeartbeat(
     newValue: V | null,
@@ -383,7 +379,7 @@ export class CPresence<V extends Record<string, any>> extends PrimitiveCRDT<
           meta,
         });
       }
-    }
+    } else info.timeout = null;
   }
 
   private processTimeout(senderID: string, info: Info<V>, meta: UpdateMeta) {
@@ -431,15 +427,14 @@ export class CPresence<V extends Record<string, any>> extends PrimitiveCRDT<
     if (replicaID === this.runtime.replicaID) return this.getOurs();
     const info = this.state.get(replicaID);
     if (info === undefined || !info.present) return undefined;
-    else return info.value;
+    return info.value;
   }
 
   /**
    * Returns whether key `replicaID` is present in the map.
    */
   has(replicaID: string): boolean {
-    if (replicaID === this.runtime.replicaID) return this.ourValue !== null;
-    return this.state.get(replicaID)?.present ?? false;
+    return this.get(replicaID) !== undefined;
   }
 
   /**

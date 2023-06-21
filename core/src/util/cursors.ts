@@ -31,15 +31,15 @@ export interface ICursorList {
   /**
    * Returns the current index of position.
    *
-   * If position is not currently present in the list
-   * ([[hasPosition]] returns false), then the result depends on searchDir:
+   * If position is not currently present in the list,
+   * then the result depends on searchDir:
    * - "none" (default): Returns -1.
    * - "left": Returns the next index to the left of position.
    * If there are no values to the left of position,
    * returns -1.
    * - "right": Returns the next index to the right of position.
    * If there are no values to the right of position,
-   * returns [[length]].
+   * returns the length of the list.
    *
    * To find the index where a position would be if
    * present, use `searchDir = "right"`.
@@ -71,10 +71,11 @@ export class Cursors {
   }
 
   /**
-   * Returns the current index of `cursor` within the given list. Inverse of `Cursors.fromIndex`.
+   * Returns the current index of `cursor` within the given list. Inverse of [[fromIndex]].
    *
    * That is, the cursor is between the list elements at `index - 1` and `index`.
    *
+   * @param cursor The [[Cursor]].
    * @param list The target list.
    */
   static toIndex(cursor: Cursor, list: ICursorList): number {

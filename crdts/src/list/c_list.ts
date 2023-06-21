@@ -369,6 +369,9 @@ export class CList<
       // Already deleted, or invalid.
       return;
     }
+    // For "keepalive" behavior (restore on every op), here we rely
+    // on the fact that CBoolean performs this set op even if it's redundant
+    // (already present).
     entry.present.value = true;
   }
 
