@@ -234,6 +234,11 @@ describe("CLazyMap", () => {
       new IMapView(bobMap, true);
     });
 
+    afterEach(() => {
+      EventView.check(aliceMap);
+      EventView.check(bobMap);
+    });
+
     it("is initially empty", () => {
       assert.deepStrictEqual(new Set(aliceMap.keys()), new Set([]));
       assert.deepStrictEqual(new Set(bobMap.keys()), new Set([]));

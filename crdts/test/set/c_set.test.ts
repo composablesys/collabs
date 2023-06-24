@@ -2,6 +2,7 @@ import { Collab, CollabID, InitToken, Optional } from "@collabs/core";
 import { assert } from "chai";
 import seedrandom from "seedrandom";
 import { CCounter, CRuntime, CSet, CVar, TestingRuntimes } from "../../src";
+import { EventView } from "../event_view";
 import { Source, Traces } from "../traces";
 import { ISetView } from "./views";
 
@@ -261,6 +262,11 @@ describe("CSet", () => {
 
       new ISetView(aliceSource, true);
       new ISetView(bobSource, true);
+    });
+
+    afterEach(() => {
+      EventView.check(aliceSource);
+      EventView.check(bobSource);
     });
 
     it("returns new Collab", () => {

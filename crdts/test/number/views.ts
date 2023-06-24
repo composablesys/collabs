@@ -11,10 +11,13 @@ export class CCounterView extends EventView<CCounter> {
     // Initial value
     this.view = collab.value;
 
-    collab.on("Add", (e) => {
-      assert.strictEqual(e.added, e.value - this.view);
-      this.view = e.value;
-    });
+    collab.on(
+      "Add",
+      this.wrap((e) => {
+        assert.strictEqual(e.added, e.value - this.view);
+        this.view = e.value;
+      })
+    );
   }
 
   checkInstance(): void {

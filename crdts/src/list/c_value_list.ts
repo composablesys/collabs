@@ -299,13 +299,17 @@ export class CValueList<T> extends AbstractList_CObject<T, [T]> {
     if (this.list.inInitialState) {
       // Shortcut: No need to merge, just load the state directly.
       this.list.load(savedState, this.valueArraySerializer);
-      const values = new Array<T>(this.list.length);
-      const positions = new Array<Position>(this.list.length);
-      for (const [i, position, value] of this.list.entries()) {
-        values[i] = value;
-        positions[i] = position;
+      if (this.list.length > 0) {
+        const values = new Array<T>(this.list.length);
+        const positions = new Array<Position>(this.list.length);
+        for (const [i, position, value] of this.list.entries()) {
+          values[i] = value;
+          positions[i] = position;
+        }
+        // It's important that we don't do this when the length is zero:
+        // 0-length Insert events confuse CRichText and possibly others.
+        this.emit("Insert", { index: 0, values, positions, meta });
       }
-      this.emit("Insert", { index: 0, values, positions, meta });
     } else {
       // We need to merge savedState with our existing state.
       const remote = new LocalList<T>(this.positionSource);

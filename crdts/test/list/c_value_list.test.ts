@@ -495,6 +495,11 @@ describe("CValueList", () => {
       new IListView(bobList, true);
     });
 
+    afterEach(() => {
+      EventView.check(aliceList);
+      EventView.check(bobList);
+    });
+
     it("inserts once", () => {
       const ans = [0];
       aliceList.insert(0, 0);
@@ -687,6 +692,7 @@ describe("CValueList", () => {
         assert.deepStrictEqual(charlieList.slice(), ans);
 
         checkPositions(alice, aliceList);
+        EventView.check(charlieList);
       });
 
       it("at other node going left", () => {

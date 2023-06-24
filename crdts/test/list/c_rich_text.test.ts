@@ -104,6 +104,8 @@ describe("CRichText", () => {
 
       it("initial", () => {
         Traces.initial(source, [["initial", {}]]);
+        // Also try with truly empty state (no setupOp).
+        Traces.initial(source, [], false);
       });
 
       it("singleOp", () => {
@@ -542,6 +544,11 @@ describe("CRichText", () => {
 
       new CRichTextView(aliceText, true);
       new CRichTextView(bobText, true);
+    });
+
+    afterEach(() => {
+      EventView.check(aliceText);
+      EventView.check(bobText);
     });
 
     /**

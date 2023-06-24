@@ -11,10 +11,13 @@ export class IVarView<T> extends EventView<IVar<T, any>> {
     // Initial value
     this.view = collab.value;
 
-    collab.on("Set", (e) => {
-      assert.strictEqual(e.previousValue, this.view);
-      this.view = e.value;
-    });
+    collab.on(
+      "Set",
+      this.wrap((e) => {
+        assert.strictEqual(e.previousValue, this.view);
+        this.view = e.value;
+      })
+    );
   }
 
   checkInstance(): void {
