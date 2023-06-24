@@ -14,6 +14,7 @@ export class IListView<
 
     collab.on("Insert", (e) => {
       assert.notStrictEqual(e.index, -1);
+      assert.isAbove(e.positions.length, 0);
       assert.strictEqual(e.positions.length, e.values.length);
       const elements: [position: Position, value: T][] = [];
       for (let i = 0; i < e.values.length; i++) {
@@ -25,6 +26,7 @@ export class IListView<
 
     collab.on("Delete", (e) => {
       assert.notStrictEqual(e.index, -1);
+      assert.isAbove(e.positions.length, 0);
       // Check that the deleted values/positions are accurate.
       assert.strictEqual(e.positions.length, e.values.length);
       for (let i = 0; i < e.values.length; i++) {
@@ -88,6 +90,7 @@ export class CRichTextView<F extends Record<string, any>> extends EventView<
 
     collab.on("Insert", (e) => {
       assert.notStrictEqual(e.index, -1);
+      assert.isAbove(e.positions.length, 0);
       assert.strictEqual(e.positions.length, e.values.length);
       const elements: [
         position: Position,
@@ -104,6 +107,7 @@ export class CRichTextView<F extends Record<string, any>> extends EventView<
 
     collab.on("Delete", (e) => {
       assert.notStrictEqual(e.index, -1);
+      assert.isAbove(e.positions.length, 0);
       // Check that the deleted values/positions are accurate.
       assert.strictEqual(e.positions.length, e.values.length);
       for (let i = 0; i < e.values.length; i++) {

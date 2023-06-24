@@ -104,6 +104,8 @@ describe("CRichText", () => {
 
       it("initial", () => {
         Traces.initial(source, [["initial", {}]]);
+        // Also try with truly empty state (no setupOp).
+        Traces.initial(source, [], false);
       });
 
       it("singleOp", () => {

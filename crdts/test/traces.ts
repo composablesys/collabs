@@ -77,11 +77,15 @@ export class Traces {
   /**
    * Check the initial value.
    */
-  static initial<C extends Collab, V>(source: Source<C, V>, valueInit: V) {
+  static initial<C extends Collab, V>(
+    source: Source<C, V>,
+    valueInit: V,
+    doSetupOp = true
+  ) {
     const manager = new Manager(source);
 
     // Basics
-    const [alice] = manager.setup(1, true);
+    const [alice] = manager.setup(1, doSetupOp);
     manager.check(alice, valueInit);
 
     this.crossSave(manager, [alice], valueInit);
