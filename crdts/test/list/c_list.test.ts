@@ -633,6 +633,11 @@ describe("CList", () => {
       new CListView(bobList, true);
     });
 
+    afterEach(() => {
+      EventView.check(aliceList);
+      EventView.check(bobList);
+    });
+
     describe("ordering", () => {
       // These tests are a subset of the CValueList ordering tests.
       // In theory these aren't exercising anything that CValueList didn't

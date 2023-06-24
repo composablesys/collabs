@@ -546,6 +546,11 @@ describe("CRichText", () => {
       new CRichTextView(bobText, true);
     });
 
+    afterEach(() => {
+      EventView.check(aliceText);
+      EventView.check(bobText);
+    });
+
     /**
      * Checks that alice and bob's saves give the same richText state
      * when loaded on a new replica.

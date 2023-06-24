@@ -32,6 +32,7 @@ export abstract class EventView<C extends Collab> {
   static check(collab: Collab): void {
     const view = this.views.get(collab)!;
     assert.isDefined(view, "Test error: No EventView constructed for collab");
+    view.checkHandlers();
     view.checkInstance();
   }
 
@@ -39,25 +40,29 @@ export abstract class EventView<C extends Collab> {
    *
    * @param collab
    * @param autoCheck If true, automatically check the view after
-   * every event.
+   * every event. Note that any resulting errors will not surface until
+   * you call EventView.check(collab), which will throw the first error;
+   * generally you should call that in an afterEach hook.
    * @param autoCheckTrOnly If true, when autoCheck is true, wait
    * until the end of the transaction before auto-checking.
    */
   constructor(readonly collab: C, autoCheck: boolean, autoCheckTrOnly = false) {
     EventView.views.set(collab, this);
     if (autoCheck) {
-      // TODO: errors here print, but don't fail the test.
       if (autoCheckTrOnly) {
         let checkPending = false;
-        collab.on("Any", () => {
-          if (!checkPending) {
-            checkPending = true;
-            (collab.runtime as CRuntime).on("Transaction", () => {
-              checkPending = false;
-              this.checkInstance();
-            });
-          }
-        });
+        collab.on(
+          "Any",
+          this.wrap(() => {
+            if (!checkPending) {
+              checkPending = true;
+              (collab.runtime as CRuntime).on("Transaction", () => {
+                checkPending = false;
+                this.checkInstance();
+              });
+            }
+          })
+        );
       } else {
         collab.on("Any", () => this.checkInstance());
       }
@@ -69,4 +74,25 @@ export abstract class EventView<C extends Collab> {
    * it has an equivalent state to this.collab.
    */
   abstract checkInstance(): void;
+
+  private error: unknown | null = null;
+
+  /**
+   * Wrap all event handlers in this function so that their errors
+   * are saved for checkHandlers() instead of being eaten by Collabs.
+   */
+  protected wrap<E>(handler: (e: E) => void): (e: E) => void {
+    return (e) => {
+      try {
+        handler(e);
+      } catch (error) {
+        // Only save the first error encountered.
+        if (this.error === null) this.error = error;
+      }
+    };
+  }
+
+  checkHandlers() {
+    if (this.error !== null) throw this.error;
+  }
 }

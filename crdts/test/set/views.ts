@@ -8,15 +8,21 @@ export class ISetView<T> extends EventView<ISet<T, any>> {
   constructor(collab: ISet<T, any>, autoCheck: boolean) {
     super(collab, autoCheck);
 
-    collab.on("Add", (e) => {
-      assert.isFalse(this.view.has(e.value));
-      this.view.add(e.value);
-    });
+    collab.on(
+      "Add",
+      this.wrap((e) => {
+        assert.isFalse(this.view.has(e.value));
+        this.view.add(e.value);
+      })
+    );
 
-    collab.on("Delete", (e) => {
-      assert(this.view.has(e.value));
-      this.view.delete(e.value);
-    });
+    collab.on(
+      "Delete",
+      this.wrap((e) => {
+        assert(this.view.has(e.value));
+        this.view.delete(e.value);
+      })
+    );
   }
 
   checkInstance(): void {
