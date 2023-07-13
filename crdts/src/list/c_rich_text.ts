@@ -10,10 +10,10 @@ import {
   StringSerializer,
   UpdateMeta,
 } from "@collabs/core";
-import { charArraySerializer } from "./char_array_serializer";
 import { CSpanLog, Span } from "./c_span_log";
 import { TextEvent } from "./c_text";
 import { CValueList } from "./c_value_list";
+import { charArraySerializer } from "./char_array_serializer";
 import { LocalList } from "./local_list";
 
 /**
@@ -609,8 +609,7 @@ export class CRichText<
    * Returns the format at position.
    *
    * If position is not currently present, returns the formatting that
-   * a character at position would have if present
-   * (unlike getFormatByPosition, which returns undefined).
+   * a character at position would have if present..
    */
   private getFormatInternal(position: Position): Partial<F> {
     // Find the closest <= FormatData.
@@ -762,21 +761,6 @@ export class CRichText<
 
   // Convenience accessors.
 
-  /**
-   * Returns a string consisting of the single character
-   * (UTF-16 codepoint) at `index`, with behavior
-   * like [String.at](https://developer.mozilla.org/en-US/docs/Web/JavaScript/Reference/Global_Objects/String/at).
-   *
-   * Negative indices are relative to
-   * end of the text string, and out-of-bounds
-   * indices return undefined.
-   */
-  at(index: number): string | undefined {
-    if (index < 0) index += this.length;
-    if (index < 0 || index >= this.length) return undefined;
-    return this.text.get(index);
-  }
-
   // slice() is the most reasonable out of {slice, substring, substr}.
 
   /**
@@ -833,16 +817,6 @@ export class CRichText<
     return this.text.getByPosition(position);
   }
 
-  /**
-   * Returns the format at position, or undefined if it is not currently present
-   * ([[hasPosition]] returns false).
-   */
-  getFormatByPosition(position: Position): Partial<F> | undefined {
-    if (this.text.hasPosition(position)) {
-      return this.getFormatInternal(position);
-    } else return undefined;
-  }
-
   /** Returns an iterator for present positions, in list order. */
   positions(): IterableIterator<Position> {
     return this.text.positions();
@@ -874,9 +848,7 @@ interface FormatData<F extends Record<string, any>> {
    * OPT: Clear this field once the position is deleted, and also
    * delete from spanLog any singleton spans (form [position]).
    * Such formats are no longer needed and might be large (e.g. if you
-   * store Quill embeds as a single-char format). Note that then
-   * we will have to change the contract of getFormatByPosition
-   * (won't be accurate for deleted positions).
+   * store Quill embeds as a single-char format).
    */
   readonly endClosedSpans: Map<keyof F & string, Span<F>>;
 }

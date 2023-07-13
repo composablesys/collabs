@@ -31,7 +31,7 @@ export interface MakeAbstractMap_Methods<
    * comparing values to searchElement using ===.
    *
    * Override this method if you want to optimize the
-   * search or use different equality semantics.
+   * search.
    */
   keyOf(searchElement: V): K | undefined;
 }

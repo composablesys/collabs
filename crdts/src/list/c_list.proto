@@ -1,5 +1,0 @@
-message EntryStatusMessage {
-  required string position = 1;
-  // Missing = false (default behavior).
-  optional bool notIsPresent = 2;
-}

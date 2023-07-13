@@ -492,20 +492,13 @@ export class CList<
   }
 
   indexOf(searchElement: C, fromIndex = 0): number {
+    // Override AbstractList's implementation to use entryFromValue (O(1) time)
+    // instead of a linear search.
     const entry = this.entryFromValue(searchElement);
     if (entry !== null && this.set.has(entry) && entry.present.value) {
       const index = this.list.indexOfPosition(entry.position.value);
       if (fromIndex < 0) fromIndex += this.length;
       if (index >= fromIndex) return index;
-    }
-    return -1;
-  }
-
-  lastIndexOf(searchElement: C, fromIndex = this.length - 1): number {
-    const index = this.indexOf(searchElement);
-    if (index !== -1) {
-      if (fromIndex < 0) fromIndex += this.length;
-      if (index <= fromIndex) return index;
     }
     return -1;
   }
@@ -516,9 +509,5 @@ export class CList<
       return entry.position.value;
     }
     return undefined;
-  }
-
-  includes(searchElement: C, fromIndex = 0): boolean {
-    return this.indexOf(searchElement, fromIndex) !== -1;
   }
 }

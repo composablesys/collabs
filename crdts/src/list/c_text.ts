@@ -7,8 +7,8 @@ import {
   Position,
   StringSerializer,
 } from "@collabs/core";
-import { charArraySerializer } from "./char_array_serializer";
 import { CValueList } from "./c_value_list";
+import { charArraySerializer } from "./char_array_serializer";
 import { LocalList } from "./local_list";
 
 /**
@@ -250,21 +250,6 @@ export class CText extends CObject<TextEventsRecord> implements ICursorList {
   }
 
   // Convenience accessors.
-
-  /**
-   * Returns a string consisting of the single character
-   * (UTF-16 codepoint) at `index`, with behavior
-   * like [string.at](https://developer.mozilla.org/en-US/docs/Web/JavaScript/Reference/Global_Objects/String/at).
-   *
-   * Negative indices are relative to
-   * end of the text string, and out-of-bounds
-   * indices return undefined.
-   */
-  at(index: number): string | undefined {
-    if (index < 0) index += this.length;
-    if (index < 0 || index >= this.length) return undefined;
-    return this.list.get(index);
-  }
 
   // slice() is the most reasonable out of {slice, substring, substr}.
 

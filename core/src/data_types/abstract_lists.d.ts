@@ -28,46 +28,9 @@ export declare abstract class AbstractList_Collab<
   positions(): IterableIterator<Position>;
   toString(): string;
 
-  pop(): T;
   push(...args: InsertArgs): T | undefined;
-  shift(): T;
   unshift(...args: InsertArgs): T | undefined;
 
-  concat(...items: ConcatArray<T>[]): T[];
-  concat(...items: (T | ConcatArray<T>)[]): T[];
-  find<S extends T>(
-    predicate: (this: void, value: T, index: number, obj: this) => value is S,
-    thisArg?: any // eslint-disable-line @typescript-eslint/no-explicit-any
-  ): S | undefined;
-  find(
-    predicate: (value: T, index: number, obj: this) => unknown,
-    thisArg?: any // eslint-disable-line @typescript-eslint/no-explicit-any
-  ): T | undefined;
-  findIndex(
-    predicate: (value: T, index: number, obj: this) => unknown,
-    thisArg?: any // eslint-disable-line @typescript-eslint/no-explicit-any
-  ): number;
-  flatMap<U, This = undefined>(
-    callback: (
-      this: This,
-      value: T,
-      index: number,
-      array: this
-    ) => U | ReadonlyArray<U>,
-    thisArg?: This
-  ): U[];
-  flat<D extends number = 1>(depth?: D): FlatArray<T[], D>[];
-  includes(searchElement: T, fromIndex?: number): boolean;
-  indexOf(searchElement: T, fromIndex?: number): number;
-  lastIndexOf(searchElement: T, fromIndex?: number): number;
-  every(
-    predicate: (value: T, index: number, list: this) => unknown,
-    thisArg?: any // eslint-disable-line @typescript-eslint/no-explicit-any
-  ): boolean;
-  some(
-    predicate: (value: T, index: number, list: this) => unknown,
-    thisArg?: any // eslint-disable-line @typescript-eslint/no-explicit-any
-  ): boolean;
   forEach(
     callbackfn: (value: T, index: number, list: this) => void,
     thisArg?: any // eslint-disable-line @typescript-eslint/no-explicit-any
@@ -76,50 +39,8 @@ export declare abstract class AbstractList_Collab<
     callbackfn: (value: T, index: number, list: this) => U,
     thisArg?: any // eslint-disable-line @typescript-eslint/no-explicit-any
   ): U[];
-  filter<S extends T>(
-    predicate: (value: T, index: number, list: this) => value is S,
-    thisArg?: any // eslint-disable-line @typescript-eslint/no-explicit-any
-  ): S[];
-  filter(
-    predicate: (value: T, index: number, list: this) => unknown,
-    thisArg?: any // eslint-disable-line @typescript-eslint/no-explicit-any
-  ): T[];
-  join(separator?: string): string;
-  reduce(
-    callbackfn: (
-      previousValue: T,
-      currentValue: T,
-      currentIndex: number,
-      list: this
-    ) => T
-  ): T;
-  reduce<U>(
-    callbackfn: (
-      previousValue: U,
-      currentValue: T,
-      currentIndex: number,
-      list: this
-    ) => U,
-    initialValue: U
-  ): U;
-  reduceRight(
-    callbackfn: (
-      previousValue: T,
-      currentValue: T,
-      currentIndex: number,
-      list: this
-    ) => T
-  ): T;
-  reduceRight<U>(
-    callbackfn: (
-      previousValue: U,
-      currentValue: T,
-      currentIndex: number,
-      list: this
-    ) => U,
-    initialValue: U
-  ): U;
   slice(start?: number, end?: number): T[];
+  indexOf(searchElement: T, fromIndex?: number): number;
 
   abstract insert(index: number, ...args: InsertArgs): T | undefined;
   abstract delete(startIndex: number, count?: number): void;
@@ -159,46 +80,9 @@ export declare abstract class AbstractList_CObject<
   positions(): IterableIterator<Position>;
   toString(): string;
 
-  pop(): T;
   push(...args: InsertArgs): T | undefined;
-  shift(): T;
   unshift(...args: InsertArgs): T | undefined;
 
-  concat(...items: ConcatArray<T>[]): T[];
-  concat(...items: (T | ConcatArray<T>)[]): T[];
-  find<S extends T>(
-    predicate: (this: void, value: T, index: number, obj: this) => value is S,
-    thisArg?: any // eslint-disable-line @typescript-eslint/no-explicit-any
-  ): S | undefined;
-  find(
-    predicate: (value: T, index: number, obj: this) => unknown,
-    thisArg?: any // eslint-disable-line @typescript-eslint/no-explicit-any
-  ): T | undefined;
-  findIndex(
-    predicate: (value: T, index: number, obj: this) => unknown,
-    thisArg?: any // eslint-disable-line @typescript-eslint/no-explicit-any
-  ): number;
-  flatMap<U, This = undefined>(
-    callback: (
-      this: This,
-      value: T,
-      index: number,
-      array: this
-    ) => U | ReadonlyArray<U>,
-    thisArg?: This
-  ): U[];
-  flat<D extends number = 1>(depth?: D): FlatArray<T[], D>[];
-  includes(searchElement: T, fromIndex?: number): boolean;
-  indexOf(searchElement: T, fromIndex?: number): number;
-  lastIndexOf(searchElement: T, fromIndex?: number): number;
-  every(
-    predicate: (value: T, index: number, list: this) => unknown,
-    thisArg?: any // eslint-disable-line @typescript-eslint/no-explicit-any
-  ): boolean;
-  some(
-    predicate: (value: T, index: number, list: this) => unknown,
-    thisArg?: any // eslint-disable-line @typescript-eslint/no-explicit-any
-  ): boolean;
   forEach(
     callbackfn: (value: T, index: number, list: this) => void,
     thisArg?: any // eslint-disable-line @typescript-eslint/no-explicit-any
@@ -207,50 +91,8 @@ export declare abstract class AbstractList_CObject<
     callbackfn: (value: T, index: number, list: this) => U,
     thisArg?: any // eslint-disable-line @typescript-eslint/no-explicit-any
   ): U[];
-  filter<S extends T>(
-    predicate: (value: T, index: number, list: this) => value is S,
-    thisArg?: any // eslint-disable-line @typescript-eslint/no-explicit-any
-  ): S[];
-  filter(
-    predicate: (value: T, index: number, list: this) => unknown,
-    thisArg?: any // eslint-disable-line @typescript-eslint/no-explicit-any
-  ): T[];
-  join(separator?: string): string;
-  reduce(
-    callbackfn: (
-      previousValue: T,
-      currentValue: T,
-      currentIndex: number,
-      list: this
-    ) => T
-  ): T;
-  reduce<U>(
-    callbackfn: (
-      previousValue: U,
-      currentValue: T,
-      currentIndex: number,
-      list: this
-    ) => U,
-    initialValue: U
-  ): U;
-  reduceRight(
-    callbackfn: (
-      previousValue: T,
-      currentValue: T,
-      currentIndex: number,
-      list: this
-    ) => T
-  ): T;
-  reduceRight<U>(
-    callbackfn: (
-      previousValue: U,
-      currentValue: T,
-      currentIndex: number,
-      list: this
-    ) => U,
-    initialValue: U
-  ): U;
   slice(start?: number, end?: number): T[];
+  indexOf(searchElement: T, fromIndex?: number): number;
 
   abstract insert(index: number, ...args: InsertArgs): T | undefined;
   abstract delete(startIndex: number, count?: number): void;
@@ -290,46 +132,9 @@ export declare abstract class AbstractList_CPrimitive<
   positions(): IterableIterator<Position>;
   toString(): string;
 
-  pop(): T;
   push(...args: InsertArgs): T | undefined;
-  shift(): T;
   unshift(...args: InsertArgs): T | undefined;
 
-  concat(...items: ConcatArray<T>[]): T[];
-  concat(...items: (T | ConcatArray<T>)[]): T[];
-  find<S extends T>(
-    predicate: (this: void, value: T, index: number, obj: this) => value is S,
-    thisArg?: any // eslint-disable-line @typescript-eslint/no-explicit-any
-  ): S | undefined;
-  find(
-    predicate: (value: T, index: number, obj: this) => unknown,
-    thisArg?: any // eslint-disable-line @typescript-eslint/no-explicit-any
-  ): T | undefined;
-  findIndex(
-    predicate: (value: T, index: number, obj: this) => unknown,
-    thisArg?: any // eslint-disable-line @typescript-eslint/no-explicit-any
-  ): number;
-  flatMap<U, This = undefined>(
-    callback: (
-      this: This,
-      value: T,
-      index: number,
-      array: this
-    ) => U | ReadonlyArray<U>,
-    thisArg?: This
-  ): U[];
-  flat<D extends number = 1>(depth?: D): FlatArray<T[], D>[];
-  includes(searchElement: T, fromIndex?: number): boolean;
-  indexOf(searchElement: T, fromIndex?: number): number;
-  lastIndexOf(searchElement: T, fromIndex?: number): number;
-  every(
-    predicate: (value: T, index: number, list: this) => unknown,
-    thisArg?: any // eslint-disable-line @typescript-eslint/no-explicit-any
-  ): boolean;
-  some(
-    predicate: (value: T, index: number, list: this) => unknown,
-    thisArg?: any // eslint-disable-line @typescript-eslint/no-explicit-any
-  ): boolean;
   forEach(
     callbackfn: (value: T, index: number, list: this) => void,
     thisArg?: any // eslint-disable-line @typescript-eslint/no-explicit-any
@@ -338,50 +143,8 @@ export declare abstract class AbstractList_CPrimitive<
     callbackfn: (value: T, index: number, list: this) => U,
     thisArg?: any // eslint-disable-line @typescript-eslint/no-explicit-any
   ): U[];
-  filter<S extends T>(
-    predicate: (value: T, index: number, list: this) => value is S,
-    thisArg?: any // eslint-disable-line @typescript-eslint/no-explicit-any
-  ): S[];
-  filter(
-    predicate: (value: T, index: number, list: this) => unknown,
-    thisArg?: any // eslint-disable-line @typescript-eslint/no-explicit-any
-  ): T[];
-  join(separator?: string): string;
-  reduce(
-    callbackfn: (
-      previousValue: T,
-      currentValue: T,
-      currentIndex: number,
-      list: this
-    ) => T
-  ): T;
-  reduce<U>(
-    callbackfn: (
-      previousValue: U,
-      currentValue: T,
-      currentIndex: number,
-      list: this
-    ) => U,
-    initialValue: U
-  ): U;
-  reduceRight(
-    callbackfn: (
-      previousValue: T,
-      currentValue: T,
-      currentIndex: number,
-      list: this
-    ) => T
-  ): T;
-  reduceRight<U>(
-    callbackfn: (
-      previousValue: U,
-      currentValue: T,
-      currentIndex: number,
-      list: this
-    ) => U,
-    initialValue: U
-  ): U;
   slice(start?: number, end?: number): T[];
+  indexOf(searchElement: T, fromIndex?: number): number;
 
   abstract insert(index: number, ...args: InsertArgs): T | undefined;
   abstract delete(startIndex: number, count?: number): void;

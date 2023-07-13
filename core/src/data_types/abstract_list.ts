@@ -23,7 +23,8 @@ export interface MakeAbstractList_Methods<
    * Returns getPosition(indexOf(value)).
    *
    * Override this method if you want to optimize this
-   * behavior.
+   * behavior. If you do so, you probably also want to
+   * override indexOf to call this method instead of doing a linear search.
    */
   positionOf(searchElement: T): Position | undefined;
   /**
@@ -43,9 +44,7 @@ export interface MakeAbstractList_Methods<
   toString(): string;
 
   // Convenience mutators.
-  pop(): T;
   push(...args: InsertArgs): T | undefined;
-  shift(): T;
   unshift(...args: InsertArgs): T | undefined;
   // Splice omitted because in InsertArgs form, it is hard to
   // allow multiple new values. However, implementations with
@@ -54,46 +53,10 @@ export interface MakeAbstractList_Methods<
 
   // OPT: may want to optimize methods involving slice
   // or iteration generally (usually n vs nlog(n)).
-  // OPT: optimize includes, indexOf, lastIndexOf if you know how to get
-  // the index of an element immediately.
-  // OPT: optimize join for TextCollab (in particular, join('')).
+  // OPT: optimize positionOf, indexOf if you know how to get
+  // the position/index of an element immediately.
 
   // Convenience accessors
-  concat(...items: ConcatArray<T>[]): T[];
-  concat(...items: (T | ConcatArray<T>)[]): T[];
-  find<S extends T>(
-    predicate: (this: void, value: T, index: number, obj: this) => value is S,
-    thisArg?: any // eslint-disable-line @typescript-eslint/no-explicit-any
-  ): S | undefined;
-  find(
-    predicate: (value: T, index: number, obj: this) => unknown,
-    thisArg?: any // eslint-disable-line @typescript-eslint/no-explicit-any
-  ): T | undefined;
-  findIndex(
-    predicate: (value: T, index: number, obj: this) => unknown,
-    thisArg?: any // eslint-disable-line @typescript-eslint/no-explicit-any
-  ): number;
-  flatMap<U, This = undefined>(
-    callback: (
-      this: This,
-      value: T,
-      index: number,
-      array: this
-    ) => U | ReadonlyArray<U>,
-    thisArg?: This
-  ): U[];
-  flat<D extends number = 1>(depth?: D): FlatArray<T[], D>[];
-  includes(searchElement: T, fromIndex?: number): boolean;
-  indexOf(searchElement: T, fromIndex?: number): number;
-  lastIndexOf(searchElement: T, fromIndex?: number): number;
-  every(
-    predicate: (value: T, index: number, list: this) => unknown,
-    thisArg?: any // eslint-disable-line @typescript-eslint/no-explicit-any
-  ): boolean;
-  some(
-    predicate: (value: T, index: number, list: this) => unknown,
-    thisArg?: any // eslint-disable-line @typescript-eslint/no-explicit-any
-  ): boolean;
   forEach(
     callbackfn: (value: T, index: number, list: this) => void,
     thisArg?: any // eslint-disable-line @typescript-eslint/no-explicit-any
@@ -102,65 +65,9 @@ export interface MakeAbstractList_Methods<
     callbackfn: (value: T, index: number, list: this) => U,
     thisArg?: any // eslint-disable-line @typescript-eslint/no-explicit-any
   ): U[];
-  filter<S extends T>(
-    predicate: (value: T, index: number, list: this) => value is S,
-    thisArg?: any // eslint-disable-line @typescript-eslint/no-explicit-any
-  ): S[];
-  filter(
-    predicate: (value: T, index: number, list: this) => unknown,
-    thisArg?: any // eslint-disable-line @typescript-eslint/no-explicit-any
-  ): T[];
-  join(separator?: string): string;
-  reduce(
-    callbackfn: (
-      previousValue: T,
-      currentValue: T,
-      currentIndex: number,
-      list: this
-    ) => T
-  ): T;
-  reduce<U>(
-    callbackfn: (
-      previousValue: U,
-      currentValue: T,
-      currentIndex: number,
-      list: this
-    ) => U,
-    initialValue: U
-  ): U;
-  reduceRight(
-    callbackfn: (
-      previousValue: T,
-      currentValue: T,
-      currentIndex: number,
-      list: this
-    ) => T
-  ): T;
-  reduceRight<U>(
-    callbackfn: (
-      previousValue: U,
-      currentValue: T,
-      currentIndex: number,
-      list: this
-    ) => U,
-    initialValue: U
-  ): U;
   slice(start?: number, end?: number): T[];
+  indexOf(searchElement: T, fromIndex?: number): number;
 }
-
-const proxyHandler: ProxyHandler<
-  IList<unknown, unknown[], ListEventsRecord<unknown>>
-> = {
-  get: function (target, p) {
-    if (p === "length") return target.length;
-    else return target.get(Number.parseInt(p as string));
-  },
-  has(_target, _p) {
-    // Let the Array methods know that we do indeed
-    // have properties for all of the indices.
-    return true;
-  },
-};
 
 /**
  * Mixin that adds default implementations of [[IList]]
@@ -250,32 +157,13 @@ export function MakeAbstractList<
     }
 
     toString(): string {
-      return [...this].toString();
+      return [...this.values()].toString();
     }
 
     // Convenience mutators
-    pop(): T {
-      // OPT: implementations can do this more efficiently
-      // (one tree lookup only) using delete's return value,
-      // or by noting that it's guaranteed to be the end of
-      // the list.
-      const value = this.get(this.length - 1);
-      this.delete(this.length - 1);
-      return value;
-    }
 
     push(...args: InsertArgs): T | undefined {
       return this.insert(this.length, ...args);
-    }
-
-    shift(): T {
-      // OPT: implementations can do this more efficiently
-      // (one tree lookup only) using delete's return value,
-      // or by noting that it's guaranteed to be the start of
-      // the list.
-      const value = this.get(0);
-      this.delete(0);
-      return value;
     }
 
     unshift(...args: InsertArgs): T | undefined {
@@ -283,272 +171,77 @@ export function MakeAbstractList<
     }
 
     // Convenience accessors
-    // TODO: Test these work properly with the Array.call
-    // algorithms; not all of them explicitly say so.
-    // I would expect at least the ones that also appear
-    // on TypedArray are safe.
-    private asArrayLike(): ArrayLike<T> {
-      // OPT: cache the value (make a property of the
-      // list), to prevent recreating it each time it is used?
 
-      // Use a proxy to define [index] accessors
-      return new Proxy(this, proxyHandler as ProxyHandler<this>) as unknown as {
-        readonly length: number;
-        readonly [index: number]: T;
-      };
-    }
-
-    concat(...items: ConcatArray<T>[]): T[];
-    concat(...items: (T | ConcatArray<T>)[]): T[] {
-      return this.slice().concat(...items);
-    }
-
-    find<S extends T>(
-      predicate: (
-        this: void,
-        value: T,
-        index: number,
-        obj: this
-      ) => /* value is S */ unknown, // Type predicate confuses other this's,
-      thisArg?: any // eslint-disable-line @typescript-eslint/no-explicit-any
-    ): S | undefined;
-    find(
-      predicate: (value: T, index: number, obj: this) => unknown,
-      thisArg?: any // eslint-disable-line @typescript-eslint/no-explicit-any
-    ): T | undefined {
-      return <T | undefined>(
-        Array.prototype.find.call(
-          this.asArrayLike(),
-          (value, index) => predicate(value, index, this),
-          thisArg
-        )
-      );
-    }
-
-    findIndex(
-      predicate: (value: T, index: number, obj: this) => unknown,
-      thisArg?: any // eslint-disable-line @typescript-eslint/no-explicit-any
-    ): number {
-      return Array.prototype.findIndex.call(
-        this.asArrayLike(),
-        (value, index) => predicate(value, index, this),
-        thisArg
-      );
-    }
-
-    flatMap<U, This = undefined>(
-      callback: (
-        this: This,
-        value: T,
-        index: number,
-        array: this
-      ) => U | ReadonlyArray<U>,
-      thisArg?: This
-    ): U[] {
-      const outerThis = this;
-      return this.slice().flatMap(function (this: This, value, index) {
-        return callback.call(this, value, index, outerThis);
-      }, thisArg);
-    }
-
-    flat<D extends number = 1>(depth?: D): FlatArray<T[], D>[] {
-      return this.slice().flat(depth);
-    }
-
-    includes(searchElement: T, fromIndex?: number): boolean {
-      return Array.prototype.includes.call(
-        this.asArrayLike(),
-        searchElement,
-        fromIndex
-      );
-    }
-
-    indexOf(searchElement: T, fromIndex?: number): number {
-      return Array.prototype.indexOf.call(
-        this.asArrayLike(),
-        searchElement,
-        fromIndex
-      );
-    }
-
-    lastIndexOf(searchElement: T, fromIndex?: number): number {
-      return Array.prototype.lastIndexOf.call(
-        this.asArrayLike(),
-        searchElement,
-        fromIndex
-      );
-    }
-
-    every(
-      predicate: (value: T, index: number, list: this) => unknown,
-      thisArg?: any // eslint-disable-line @typescript-eslint/no-explicit-any
-    ): boolean {
-      const outerThis = this;
-      return Array.prototype.every.call(
-        this.asArrayLike(),
-        function (this: unknown, value, index) {
-          return predicate.call(this, value, index, outerThis);
-        },
-        thisArg
-      );
-    }
-
-    some(
-      predicate: (value: T, index: number, list: this) => unknown,
-      thisArg?: any // eslint-disable-line @typescript-eslint/no-explicit-any
-    ): boolean {
-      const outerThis = this;
-      return Array.prototype.some.call(
-        this.asArrayLike(),
-        function (this: unknown, value, index) {
-          return predicate.call(this, value, index, outerThis);
-        },
-        thisArg
-      );
-    }
+    // For tree-based list CRDTs, iterating with entries()
+    // is generally faster than calling get(i) for every i
+    // (O(n) vs O(nlog(n))).
+    // Hence we use entries()/values() in these accessors when possible.
 
     forEach(
       callbackfn: (value: T, index: number, list: this) => void,
       thisArg?: any // eslint-disable-line @typescript-eslint/no-explicit-any
     ): void {
-      const outerThis = this;
-      return Array.prototype.forEach.call(
-        this.asArrayLike(),
-        function (this: unknown, value, index) {
-          return callbackfn.call(this, value, index, outerThis);
-        },
-        thisArg
-      );
+      for (const [i, , value] of this.entries()) {
+        callbackfn.call(thisArg, value, i, this);
+      }
     }
 
     map<U>(
       callbackfn: (value: T, index: number, list: this) => U,
       thisArg?: any // eslint-disable-line @typescript-eslint/no-explicit-any
     ): U[] {
-      const outerThis = this;
-      // Why is the cast needed here?  Type inference
-      // seems to be failing.
-      return Array.prototype.map.call(
-        this.asArrayLike(),
-        function (this: unknown, value: T, index: number): U {
-          return callbackfn.call(this, value, index, outerThis);
-        },
-        thisArg
-      ) as U[];
-    }
-
-    filter<S extends T>(
-      predicate: (
-        value: T,
-        index: number,
-        list: this
-      ) => /* value is S */ unknown, // Type predicate confuses other this's
-      thisArg?: any // eslint-disable-line @typescript-eslint/no-explicit-any
-    ): S[];
-    filter(
-      predicate: (value: T, index: number, list: this) => unknown,
-      thisArg?: any // eslint-disable-line @typescript-eslint/no-explicit-any
-    ): T[] {
-      const outerThis = this;
-      return <T[]>Array.prototype.filter.call(
-        this.asArrayLike(),
-        function (this: unknown, value, index) {
-          return predicate.call(this, value, index, outerThis);
-        },
-        thisArg
-      );
-    }
-
-    join(separator?: string): string {
-      return Array.prototype.join.call(this.asArrayLike(), separator);
-    }
-
-    reduce(
-      callbackfn: (
-        previousValue: T,
-        currentValue: T,
-        currentIndex: number,
-        list: this
-      ) => T
-    ): T;
-    // Had to make initialValue optional here, is
-    // that okay?  Same in reduceRight.
-    reduce<U>(
-      callbackfn: (
-        previousValue: U,
-        currentValue: T,
-        currentIndex: number,
-        list: this
-      ) => U,
-      initialValue?: U
-    ): U {
-      const outerThis = this;
-      // Why is the cast and any needed here?  Type inference
-      // seems to be failing.
-      return Array.prototype.reduce.call(
-        this.asArrayLike(),
-        function (
-          this: unknown,
-          // eslint-disable-next-line @typescript-eslint/no-explicit-any
-          previousValue: any,
-          currentValue,
-          currentIndex
-        ) {
-          return callbackfn.call(
-            this,
-            previousValue,
-            currentValue,
-            currentIndex,
-            outerThis
-          );
-        },
-        initialValue
-      ) as U;
-    }
-
-    reduceRight(
-      callbackfn: (
-        previousValue: T,
-        currentValue: T,
-        currentIndex: number,
-        list: this
-      ) => T
-    ): T;
-    reduceRight<U>(
-      callbackfn: (
-        previousValue: U,
-        currentValue: T,
-        currentIndex: number,
-        list: this
-      ) => U,
-      initialValue?: U
-    ): U {
-      const outerThis = this;
-      // Why is the cast and any needed here?  Type inference
-      // seems to be failing.
-      return Array.prototype.reduceRight.call(
-        this.asArrayLike(),
-        function (
-          this: unknown,
-          // eslint-disable-next-line @typescript-eslint/no-explicit-any
-          previousValue: any,
-          currentValue,
-          currentIndex
-        ) {
-          return callbackfn.call(
-            this,
-            previousValue,
-            currentValue,
-            currentIndex,
-            outerThis
-          );
-        },
-        initialValue
-      ) as U;
+      const ans = new Array<U>(this.length);
+      for (const [i, , value] of this.entries()) {
+        ans[i] = callbackfn.call(thisArg, value, i, this);
+      }
+      return ans;
     }
 
     slice(start?: number, end?: number): T[] {
-      return <T[]>Array.prototype.slice.call(this.asArrayLike(), start, end);
+      const len = this.length;
+      if (start === undefined || start < -len) {
+        start = 0;
+      } else if (start < 0) {
+        start += len;
+      } else if (start >= len) {
+        return [];
+      }
+      if (end === undefined || end >= len) {
+        end = len;
+      } else if (end < -len) {
+        end = 0;
+      } else if (end < 0) {
+        end += len;
+      }
+      if (end <= start) return [];
+
+      // Optimize common case (slice()).
+      if (start === 0 && end === len) {
+        return [...this.values()];
+      } else {
+        const ans = new Array<T>(end - start);
+        for (let i = 0; i < end - start; i++) {
+          ans[i] = this.get(start + i);
+        }
+        return ans;
+      }
+    }
+
+    indexOf(searchElement: T, fromIndex = 0): number {
+      if (fromIndex < 0) fromIndex += this.length;
+      if (fromIndex < 0) fromIndex = 0;
+
+      if (fromIndex === 0) {
+        // Optimize common case (indexOf(searchElement)).
+        for (const [i, , value] of this.entries()) {
+          if (value === searchElement) return i;
+        }
+      } else {
+        for (let i = fromIndex; i < this.length; i++) {
+          if (this.get(i) === searchElement) return i;
+        }
+      }
+      return -1;
     }
   }
   return Mixin;
