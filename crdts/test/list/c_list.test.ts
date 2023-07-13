@@ -97,7 +97,7 @@ class ListSource
             break;
           case 3:
             // Insert and delete stuff.
-            c.pop();
+            c.delete(c.length - 1);
             c.push("op3");
             break;
           default:

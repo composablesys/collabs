@@ -10,6 +10,7 @@ import {
   Serializer,
   StringSerializer,
   UpdateMeta,
+  nonNull,
 } from "@collabs/core";
 import { CPositionSource, PositionSourceLoadEvent } from "./c_position_source";
 import { LocalList } from "./local_list";
@@ -86,10 +87,11 @@ export class CValueList<T> extends AbstractList_CObject<T, [T]> {
     // Operation handlers.
     this.positionSource.on("Create", (e) => {
       // e.info is valuesSer from this.insert.
+      const info = nonNull(e.info);
       const values =
         e.count === 1
-          ? [this.valueSerializer.deserialize(e.info!)]
-          : this.valueArraySerializer.deserialize(e.info!);
+          ? [this.valueSerializer.deserialize(info)]
+          : this.valueArraySerializer.deserialize(info);
       this.list.setCreated(e, values);
       // Here we exploit forwards non-interleaving, which guarantees
       // that the values are contiguous.
@@ -103,6 +105,8 @@ export class CValueList<T> extends AbstractList_CObject<T, [T]> {
     this.deleteMessenger.on("Message", (e) => {
       // OPT: combine calls?
       if (this.list.hasPosition(e.message)) {
+        // Use ! instead of nonNull because T might allow null.
+        // eslint-disable-next-line @typescript-eslint/no-non-null-assertion
         const value = this.list.getByPosition(e.message)!;
         const index = this.list.indexOfPosition(e.message);
         this.list.delete(e.message);
@@ -304,7 +308,7 @@ export class CValueList<T> extends AbstractList_CObject<T, [T]> {
     );
     super.load(savedStateTree, meta);
 
-    const savedState = savedStateTree.self!;
+    const savedState = nonNull(savedStateTree.self);
 
     if (this.list.inInitialState) {
       // Shortcut: No need to merge, just load the state directly.

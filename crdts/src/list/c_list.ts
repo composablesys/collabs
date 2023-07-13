@@ -8,6 +8,7 @@ import {
   isRuntime,
   ListEvent,
   ListEventsRecord,
+  nonNull,
   PairSerializer,
   Position,
   Serializer,
@@ -311,7 +312,7 @@ export class CList<
     toDelete.reverse();
     // Delete them.
     for (const value of toDelete) {
-      this.set.delete(this.entryFromValue(value)!);
+      this.set.delete(nonNull(this.entryFromValue(value)));
     }
   }
 
@@ -342,7 +343,7 @@ export class CList<
     // Archive them. Note the entry.position will "remember" the current
     // position (and concurrent moves) for when we are restored.
     for (const value of toArchive) {
-      const entry = this.entryFromValue(value)!;
+      const entry = nonNull(this.entryFromValue(value));
       entry.present.value = false;
     }
   }
@@ -407,7 +408,7 @@ export class CList<
     const toMove = this.list.slice(index, index + count);
     // Move them.
     for (let i = 0; i < count; i++) {
-      const entry = this.entryFromValue(toMove[i])!;
+      const entry = nonNull(this.entryFromValue(toMove[i]));
       entry.position.value = positions[i];
     }
     // Return the new index of toMove[0].

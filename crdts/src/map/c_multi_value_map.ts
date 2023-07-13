@@ -4,6 +4,7 @@ import {
   IMap,
   InitToken,
   int64AsNumber,
+  nonNull,
   Optional,
   protobufHas,
   Serializer,
@@ -164,8 +165,8 @@ export class CMultiValueMap<K, V>
     // vector clock entries (those corresponding to current
     // items in this.get(key)) and optional wallClockTime/lamportTimestamp.
     super.sendCRDT(MultiValueMapMessage.encode(message).finish());
-    // OPT: don't re-serialize here
-    return this.get(key)!;
+    // OPT: don't re-serialize key here
+    return nonNull(this.get(key));
   }
 
   delete(key: K): void {
@@ -208,10 +209,10 @@ export class CMultiValueMap<K, V>
         senderID: meta.senderID,
         senderCounter: crdtMeta.senderCounter,
         ...(this.wallClockTime
-          ? { wallClockTime: crdtMeta.wallClockTime! }
+          ? { wallClockTime: nonNull(crdtMeta.wallClockTime) }
           : {}),
         ...(this.lamportTimestamp
-          ? { lamportTimestamp: crdtMeta.lamportTimestamp! }
+          ? { lamportTimestamp: nonNull(crdtMeta.lamportTimestamp) }
           : {}),
       });
       needsSort = true;
@@ -334,18 +335,27 @@ export class CMultiValueMap<K, V>
         entry.lamportTimestamps = new Array(items.length);
 
       for (let i = 0; i < items.length; i++) {
+        // Skip nonNull() checks for efficiency; it's just a weakness
+        // of how we've organized the code.
+        // eslint-disable-next-line @typescript-eslint/no-non-null-assertion
         entry.values![i] = this.valueSerializer.serialize(items[i].value);
         let sender = indexBySender.get(items[i].senderID);
         if (sender === undefined) {
           sender = senders.length;
           senders.push(items[i].senderID);
         }
+        // eslint-disable-next-line @typescript-eslint/no-non-null-assertion
         entry.senders![i] = sender;
+        // eslint-disable-next-line @typescript-eslint/no-non-null-assertion
         entry.senderCounters![i] = items[i].senderCounter;
-        if (this.wallClockTime)
+        if (this.wallClockTime) {
+          // eslint-disable-next-line @typescript-eslint/no-non-null-assertion
           entry.wallClockTimes![i] = items[i].wallClockTime!;
-        if (this.lamportTimestamp)
+        }
+        if (this.lamportTimestamp) {
+          // eslint-disable-next-line @typescript-eslint/no-non-null-assertion
           entry.lamportTimestamps![i] = items[i].lamportTimestamp!;
+        }
       }
 
       entries[keyAsString] = entry;

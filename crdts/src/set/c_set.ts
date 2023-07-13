@@ -8,6 +8,7 @@ import {
   InitToken,
   IParent,
   MetaRequest,
+  nonNull,
   Parent,
   SavedStateTree,
   Serializer,
@@ -119,7 +120,7 @@ export class CSet<C extends Collab, AddArgs extends unknown[]>
   private ourCreatedValue?: C = undefined;
 
   receive(messageStack: (Uint8Array | string)[], meta: UpdateMeta): void {
-    const lastMessage = messageStack.pop()!;
+    const lastMessage = nonNull(messageStack.pop());
     if (typeof lastMessage === "string") {
       // Message for an existing child.  Proceed as in
       // CObject.
@@ -170,11 +171,11 @@ export class CSet<C extends Collab, AddArgs extends unknown[]>
     }
     const newValue = this.valueConstructor(
       new InitToken(name, this),
-      ...this.argsSerializer.deserialize(serializedArgs!)
+      ...this.argsSerializer.deserialize(nonNull(serializedArgs))
     );
 
     this.children.set(name, newValue);
-    this.constructorArgs.set(name, serializedArgs!);
+    this.constructorArgs.set(name, nonNull(serializedArgs));
 
     if (this.inAdd) {
       this.ourCreatedValue = newValue;
@@ -265,7 +266,7 @@ export class CSet<C extends Collab, AddArgs extends unknown[]>
       add: this.argsSerializer.serialize(args),
     });
     this.send([CSetMessage.encode(message).finish()], []);
-    const created = this.ourCreatedValue!;
+    const created = nonNull(this.ourCreatedValue);
     this.ourCreatedValue = undefined;
     this.inAdd = false;
     return created;
@@ -325,7 +326,7 @@ export class CSet<C extends Collab, AddArgs extends unknown[]>
     const childSaves = new Map<string, SavedStateTree>();
     let i = 0;
     for (const [name, child] of this.children) {
-      args[i] = this.constructorArgs.get(name)!;
+      args[i] = nonNull(this.constructorArgs.get(name));
       childSaves.set(name, child.save());
       i++;
     }
@@ -347,8 +348,8 @@ export class CSet<C extends Collab, AddArgs extends unknown[]>
       saveMessage = CSetSave.create({ args: [] });
       childSaves = new Map();
     } else {
-      saveMessage = CSetSave.decode(savedStateTree.self!);
-      childSaves = savedStateTree.children!;
+      saveMessage = CSetSave.decode(nonNull(savedStateTree.self));
+      childSaves = nonNull(savedStateTree.children);
     }
 
     // 1. Delete our children that are not present in the saved

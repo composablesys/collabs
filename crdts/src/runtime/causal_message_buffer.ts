@@ -1,6 +1,7 @@
 import {
   int64AsNumber,
   MessageStacksSerializer,
+  nonNull,
   UpdateMeta,
 } from "@collabs/core";
 import { CausalMessageBufferSave } from "../../generated/proto_compiled";
@@ -216,7 +217,7 @@ export class CausalMessageBuffer {
    */
   tick() {
     // Update vc.
-    this.vc.set(this.replicaID, this.vc.get(this.replicaID)! + 1);
+    this.vc.set(this.replicaID, nonNull(this.vc.get(this.replicaID)) + 1);
     if (!this.causalityGuaranteed) {
       // Our own message causally dominates every current key.
       this.maximalVCKeys.clear();
@@ -281,7 +282,7 @@ export class CausalMessageBuffer {
     // (Strictly speaking, we compare entries not keys: values must match
     // to be present in the intersection.)
     for (const key of this.maximalVCKeys) {
-      const localValue = this.vc.get(key)!;
+      const localValue = nonNull(this.vc.get(key));
       const remoteValue = remoteVC.get(key) ?? 0;
       // If the entry is not in the intersection...
       if (!(remoteMaximalVCKeys.has(key) && localValue === remoteValue)) {
@@ -292,7 +293,7 @@ export class CausalMessageBuffer {
     // 2. Add new maximal entries that are not
     // causally dominated by the local VC.
     for (const key of remoteMaximalVCKeys) {
-      if ((this.vc.get(key) ?? 0) < remoteVC.get(key)!) {
+      if ((this.vc.get(key) ?? 0) < nonNull(remoteVC.get(key))) {
         this.maximalVCKeys.add(key);
       }
     }

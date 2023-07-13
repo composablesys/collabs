@@ -3,6 +3,7 @@ import {
   CollabEventsRecord,
   CPrimitive,
   InitToken,
+  nonNull,
   Position,
   protobufHas,
   UpdateMeta,
@@ -327,7 +328,7 @@ export class CPositionSource extends CPrimitive<PositionSourceEventsRecord> {
     this.sendPrimitive(PositionSourceCreateMessage.encode(message).finish());
     this.inCreatePositions = false;
 
-    const ret = this.createPositionsRet!;
+    const ret = nonNull(this.createPositionsRet);
     this.createPositionsRet = undefined;
     return ret;
   }
@@ -406,20 +407,24 @@ export class CPositionSource extends CPrimitive<PositionSourceEventsRecord> {
     if (decoded.type === "extend") {
       // Extend an existing waypoint from the receiver
       // by decoded.count values.
-      waypoint = this.getWaypoint(meta.senderID, decoded.extend!.counter);
+      waypoint = this.getWaypoint(
+        meta.senderID,
+        nonNull(decoded.extend).counter
+      );
       valueIndex = waypoint.valueCount;
       waypoint.valueCount += decoded.count;
     } else {
       // "waypoint" (new Waypoint).
       // Get parentWaypoint.
+      const decodedWaypoint = nonNull(decoded.waypoint);
       const parentWaypointSender = protobufHas(
-        decoded.waypoint!,
+        decodedWaypoint,
         "parentWaypointSenderID"
       )
-        ? decoded.waypoint!.parentWaypointSenderID!
+        ? nonNull(decodedWaypoint.parentWaypointSenderID)
         : meta.senderID;
       const [parentWaypointCounter, isRight] = this.valueAndSideDecode(
-        decoded.waypoint!.parentWaypointCounterAndSide
+        decodedWaypoint.parentWaypointCounterAndSide
       );
       const parentWaypoint = this.getWaypoint(
         parentWaypointSender,
@@ -435,7 +440,7 @@ export class CPositionSource extends CPrimitive<PositionSourceEventsRecord> {
         meta.senderID,
         senderWaypoints.length,
         parentWaypoint,
-        decoded.waypoint!.parentValueIndex,
+        decodedWaypoint.parentValueIndex,
         isRight,
         decoded.count
       );
@@ -466,7 +471,7 @@ export class CPositionSource extends CPrimitive<PositionSourceEventsRecord> {
   private addToChildren(newWaypoint: Waypoint): void {
     // Recall child waypoints' sort order: left children
     // by valueIndex, then right children by reverse valueIndex.
-    const children = newWaypoint.parentWaypoint!.children;
+    const children = nonNull(newWaypoint.parentWaypoint).children;
     // Find i, the index of the first entry after newWaypoint.
     // OPT: If children is large, use binary search.
     let i = 0;
@@ -606,13 +611,13 @@ export class CPositionSource extends CPrimitive<PositionSourceEventsRecord> {
       for (const waypoint of waypoints) {
         valueCounts.push(waypoint.valueCount);
         if (waypoint !== this.rootWaypoint) {
-          const parentWaypoint = waypoint.parentWaypoint!;
+          const parentWaypoint = nonNull(waypoint.parentWaypoint);
           if (parentWaypoint === this.rootWaypoint) {
             parentWaypoints.push(0);
           } else {
             parentWaypoints.push(
               1 +
-                startIndices.get(parentWaypoint.senderID)! +
+                nonNull(startIndices.get(parentWaypoint.senderID)) +
                 parentWaypoint.counter
             );
           }

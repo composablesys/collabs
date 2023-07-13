@@ -9,6 +9,7 @@ import {
   Serializer,
   StringSerializer,
   UpdateMeta,
+  nonNull,
 } from "@collabs/core";
 import { CSpanLog, Span } from "./c_span_log";
 import { TextEvent } from "./c_text";
@@ -303,7 +304,7 @@ export class CRichText<
     );
     for (let i = start; i < end; i++) {
       const position = this.formatList.getPosition(i);
-      const data = this.formatList.getByPosition(position)!;
+      const data = nonNull(this.formatList.getByPosition(position));
       if (this.wins(span, data.normalSpans.get(span.key))) {
         const previousValueOpen = getDataValue(data, false, span.key);
         const previousValueClosed = getDataValue(data, true, span.key);
@@ -354,7 +355,7 @@ export class CRichText<
         // and the existing normalSpan, as described in FormatData.endClosedSpan's
         // docs.
         // Non-null assertion okay because we created the FormatData above.
-        const data = this.formatList.getByPosition(span.endPosition)!;
+        const data = nonNull(this.formatList.getByPosition(span.endPosition));
         if (
           this.wins(span, data.endClosedSpans.get(span.key)) &&
           this.wins(span, data.normalSpans.get(span.key))
@@ -620,7 +621,7 @@ export class CRichText<
       return {};
     }
     const dataPos = this.formatList.getPosition(dataIndex);
-    const data = this.formatList.getByPosition(dataPos)!;
+    const data = nonNull(this.formatList.getByPosition(dataPos));
     return getDataRecord(data, dataPos === position);
   }
 
@@ -767,7 +768,7 @@ export class CRichText<
     const ret = this.slice(start, start + deleteCount);
     this.delete(start, deleteCount);
     if (values !== undefined) {
-      this.insert(start, values, format!);
+      this.insert(start, values, nonNull(format));
     }
     return ret;
   }
@@ -885,7 +886,7 @@ function getDataValue<
   // eslint fails to infer types here, but TypeScript is fine.
   if (includeClosed && data.endClosedSpans.has(key)) {
     // eslint-disable-next-line @typescript-eslint/no-unsafe-return
-    return data.endClosedSpans.get(key)!.value;
+    return nonNull(data.endClosedSpans.get(key)).value;
     // eslint-disable-next-line @typescript-eslint/no-unsafe-return
   } else return data.normalSpans.get(key)?.value;
 }
@@ -957,6 +958,8 @@ class SliceBuilder<F extends Record<string, any>, D> {
 
     if (this.prevIndex !== -1) {
       // Record the previous call's data.
+      // Use ! instead of nonNull because D might allow null.
+      // eslint-disable-next-line @typescript-eslint/no-non-null-assertion
       this.record(this.prevIndex, index, this.prevData!);
     }
 
@@ -975,6 +978,8 @@ class SliceBuilder<F extends Record<string, any>, D> {
         index = this.list.indexOfPosition(nextPos, "right");
       } else index = this.list.indexOfPosition(nextPos, "left") + 1;
 
+      // Use ! instead of nonNull because D might allow null.
+      // eslint-disable-next-line @typescript-eslint/no-non-null-assertion
       this.record(this.prevIndex, index, this.prevData!);
     }
     return this.slices;

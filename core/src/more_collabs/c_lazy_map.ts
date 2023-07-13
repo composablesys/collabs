@@ -19,6 +19,7 @@ import {
 } from "../util";
 // Import from specific file to avoid circular dependencies.
 import { AbstractMap_Collab } from "../data_types/abstract_maps";
+import { nonNull } from "../util/assertions";
 
 interface InUpdateData<C extends Collab> {
   keyString: string;
@@ -378,13 +379,14 @@ export class CLazyMap<K, C extends Collab>
       return;
     }
 
-    for (const [name, childSave] of savedStateTree.children!) {
+    const children = nonNull(savedStateTree.children);
+    for (const [name, childSave] of children) {
       this.applyUpdate(name, (child) => child.load(childSave, meta), meta);
     }
     // Call null on other (nontrivial) children, in case they weren't saved
     // because they had canGC() = true in the saved state.
     for (const name of this.nontrivialMap.keys()) {
-      if (!savedStateTree.children!.has(name)) {
+      if (!children.has(name)) {
         this.applyUpdate(name, (child) => child.load(null, meta), meta);
       }
     }

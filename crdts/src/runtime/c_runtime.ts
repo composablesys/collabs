@@ -8,6 +8,7 @@ import {
   IRuntime,
   MessageStacksSerializer,
   MetaRequest,
+  nonNull,
   ReplicaIDs,
   SavedStateTreeSerializer,
   UpdateMeta,
@@ -214,7 +215,7 @@ export class CRuntime
     }
 
     const meta = this.meta;
-    this.crdtMeta!.freeze();
+    nonNull(this.crdtMeta).freeze();
     this.messageBatches.push([RuntimeMetaSerializer.instance.serialize(meta)]);
     this.crdtMeta = null;
     this.meta = null;
@@ -312,14 +313,14 @@ export class CRuntime
     }
 
     // Process meta requests, including automatic mode by default.
-    this.crdtMeta!.requestAutomatic(true);
+    const crdtMeta = nonNull(this.crdtMeta);
+    crdtMeta.requestAutomatic(true);
     for (const metaRequest of <CRDTMetaRequest[]>metaRequests) {
-      if (metaRequest.lamportTimestamp)
-        this.crdtMeta!.requestLamportTimestamp();
-      if (metaRequest.wallClockTime) this.crdtMeta!.requestWallClockTime();
+      if (metaRequest.lamportTimestamp) crdtMeta.requestLamportTimestamp();
+      if (metaRequest.wallClockTime) crdtMeta.requestWallClockTime();
       if (metaRequest.vectorClockKeys) {
         for (const sender of metaRequest.vectorClockKeys) {
-          this.crdtMeta!.requestVectorClockEntry(sender);
+          crdtMeta.requestVectorClockEntry(sender);
         }
       }
     }
@@ -329,7 +330,7 @@ export class CRuntime
 
     // Disable automatic meta request, to prevent accesses outside of
     // the local echo from changing the meta locally only.
-    this.crdtMeta!.requestAutomatic(false);
+    crdtMeta.requestAutomatic(false);
 
     this.messageBatches.push(messageStack);
 
@@ -409,8 +410,8 @@ export class CRuntime
       throw new Error("Cannot call save() during a load/receive call");
     }
 
-    // We know that PublicCObject returns a non-null save with empty self.
-    const savedStateTree = this.rootCollab.save()!;
+    const savedStateTree = this.rootCollab.save();
+    // We know that PublicCObject's save has empty self, so it's okay to overwrite.
     savedStateTree.self = this.buffer.save();
     return SavedStateTreeSerializer.instance.serialize(savedStateTree);
   }
@@ -446,8 +447,8 @@ export class CRuntime
     this.inApplyUpdate = true;
     try {
       const savedStateTree =
-        SavedStateTreeSerializer.instance.deserialize(savedState)!;
-      const loadCRDTMeta = this.buffer.load(savedStateTree.self!);
+        SavedStateTreeSerializer.instance.deserialize(savedState);
+      const loadCRDTMeta = this.buffer.load(nonNull(savedStateTree.self));
       savedStateTree.self = undefined;
       const meta: UpdateMeta = {
         senderID: loadCRDTMeta.senderID,

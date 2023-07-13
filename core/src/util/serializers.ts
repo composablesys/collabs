@@ -8,6 +8,7 @@ import {
   PairSerializerMessage,
 } from "../../generated/proto_compiled";
 import { Collab, CollabID } from "../core";
+import { nonNull } from "./assertions";
 import { Optional } from "./optional";
 import { SafeWeakRef } from "./safe_weak_ref";
 
@@ -182,14 +183,14 @@ export class DefaultSerializer<T> implements Serializer<T> {
         ans = null;
         break;
       case "arrayValue":
-        ans = decoded.arrayValue!.elements!.map((serialized) =>
+        ans = nonNull(nonNull(decoded.arrayValue).elements).map((serialized) =>
           this.deserialize(serialized)
         );
         break;
       case "objectValue":
         ans = {};
         for (const [key, serialized] of Object.entries(
-          decoded.objectValue!.properties!
+          nonNull(nonNull(decoded.objectValue).properties)
         )) {
           (<Record<string, unknown>>ans)[key] = this.deserialize(serialized);
         }
@@ -197,13 +198,15 @@ export class DefaultSerializer<T> implements Serializer<T> {
       case "bytesValue":
         ans = decoded.bytesValue;
         break;
-      case "optionalValue":
-        if (protobufHas(decoded.optionalValue!, "valueIfPresent")) {
+      case "optionalValue": {
+        const optionalValue = nonNull(decoded.optionalValue);
+        if (protobufHas(optionalValue, "valueIfPresent")) {
           ans = Optional.of(
-            this.deserialize(decoded.optionalValue!.valueIfPresent!)
+            this.deserialize(nonNull(optionalValue.valueIfPresent))
           );
         } else ans = Optional.empty();
         break;
+      }
       default:
         throw new Error(`Bad message format: decoded.value=${decoded.value}`);
     }

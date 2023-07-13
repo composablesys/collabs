@@ -6,6 +6,7 @@ import {
   Serializer,
   UpdateMeta,
   int64AsNumber,
+  nonNull,
 } from "@collabs/core";
 import {
   IPresenceInfoSave,
@@ -167,7 +168,7 @@ export class CPresence<V extends Record<string, any>> extends PrimitiveCRDT<
   private emitOwnSetEvent(previousValue: Optional<V>) {
     this.emit("Set", {
       key: this.runtime.replicaID,
-      value: this.ourValue!,
+      value: nonNull(this.ourValue),
       previousValue,
       meta: {
         isLocalOp: true,
@@ -365,7 +366,7 @@ export class CPresence<V extends Record<string, any>> extends PrimitiveCRDT<
       if (!info.present) this._size++;
       info.present = true;
       info.timeout = setTimeout(
-        () => this.processTimeout(meta.senderID, info!, meta),
+        () => this.processTimeout(meta.senderID, nonNull(info), meta),
         ttlRemaining
       );
 
@@ -403,7 +404,7 @@ export class CPresence<V extends Record<string, any>> extends PrimitiveCRDT<
       super.sendCRDT(
         PresenceMessage.encode({
           set: {
-            value: this.updateSerializer.serialize(this.ourValue!),
+            value: this.updateSerializer.serialize(nonNull(this.ourValue)),
             isResponse: true,
           },
         }).finish()
@@ -522,7 +523,7 @@ export class CPresence<V extends Record<string, any>> extends PrimitiveCRDT<
     }
     if (this.connected) {
       state[this.runtime.replicaID] = {
-        value: this.updateSerializer.serialize(this.ourValue!),
+        value: this.updateSerializer.serialize(nonNull(this.ourValue)),
         time: Date.now(),
       };
     }

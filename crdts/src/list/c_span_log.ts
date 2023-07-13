@@ -6,6 +6,7 @@ import {
   Serializer,
   UpdateMeta,
   int64AsNumber,
+  nonNull,
   protobufHas,
 } from "@collabs/core";
 import {
@@ -135,7 +136,7 @@ export class CSpanLog<F extends Record<string, any>> extends PrimitiveCRDT<
     const decoded = this.partialSpanSerializer.deserialize(<Uint8Array>message);
     const span: Span<F> = {
       ...decoded,
-      lamport: crdtMeta.lamportTimestamp!,
+      lamport: nonNull(crdtMeta.lamportTimestamp),
       senderID: crdtMeta.senderID,
     };
     let bySender = this.log.get(crdtMeta.senderID);

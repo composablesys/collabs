@@ -1,4 +1,4 @@
-import { ICursorList, Position, Serializer } from "@collabs/core";
+import { ICursorList, Position, Serializer, nonNull } from "@collabs/core";
 import { LocalListSave } from "../../generated/proto_compiled";
 import {
   CPositionSource,
@@ -571,6 +571,8 @@ export class LocalList<T> implements ICursorList {
    */
   get(index: number): T {
     // OPT: combine these operations
+    // Use ! instead of nonNull because T might allow null.
+    // eslint-disable-next-line @typescript-eslint/no-non-null-assertion
     return this.getByPosition(this.getPosition(index))!;
   }
 
@@ -650,7 +652,7 @@ export class LocalList<T> implements ICursorList {
   private *valuesAndChildren(
     waypoint: Waypoint
   ): IterableIterator<ValuesOrChild<T>> {
-    const items = this.valuesByWaypoint.get(waypoint)!.items;
+    const items = nonNull(this.valuesByWaypoint.get(waypoint)).items;
     const children = waypoint.children;
     let childIndex = 0;
     let startValueIndex = 0;

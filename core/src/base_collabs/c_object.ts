@@ -10,6 +10,7 @@ import {
   SavedStateTree,
   UpdateMeta,
 } from "../core";
+import { nonNull } from "../util/assertions";
 
 /**
  * Base class for a collaborative object, containing
@@ -182,7 +183,7 @@ export class CObject<Events extends CollabEventsRecord = CollabEventsRecord>
       return;
     }
 
-    for (const [name, childSave] of savedStateTree.children!) {
+    for (const [name, childSave] of nonNull(savedStateTree.children)) {
       const child = this.children.get(name);
       // For versioning purposes, skip loading children that we don't have.
       if (child !== undefined) {

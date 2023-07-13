@@ -94,6 +94,10 @@ export class CValueMap<K, V>
    */
   set(key: K, value: V): V {
     this.mvMap.set(key, value);
+    // Return this.get instead of just value, in case the aggregator does
+    // something weird.
+    // Use ! instead of nonNull because V might allow null.
+    // eslint-disable-next-line @typescript-eslint/no-non-null-assertion
     return this.get(key)!;
   }
 
