@@ -61,6 +61,6 @@
     "test:format": "prettier --check .",
     "fix": "npm-run-all fix:*",
     "fix:format": "prettier --write .",
-    "clean": "rimraf generated generated_esm build docs"
+    "clean": "rimraf generated generated_esm build"
   }
 }

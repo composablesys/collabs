@@ -7,7 +7,7 @@
     "moduleResolution": "node",
     /* Enable strict type checking. */
     "strict": true,
-    /* Prevent errors caused by other libraries (e.g. the DOM types). */
+    /* Prevent errors caused by other libraries. */
     "skipLibCheck": true,
     /* Enable interop with dependencies using different module systems. */
     "esModuleInterop": true,

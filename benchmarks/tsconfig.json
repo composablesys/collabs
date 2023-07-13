@@ -14,10 +14,7 @@
     "module": "commonjs",
     /* Enable strict type checking. */
     "strict": true,
-    /*
-     * Necessary for TensorFlow.js.
-     * See https://www.tensorflow.org/js/tutorials/setup#typescript
-     */
+    /* Prevent errors caused by other libraries. */
     "skipLibCheck": true,
     /* Enable interop with dependencies using different module systems. */
     "esModuleInterop": true,
