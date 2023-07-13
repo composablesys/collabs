@@ -11,7 +11,7 @@ const trueSerializer = new ConstSerializer<true>(true);
 /**
  * A collaborative set with values of type T.
  *
- * The API is compatible with `Set<T>` and can be used as a
+ * The API is compatible* with `Set<T>` and can be used as a
  * drop-in collaborative replacement when T is internally immutable. If multiple users
  * add and delete the same value concurrently, the add "wins"
  * (the value is present).
@@ -20,6 +20,9 @@ const trueSerializer = new ConstSerializer<true>(true);
  * mutating a value internally will not change it on
  * other replicas. If you need to mutate values internally,
  * instead use a [[CSet]].
+ *
+ * (*) Except for the return value of [[add]], which is the added value instead
+ * of `this`.
  *
  * @typeParam T The value type.
  */
@@ -78,8 +81,15 @@ export class CValueSet<T> extends AbstractSet_CObject<T, [T]> {
     return value;
   }
 
-  delete(value: T): void {
+  /**
+   * Deletes the given value, making it no longer present in this set.
+   *
+   * @returns `true` if value was present and has been removed.
+   */
+  delete(value: T): boolean {
+    const existed = this.has(value);
     this.mvMap.delete(value);
+    return existed;
   }
 
   clear() {

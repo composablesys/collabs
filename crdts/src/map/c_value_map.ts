@@ -18,7 +18,7 @@ const defaultAggregator: Aggregator<unknown> = {
 /**
  * A collaborative map with keys of type K and values of type V.
  *
- * The API is compatible with `Map<K, V>` and can be used as a
+ * The API is compatible* with `Map<K, V>` and can be used as a
  * drop-in collaborative replacement when V is internally immutable. If multiple users
  * set the value at a key concurrently, one of them is picked
  * arbitrarily.
@@ -27,6 +27,9 @@ const defaultAggregator: Aggregator<unknown> = {
  * mutating a value internally will not change it on
  * other replicas. If you need to mutate values internally,
  * instead use a [[CMap]] or [[CLazyMap]].
+ *
+ * (*) Except for the return value of [[set]], which is the set value instead
+ * of `this`.
  *
  * @typeParam K The key type.
  * @typeParam V The value type.
@@ -94,8 +97,15 @@ export class CValueMap<K, V>
     return this.get(key)!;
   }
 
-  delete(key: K): void {
+  /**
+   * Deletes the given key, making it no longer present in this map.
+   *
+   * @returns `true` if key was present and has been removed.
+   */
+  delete(key: K): boolean {
+    const existed = this.has(key);
     this.mvMap.delete(key);
+    return existed;
   }
 
   get(key: K): V | undefined {
