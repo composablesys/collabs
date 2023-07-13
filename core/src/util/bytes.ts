@@ -1,6 +1,4 @@
-import { Buffer } from "buffer";
-
-const ENCODING = "base64";
+import { fromByteArray, toByteArray } from "base64-js";
 
 /**
  * Uint8Array utilities.
@@ -16,14 +14,14 @@ export class Bytes {
    * To recover the original bytes, use [[parse]].
    */
   static stringify(bytes: Uint8Array): string {
-    return Buffer.from(bytes).toString(ENCODING);
+    return fromByteArray(bytes);
   }
 
   /**
    * Inverse of [[stringify]].
    */
   static parse(str: string): Uint8Array {
-    return new Uint8Array(Buffer.from(str, ENCODING));
+    return toByteArray(str);
   }
 
   /**

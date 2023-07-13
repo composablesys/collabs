@@ -1,5 +1,4 @@
-import { AbstractDoc, CRuntime, SendEvent } from "@collabs/collabs";
-import { Buffer } from "buffer";
+import { AbstractDoc, Bytes, CRuntime, SendEvent } from "@collabs/collabs";
 import ReconnectingWebSocket from "reconnecting-websocket";
 
 export class WebSocketNetwork {
@@ -63,7 +62,7 @@ export class WebSocketNetwork {
     // TODO: is this check necessary?
     if (parsed.group === this.group) {
       // It's for us
-      this.doc.receive(new Uint8Array(Buffer.from(parsed.message, "base64")));
+      this.doc.receive(Bytes.parse(parsed.message));
     }
   }
 
@@ -76,7 +75,7 @@ export class WebSocketNetwork {
       return;
     }
 
-    let encoded = Buffer.from(e.message).toString("base64");
+    let encoded = Bytes.stringify(e.message);
     let toSend = JSON.stringify({ group: this.group, message: encoded });
     // Opt: use Uint8Array directly instead
     // (requires changing options + server)
