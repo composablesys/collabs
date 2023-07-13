@@ -1,4 +1,4 @@
-import * as collabs from "@collabs/collabs";
+import { CRichText } from "@collabs/collabs";
 import { Data } from "../../../util";
 import { ITextWithCursor } from "../../interfaces/text_with_cursor";
 import { CollabsReplica } from "./replica";
@@ -8,7 +8,7 @@ export function CollabsRichTextWithCursor(causalityGuaranteed: boolean) {
     extends CollabsReplica
     implements ITextWithCursor
   {
-    private readonly richText: collabs.CRichText;
+    private readonly richText: CRichText;
     private cursor = -1;
 
     constructor(onsend: (msg: Data) => void, replicaIdRng: seedrandom.prng) {
@@ -16,7 +16,7 @@ export function CollabsRichTextWithCursor(causalityGuaranteed: boolean) {
 
       this.richText = this.runtime.registerCollab(
         "",
-        (init) => new collabs.CRichText(init)
+        (init) => new CRichText(init)
       );
 
       // Maintain cursor position.

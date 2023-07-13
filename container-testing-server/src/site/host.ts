@@ -1,4 +1,4 @@
-import * as collabs from "@collabs/collabs";
+import { Bytes, CRuntime } from "@collabs/collabs";
 import { CContainerHost } from "@collabs/container";
 import { WebSocketNetwork } from "@collabs/ws-client";
 
@@ -20,7 +20,7 @@ if (doLoad) {
 
 // --- Setup our app ---
 
-const runtime = new collabs.CRuntime();
+const runtime = new CRuntime();
 const wsAddr = location.origin.replace(/^http/, "ws");
 const network = new WebSocketNetwork(runtime, wsAddr, "");
 
@@ -70,7 +70,7 @@ if (doLoad) {
     console.log("Load error: no save found, skipping.");
     host.loadSkipped();
   } else {
-    runtime.load(collabs.Bytes.parse(sessionStorageSave));
+    runtime.load(Bytes.parse(sessionStorageSave));
     console.log("Loaded.");
   }
 } else {
@@ -130,10 +130,7 @@ saveButton.addEventListener("click", async function () {
   const savedState = runtime.save();
   // Store in sessionStorage.
   try {
-    window.sessionStorage.setItem(
-      containerUrl,
-      collabs.Bytes.stringify(savedState)
-    );
+    window.sessionStorage.setItem(containerUrl, Bytes.stringify(savedState));
   } catch (err) {
     console.log("Save error: ");
     console.log(err);

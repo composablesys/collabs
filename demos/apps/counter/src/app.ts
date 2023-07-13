@@ -1,4 +1,4 @@
-import * as collabs from "@collabs/collabs";
+import { CCounter } from "@collabs/collabs";
 import { CContainer } from "@collabs/container";
 
 (async function () {
@@ -8,7 +8,7 @@ import { CContainer } from "@collabs/container";
   // Register Collabs.
   const counter = container.registerCollab(
     "counter",
-    (init) => new collabs.CCounter(init)
+    (init) => new CCounter(init)
   );
 
   // Refresh the display when the Collabs state changes, possibly

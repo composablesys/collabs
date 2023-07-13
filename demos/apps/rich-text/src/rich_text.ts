@@ -1,4 +1,10 @@
-import * as collabs from "@collabs/collabs";
+import {
+  CPresence,
+  CRichText,
+  CRuntime,
+  Cursor,
+  Cursors,
+} from "@collabs/collabs";
 import { CContainer } from "@collabs/container";
 import Quill, { DeltaStatic, Delta as DeltaType } from "quill";
 import QuillCursors from "quill-cursors";
@@ -26,14 +32,14 @@ const nameParts = ["Cat", "Dog", "Rabbit", "Mouse", "Elephant"];
 interface PresenceState {
   name: string;
   color: string;
-  selection: { anchor: collabs.Cursor; head: collabs.Cursor } | null;
+  selection: { anchor: Cursor; head: Cursor } | null;
 }
 
 function makeInitialSave(): Uint8Array {
-  const runtime = new collabs.CRuntime({ debugReplicaID: "INIT" });
+  const runtime = new CRuntime({ debugReplicaID: "INIT" });
   const clientText = runtime.registerCollab(
     "text",
-    (init) => new collabs.CRichText(init, { noGrowAtEnd })
+    (init) => new CRichText(init, { noGrowAtEnd })
   );
   runtime.transact(() => clientText.insert(0, "\n", {}));
   return runtime.save();
@@ -44,11 +50,11 @@ function makeInitialSave(): Uint8Array {
 
   const text = container.registerCollab(
     "text",
-    (init) => new collabs.CRichText(init, { noGrowAtEnd })
+    (init) => new CRichText(init, { noGrowAtEnd })
   );
   const presence = container.registerCollab(
     "presence",
-    (init) => new collabs.CPresence<PresenceState>(init)
+    (init) => new CPresence<PresenceState>(init)
   );
   // "Set the initial state"
   // (a single "\n", required by Quill) by
@@ -224,8 +230,8 @@ function makeInitialSave(): Uint8Array {
     if (value === undefined) return;
     else if (value.selection === null) quillCursors.removeCursor(replicaID);
     else {
-      const anchorIndex = collabs.Cursors.toIndex(value.selection.anchor, text);
-      const headIndex = collabs.Cursors.toIndex(value.selection.head, text);
+      const anchorIndex = Cursors.toIndex(value.selection.anchor, text);
+      const headIndex = Cursors.toIndex(value.selection.head, text);
       quillCursors.moveCursor(replicaID, {
         index: anchorIndex,
         length: headIndex - anchorIndex,
@@ -250,8 +256,8 @@ function makeInitialSave(): Uint8Array {
       if (selection === null) {
         presence.updateOurs("selection", null);
       } else {
-        const anchor = collabs.Cursors.fromIndex(selection.index, text);
-        const head = collabs.Cursors.fromIndex(
+        const anchor = Cursors.fromIndex(selection.index, text);
+        const head = Cursors.fromIndex(
           selection.index + selection.length,
           text
         );

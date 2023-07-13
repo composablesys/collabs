@@ -31,7 +31,7 @@ The HTML file, `src/index.html`, is self-explanatory: it creates a display area 
 The interesting part of the app is `src/app.ts`. We will go through this file top-down.
 
 ```ts
-import * as collabs from "@collabs/collabs";
+import { CCounter } from "@collabs/collabs";
 import { CContainer } from "@collabs/container";
 
 (async function () {
@@ -41,7 +41,7 @@ import { CContainer } from "@collabs/container";
   // Register Collabs.
   const counter = container.registerCollab(
     "counter",
-    (init) => new collabs.CCounter(init)
+    (init) => new CCounter(init)
   );
 
   // Refresh the display when the Collabs state changes, possibly
@@ -69,10 +69,10 @@ import { CContainer } from "@collabs/container";
 
 ### 0. Imports and Async Wrapper
 
-To start, we import the Collabs library, plus the container-specific `CContainer` class from [@collabs/container](https://www.npmjs.com/package/@collabs/container).
+To start, we import Collabs's collaborative counter `CCounter`, plus the container-specific `CContainer` class from [@collabs/container](https://www.npmjs.com/package/@collabs/container).
 
 ```ts
-import * as collabs from "@collabs/collabs";
+import { CCounter } from "@collabs/collabs";
 import { CContainer } from "@collabs/container";
 ```
 
@@ -101,7 +101,7 @@ For this simple app, there is just one `Collab`, a [`CCounter`](./guide/built_in
 ```ts
 const counter = container.registerCollab(
   "counter",
-  (init) => new collabs.CCounter(init)
+  (init) => new CCounter(init)
 );
 ```
 

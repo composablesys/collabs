@@ -1,19 +1,16 @@
-import * as collabs from "@collabs/collabs";
+import { CText } from "@collabs/collabs";
 import { Data } from "../../../util";
 import { IText } from "../../interfaces/text";
 import { CollabsReplica } from "./replica";
 
 export function CollabsText(causalityGuaranteed: boolean) {
   return class CollabsText extends CollabsReplica implements IText {
-    private readonly text: collabs.CText;
+    private readonly text: CText;
 
     constructor(onsend: (msg: Data) => void, replicaIdRng: seedrandom.prng) {
       super(onsend, replicaIdRng, causalityGuaranteed);
 
-      this.text = this.runtime.registerCollab(
-        "",
-        (init) => new collabs.CText(init)
-      );
+      this.text = this.runtime.registerCollab("", (init) => new CText(init));
     }
 
     insert(index: number, char: string): void {

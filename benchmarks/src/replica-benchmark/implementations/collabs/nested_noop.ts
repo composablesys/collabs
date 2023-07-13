@@ -1,4 +1,4 @@
-import * as collabs from "@collabs/collabs";
+import { CObject, InitToken } from "@collabs/collabs";
 import { Data } from "../../../util";
 import { INoop } from "../../interfaces/noop";
 import { NoopCRDT } from "./noop";
@@ -6,10 +6,10 @@ import { CollabsReplica } from "./replica";
 
 const NESTED_PARENTS = 10;
 
-class NestedNoopCRDT extends collabs.CObject {
+class NestedNoopCRDT extends CObject {
   private readonly child: NestedNoopCRDT | NoopCRDT;
 
-  constructor(init: collabs.InitToken, parentsRemaining: number) {
+  constructor(init: InitToken, parentsRemaining: number) {
     super(init);
 
     if (parentsRemaining === 0) {

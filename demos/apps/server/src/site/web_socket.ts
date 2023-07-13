@@ -1,4 +1,4 @@
-import * as collabs from "@collabs/collabs";
+import { CRuntime } from "@collabs/collabs";
 import { CContainerHost } from "@collabs/container";
 import { WebSocketNetwork } from "@collabs/ws-client";
 
@@ -12,7 +12,7 @@ const containerURL = urlParams.get("container")!;
 
 // --- Setup our app ---
 
-const runtime = new collabs.CRuntime();
+const runtime = new CRuntime();
 const wsAddr = location.origin.replace(/^http/, "ws");
 const network = new WebSocketNetwork(runtime, wsAddr, containerURL);
 

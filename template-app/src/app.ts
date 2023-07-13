@@ -1,8 +1,8 @@
-import * as collabs from "@collabs/collabs";
+import { CRuntime } from "@collabs/collabs";
 import { WebSocketNetwork } from "@collabs/ws-client";
 
 // Create a CRuntime.
-const runtime = new collabs.CRuntime();
+const runtime = new CRuntime();
 
 // TODO: Setup your app, using runtime.registerCollab to create
 // Collabs state variables.

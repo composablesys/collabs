@@ -19,8 +19,8 @@ To create a `CRuntime`, in any context:
 1. Construct it:
 
 ```ts
-import * as collabs from "@collabs/collabs";
-const runtime = new collabs.CRuntime();
+import { CRuntime } from "@collabs/collabs";
+const runtime = new CRuntime();
 ```
 
 2. Make all calls to [`runtime.registerCollab`](../api/collabs/classes/CRuntime.html#registerCollab) as described in the [next section of the guide](./initialization.html).

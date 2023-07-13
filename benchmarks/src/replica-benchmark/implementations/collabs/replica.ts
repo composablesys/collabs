@@ -1,17 +1,17 @@
-import * as collabs from "@collabs/collabs";
+import { CRuntime, ReplicaIDs } from "@collabs/collabs";
 import { Data } from "../../../util";
 import { Replica } from "../../replica_benchmark";
 
 export class CollabsReplica implements Replica {
-  protected readonly runtime: collabs.CRuntime;
+  protected readonly runtime: CRuntime;
 
   constructor(
     private readonly onsend: (msg: Data) => void,
     replicaIdRng: seedrandom.prng,
     causalityGuaranteed: boolean
   ) {
-    this.runtime = new collabs.CRuntime({
-      debugReplicaID: collabs.ReplicaIDs.pseudoRandom(replicaIdRng),
+    this.runtime = new CRuntime({
+      debugReplicaID: ReplicaIDs.pseudoRandom(replicaIdRng),
       causalityGuaranteed,
     });
     this.runtime.on("Send", (e) => this.onsend(e.message));

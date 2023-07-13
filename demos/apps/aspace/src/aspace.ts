@@ -1,4 +1,4 @@
-import * as collabs from "@collabs/collabs";
+import { CText, CVar, Position } from "@collabs/collabs";
 import { CContainer } from "@collabs/container";
 
 (async function () {
@@ -10,17 +10,14 @@ import { CContainer } from "@collabs/container";
 
   const container = new CContainer();
 
-  const text = container.registerCollab(
-    "text",
-    (init) => new collabs.CText(init)
-  );
+  const text = container.registerCollab("text", (init) => new CText(init));
   const startTime = container.registerCollab(
     "startTime",
-    (init) => new collabs.CVar(init, 0)
+    (init) => new CVar(init, 0)
   );
   const winElapsedTime = container.registerCollab(
     "winElapsedTime",
-    (init) => new collabs.CVar(init, 0)
+    (init) => new CVar(init, 0)
   );
 
   await container.load();
@@ -35,7 +32,7 @@ import { CContainer } from "@collabs/container";
   });
 
   // Points to the previous char's position, or null for the beginning.
-  let myCursor: collabs.Position | null = null;
+  let myCursor: Position | null = null;
   function updateCursor() {
     const index =
       myCursor === null ? 0 : text.indexOfPosition(myCursor, "left") + 1;
