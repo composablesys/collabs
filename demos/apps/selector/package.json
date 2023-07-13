@@ -23,7 +23,6 @@
     "clean-webpack-plugin": "^3.0.0",
     "copy-webpack-plugin": "^9.0.1",
     "@types/copy-webpack-plugin": "^8.0.1",
-    "pkg-ok": "^2.3.1",
     "prettier": "^2.2.1",
     "rimraf": "^2.7.1"
   },
@@ -32,7 +31,6 @@
     "dev": "cross-env TS_NODE_PROJECT='tsconfig-for-webpack-config.json' webpack",
     "build": "cross-env TS_NODE_PROJECT='tsconfig-for-webpack-config.json' webpack --mode production --devtool inline-nosources-source-map",
     "test": "npm-run-all test:*",
-    "test:pkg": "pkg-ok",
     "test:format": "prettier --check .",
     "fix": "npm-run-all fix:*",
     "fix:format": "prettier --write .",
