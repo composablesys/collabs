@@ -3,7 +3,7 @@ import {
   OptionalMessage,
 } from "../../generated/proto_compiled";
 import { SafeWeakRef } from "./safe_weak_ref";
-import { Serializer } from "./serializers";
+import { Serializer, protobufHas } from "./serializers";
 
 /**
  * An optional value of type T.
@@ -96,7 +96,7 @@ export class OptionalSerializer<T> implements Serializer<Optional<T>> {
 
   deserialize(message: Uint8Array): Optional<T> {
     const decoded = OptionalMessage.decode(message);
-    if (Object.prototype.hasOwnProperty.call(decoded, "valueIfPresent")) {
+    if (protobufHas(decoded, "valueIfPresent")) {
       return Optional.of(
         this.valueSerializer.deserialize(decoded.valueIfPresent)
       );

@@ -2,24 +2,18 @@ import { InitToken, Serializer } from "@collabs/core";
 import { Aggregator } from "../map";
 import { CVar } from "../var";
 
-class BooleanSerializer implements Serializer<boolean> {
-  private static readonly TRUE = new Uint8Array();
-  private static readonly FALSE = new Uint8Array(1);
+const trueBytes = new Uint8Array();
+const falseBytes = new Uint8Array(1);
 
-  private constructor() {
-    // Not constructable.
-  }
+const BooleanSerializer: Serializer<boolean> = {
+  serialize(value) {
+    return value ? trueBytes : falseBytes;
+  },
 
-  static readonly instance = new BooleanSerializer();
-
-  serialize(value: boolean): Uint8Array {
-    return value ? BooleanSerializer.TRUE : BooleanSerializer.FALSE;
-  }
-
-  deserialize(message: Uint8Array): boolean {
+  deserialize(message) {
     return message.length === 0;
-  }
-}
+  },
+} as const;
 
 const TrueWinsAggregator: Aggregator<boolean> = {
   aggregate(items) {
@@ -56,7 +50,7 @@ export class CBoolean extends CVar<boolean> {
    */
   constructor(init: InitToken, { winner = true, initialValue = false } = {}) {
     super(init, initialValue, {
-      valueSerializer: BooleanSerializer.instance,
+      valueSerializer: BooleanSerializer,
       aggregator: winner ? TrueWinsAggregator : FalseWinsAggregator,
     });
   }

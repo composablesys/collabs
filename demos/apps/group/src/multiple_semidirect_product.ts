@@ -10,7 +10,11 @@ import {
   SavedStateTree,
   UpdateMeta,
 } from "@collabs/collabs";
-import { collabIDOf, MessageStacksSerializer } from "@collabs/core";
+import {
+  collabIDOf,
+  MessageStacksSerializer,
+  protobufHas,
+} from "@collabs/core";
 import {
   IMultiSemidirectProductSenderHistory,
   MultiSemidirectProductHistorySave,
@@ -286,7 +290,7 @@ class MultipleSemidirectState<S extends object> {
               message.sender,
               message.senderCounter,
               message.receiptCounter,
-              message.hasOwnProperty("messageStack")
+              protobufHas(message, "messageStack")
                 ? MessageStacksSerializer.instance.deserialize(
                     message.messageStack!
                   )[0]

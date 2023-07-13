@@ -4,6 +4,7 @@ import {
   CPrimitive,
   InitToken,
   Position,
+  protobufHas,
   UpdateMeta,
 } from "@collabs/core";
 import {
@@ -411,7 +412,7 @@ export class CPositionSource extends CPrimitive<PositionSourceEventsRecord> {
     } else {
       // "waypoint" (new Waypoint).
       // Get parentWaypoint.
-      const parentWaypointSender = Object.prototype.hasOwnProperty.call(
+      const parentWaypointSender = protobufHas(
         decoded.waypoint!,
         "parentWaypointSenderID"
       )
@@ -453,9 +454,7 @@ export class CPositionSource extends CPrimitive<PositionSourceEventsRecord> {
       valueIndex,
       count: decoded.count,
       positions,
-      info: Object.prototype.hasOwnProperty.call(decoded, "info")
-        ? decoded.info
-        : undefined,
+      info: protobufHas(decoded, "info") ? decoded.info : undefined,
       meta,
     });
   }

@@ -1,4 +1,9 @@
-import { int64AsNumber, Serializer, UpdateMeta } from "@collabs/core";
+import {
+  int64AsNumber,
+  protobufHas,
+  Serializer,
+  UpdateMeta,
+} from "@collabs/core";
 import { CRDTMetaMessage } from "../../generated/proto_compiled";
 import { CRDTMessageMeta, CRDTSavedStateMeta, VectorClock } from "./crdt_meta";
 
@@ -245,10 +250,10 @@ export class RuntimeMetaSerializer implements Serializer<UpdateMeta> {
       vc,
       // Missing converted to 0 by protobufjs - okay.
       decoded.maximalVcKeyCount,
-      Object.prototype.hasOwnProperty.call(decoded, "wallClockTime")
+      protobufHas(decoded, "wallClockTime")
         ? int64AsNumber(decoded.wallClockTime)
         : null,
-      Object.prototype.hasOwnProperty.call(decoded, "lamportTimestamp")
+      protobufHas(decoded, "lamportTimestamp")
         ? int64AsNumber(decoded.lamportTimestamp)
         : null
     );

@@ -2,10 +2,11 @@ import {
   CollabEvent,
   CollabEventsRecord,
   InitToken,
-  int64AsNumber,
   Position,
   Serializer,
   UpdateMeta,
+  int64AsNumber,
+  protobufHas,
 } from "@collabs/core";
 import {
   SpanLogPartialSpanMessage,
@@ -58,11 +59,11 @@ class PartialSpanSerializer<F extends Record<string, any>>
     const decoded = SpanLogPartialSpanMessage.decode(message);
     return {
       key: decoded.key,
-      value: Object.prototype.hasOwnProperty.call(decoded, "value")
+      value: protobufHas(decoded, "value")
         ? this.formatSerializer.deserialize(decoded.value)
         : undefined,
       startPosition: decoded.startPosition,
-      endPosition: Object.prototype.hasOwnProperty.call(decoded, "endPosition")
+      endPosition: protobufHas(decoded, "endPosition")
         ? decoded.endPosition
         : null,
       ...(decoded.endClosed ? { endClosed: true } : {}),

@@ -5,6 +5,7 @@ import {
   InitToken,
   int64AsNumber,
   Optional,
+  protobufHas,
   Serializer,
   UpdateMeta,
 } from "@collabs/core";
@@ -200,7 +201,7 @@ export class CMultiValueMap<K, V>
         }
       }
     }
-    if (Object.prototype.hasOwnProperty.call(decoded, "value")) {
+    if (protobufHas(decoded, "value")) {
       // It's a set operation; add the set item.
       newItems.push({
         value: this.valueSerializer.deserialize(decoded.value),

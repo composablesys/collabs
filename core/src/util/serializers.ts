@@ -198,12 +198,7 @@ export class DefaultSerializer<T> implements Serializer<T> {
         ans = decoded.bytesValue;
         break;
       case "optionalValue":
-        if (
-          Object.prototype.hasOwnProperty.call(
-            decoded.optionalValue,
-            "valueIfPresent"
-          )
-        ) {
+        if (protobufHas(decoded.optionalValue!, "valueIfPresent")) {
           ans = Optional.of(
             this.deserialize(decoded.optionalValue!.valueIfPresent!)
           );
@@ -400,4 +395,24 @@ export function int64AsNumber(num: number | Long): number {
   // flaky because a dependency might import Long.
   if (typeof num === "number") return num;
   else return num.toNumber();
+}
+
+/**
+ * Internal utility for working with protobuf encodings.
+ *
+ * Returns whether the optional property `prop` is present in
+ * the deserialized protobufjs message `message`. (Accessing a not-present
+ * property directly will return its type's default value
+ * instead of `undefined`.)
+ */
+export function protobufHas<N extends string>(
+  message: Partial<Record<N, unknown>>,
+  prop: N
+): boolean {
+  // message is allowed to be Partial in case it's an I...Message type
+  // (e.g. an inner field of a deserialized protobufjs message),
+  // which has all optional properties.
+  // Despite Partial, TypeScript will still complain if you misspell
+  // prop.
+  return Object.prototype.hasOwnProperty.call(message, prop);
 }
