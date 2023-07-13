@@ -1,4 +1,5 @@
-import { AbstractDoc, Bytes, CRuntime, SendEvent } from "@collabs/collabs";
+import { AbstractDoc, CRuntime, SendEvent } from "@collabs/collabs";
+import { fromByteArray, toByteArray } from "base64-js";
 import {
   Capability,
   IWidgetApiRequest,
@@ -153,11 +154,11 @@ export class MatrixWidgetNetwork {
   }
 
   private receiveString(msg: string) {
-    this.doc.receive(Bytes.parse(msg));
+    this.doc.receive(toByteArray(msg));
   }
 
   private appSend(e: SendEvent): void {
-    const encoded = Bytes.stringify(e.message);
+    const encoded = fromByteArray(e.message);
     if (encoded.length > MAX_MSG_SIZE) {
       // Break it into chunks of length <= MAX_MSG_SIZE,
       // linked together by a random uid.

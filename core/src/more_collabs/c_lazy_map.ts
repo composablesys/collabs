@@ -1,24 +1,19 @@
+import { fromByteArray, toByteArray } from "base64-js";
 import {
   Collab,
   CollabEventsRecord,
   CollabID,
-  collabIDOf,
-  InitToken,
   IParent,
+  InitToken,
   MetaRequest,
   Parent,
   SavedStateTree,
   UpdateMeta,
+  collabIDOf,
 } from "../core";
-import {
-  Bytes,
-  DefaultSerializer,
-  Optional,
-  Serializer,
-  WeakValueMap,
-} from "../util";
 // Import from specific file to avoid circular dependencies.
 import { AbstractMap_Collab } from "../data_types/abstract_maps";
+import { DefaultSerializer, Optional, Serializer, WeakValueMap } from "../util";
 import { nonNull } from "../util/assertions";
 
 interface InUpdateData<C extends Collab> {
@@ -127,10 +122,10 @@ export class CLazyMap<K, C extends Collab>
   }
 
   private keyAsString(key: K) {
-    return Bytes.stringify(this.keySerializer.serialize(key));
+    return fromByteArray(this.keySerializer.serialize(key));
   }
   private stringAsKey(str: string) {
-    return this.keySerializer.deserialize(Bytes.parse(str));
+    return this.keySerializer.deserialize(toByteArray(str));
   }
 
   private getInternal(

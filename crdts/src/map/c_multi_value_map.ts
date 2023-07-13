@@ -1,5 +1,4 @@
 import {
-  Bytes,
   DefaultSerializer,
   IMap,
   InitToken,
@@ -10,6 +9,7 @@ import {
   Serializer,
   UpdateMeta,
 } from "@collabs/core";
+import { fromByteArray, toByteArray } from "base64-js";
 import {
   IMultiValueMapItemsSave,
   MultiValueMapItemsSave,
@@ -187,7 +187,7 @@ export class CMultiValueMap<K, V>
     crdtMeta: CRDTMessageMeta
   ): void {
     const decoded = MultiValueMapMessage.decode(<Uint8Array>message);
-    const keyAsString = Bytes.stringify(decoded.key);
+    const keyAsString = fromByteArray(decoded.key);
     const previousValue = this.getInternal(keyAsString);
 
     const newItems: MultiValueMapItem<V>[] = [];
@@ -242,7 +242,7 @@ export class CMultiValueMap<K, V>
     }
 
     const key = this.keySerializer.deserialize(
-      keyAsBytes ?? Bytes.parse(keyAsString)
+      keyAsBytes ?? toByteArray(keyAsString)
     );
 
     if (newItems.length === 0) {
@@ -287,7 +287,7 @@ export class CMultiValueMap<K, V>
    * Do not modify a returned array.
    */
   get(key: K): MultiValueMapItem<V>[] | undefined {
-    return this.getInternal(Bytes.stringify(this.keySerializer.serialize(key)));
+    return this.getInternal(fromByteArray(this.keySerializer.serialize(key)));
   }
 
   private getInternal(keyAsString: string): MultiValueMapItem<V>[] | undefined {
@@ -296,7 +296,7 @@ export class CMultiValueMap<K, V>
   }
 
   has(key: K): boolean {
-    return this.state.has(Bytes.stringify(this.keySerializer.serialize(key)));
+    return this.state.has(fromByteArray(this.keySerializer.serialize(key)));
   }
 
   get size(): number {
@@ -313,7 +313,7 @@ export class CMultiValueMap<K, V>
   *entries(): IterableIterator<[K, MultiValueMapItem<V>[]]> {
     for (const [key, value] of this.state) {
       yield [
-        this.keySerializer.deserialize(Bytes.parse(key)),
+        this.keySerializer.deserialize(toByteArray(key)),
         this.asArray(value),
       ];
     }

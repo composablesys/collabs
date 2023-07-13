@@ -35,6 +35,7 @@
   "sideEffects": false,
   "dependencies": {
     "@collabs/collabs": "0.11.1",
+    "base64-js": "^1.5.1",
     "matrix-widget-api": "^0.1.0-beta.16",
     "tslib": "^2.0.1"
   },

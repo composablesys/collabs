@@ -1,6 +1,7 @@
-import { Bytes, CRuntime } from "@collabs/collabs";
+import { CRuntime } from "@collabs/collabs";
 import { CContainerHost } from "@collabs/container";
 import { WebSocketNetwork } from "@collabs/ws-client";
+import { fromByteArray, toByteArray } from "base64-js";
 
 // From containerUrl.js, included in index.html.
 // (Not including it here since it's not a real file and
@@ -70,7 +71,7 @@ if (doLoad) {
     console.log("Load error: no save found, skipping.");
     host.loadSkipped();
   } else {
-    runtime.load(Bytes.parse(sessionStorageSave));
+    runtime.load(toByteArray(sessionStorageSave));
     console.log("Loaded.");
   }
 } else {
@@ -130,7 +131,7 @@ saveButton.addEventListener("click", async function () {
   const savedState = runtime.save();
   // Store in sessionStorage.
   try {
-    window.sessionStorage.setItem(containerUrl, Bytes.stringify(savedState));
+    window.sessionStorage.setItem(containerUrl, fromByteArray(savedState));
   } catch (err) {
     console.log("Save error: ");
     console.log(err);

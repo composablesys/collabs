@@ -217,7 +217,7 @@ export class CSet<C extends Collab, AddArgs extends unknown[]>
   // (evaluated on the receiver side).
   // To avoid a wasteful senderID -> utf8 bytes -> base64 string
   // conversion, we encode the string manually,
-  // instead of using protobuf + Bytes.stringify.
+  // instead of using protobuf + base64.
   // OPT: shorter number encodings? Esp for senderCounter.
 
   private trCounter = 0;
