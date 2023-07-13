@@ -212,17 +212,27 @@ export class CValueList<T> extends AbstractList_CObject<T, [T]> {
    *
    * All values currently at or after `startIndex + deleteCount`
    * shift to accommodate the change in length.
+   *
+   * @returns The deleted values.
    */
-  splice(startIndex: number, deleteCount?: number, ...values: T[]): void {
-    // Sanitize deleteCount
+  splice(startIndex: number, deleteCount?: number, ...values: T[]): T[] {
+    // Sanitize startIndex.
+    if (startIndex < 0) startIndex += this.length;
+    if (startIndex < 0) startIndex = 0;
+    if (startIndex > this.length) startIndex = this.length;
+
+    // Sanitize deleteCount.
     if (deleteCount === undefined || deleteCount > this.length - startIndex)
       deleteCount = this.length - startIndex;
     else if (deleteCount < 0) deleteCount = 0;
-    // Delete then insert
+
+    // Delete then insert.
+    const ret = this.slice(startIndex, startIndex + deleteCount);
     this.delete(startIndex, deleteCount);
     if (values.length > 0) {
       this.insert(startIndex, ...values);
     }
+    return ret;
   }
 
   slice(start?: number, end?: number): T[] {

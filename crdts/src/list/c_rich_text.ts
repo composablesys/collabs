@@ -734,29 +734,42 @@ export class CRichText<
    *
    * All values currently at or after `startIndex + deleteCount`
    * shift to accommodate the change in length.
+   *
+   * @param values The characters to insert. They are inserted
+   * as individual UTF-16 codepoints.
+   * @param format The characters' initial format.
+   * @returns The deleted substring.
    */
-  splice(startIndex: number, deleteCount: number): void;
+  splice(startIndex: number, deleteCount: number): string;
   splice(
     startIndex: number,
     deleteCount: number | undefined,
     values: string,
     format: Partial<F>
-  ): void;
+  ): string;
   splice(
     startIndex: number,
     deleteCount: number | undefined,
     values?: string,
     format?: Partial<F>
-  ): void {
-    // Sanitize deleteCount
+  ): string {
+    // Sanitize startIndex.
+    if (startIndex < 0) startIndex += this.length;
+    if (startIndex < 0) startIndex = 0;
+    if (startIndex > this.length) startIndex = this.length;
+
+    // Sanitize deleteCount.
     if (deleteCount === undefined || deleteCount > this.length - startIndex)
       deleteCount = this.length - startIndex;
     else if (deleteCount < 0) deleteCount = 0;
-    // Delete then insert
+
+    // Delete then insert.
+    const ret = this.slice(startIndex, startIndex + deleteCount);
     this.delete(startIndex, deleteCount);
     if (values !== undefined) {
       this.insert(startIndex, values, format!);
     }
+    return ret;
   }
 
   // Convenience accessors.
