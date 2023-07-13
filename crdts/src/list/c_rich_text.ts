@@ -894,6 +894,9 @@ function getDataValue<
 /**
  * Returns data's complete format.
  *
+ * The value is a new immutable object; mutations to it do not
+ * affect CRichText and vice-versa.
+ *
  * @param includeClosed Whether to consider endClosedSpans, i.e., you are
  * getting the format exactly at data's position.
  */

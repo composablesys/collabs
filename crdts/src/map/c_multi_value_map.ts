@@ -267,11 +267,15 @@ export class CMultiValueMap<K, V>
     }
   }
 
-  private asArray(
+  /**
+   * Returns value in array form. The array is always new, to prevent
+   * the caller from mutating our internal state or vice-versa.
+   */
+  private asNewArray(
     value: MultiValueMapItem<V> | MultiValueMapItem<V>[]
   ): MultiValueMapItem<V>[] {
     if (value === undefined) return [];
-    if (Array.isArray(value)) return value;
+    if (Array.isArray(value)) return value.slice();
     else return [value];
   }
 
@@ -283,8 +287,6 @@ export class CMultiValueMap<K, V>
    * If defined, the return value is always non-empty, and its order is
    * eventually consistent. Specifically, it is
    * in order by [[MultiValueMapItem.sender]].
-   *
-   * Do not modify a returned array.
    */
   get(key: K): MultiValueMapItem<V>[] | undefined {
     return this.getInternal(fromByteArray(this.keySerializer.serialize(key)));
@@ -292,7 +294,7 @@ export class CMultiValueMap<K, V>
 
   private getInternal(keyAsString: string): MultiValueMapItem<V>[] | undefined {
     const value = this.state.get(keyAsString);
-    return value === undefined ? undefined : this.asArray(value);
+    return value === undefined ? undefined : this.asNewArray(value);
   }
 
   has(key: K): boolean {
@@ -314,7 +316,7 @@ export class CMultiValueMap<K, V>
     for (const [key, value] of this.state) {
       yield [
         this.keySerializer.deserialize(toByteArray(key)),
-        this.asArray(value),
+        this.asNewArray(value),
       ];
     }
   }
@@ -324,7 +326,7 @@ export class CMultiValueMap<K, V>
     const senders: string[] = [];
     const indexBySender = new Map<string, number>();
     for (const [keyAsString, itemsRaw] of this.state) {
-      const items = this.asArray(itemsRaw);
+      const items = this.asNewArray(itemsRaw);
       const entry: IMultiValueMapItemsSave = {
         values: new Array(items.length),
         senders: new Array(items.length),
@@ -382,7 +384,7 @@ export class CMultiValueMap<K, V>
     for (const [keyAsString, itemsRaw] of this.state) {
       this.loadOneKey(
         keyAsString,
-        this.asArray(itemsRaw),
+        this.asNewArray(itemsRaw),
         decoded.entries[keyAsString] as MultiValueMapItemsSave | undefined,
         decoded.senders,
         meta,
