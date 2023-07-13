@@ -30,6 +30,7 @@
   "sideEffects": false,
   "dependencies": {
     "@collabs/collabs": "file:../../../collabs",
+    "@collabs/resettable-counter": "file:../resettable-counter",
     "@tensorflow/tfjs": "^3.8.0",
     "@tensorflow/tfjs-node": "^3.8.0",
     "dotenv": "^8.2.0",

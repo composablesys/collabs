@@ -6,3 +6,4 @@ generated_esm
 .vscode/
 .idea/
 *.tsbuildinfo
+!package-lock.json

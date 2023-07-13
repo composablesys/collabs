@@ -4,9 +4,9 @@ import {
   CollabEventsRecord,
   InitToken,
   PrimitiveCRDT,
-  ResettableCCounter,
   UpdateMeta,
 } from "@collabs/collabs";
+import { CResettableCounter } from "@collabs/resettable-counter";
 import * as tf from "@tensorflow/tfjs";
 import * as proto from "../generated/proto_compiled";
 
@@ -198,10 +198,7 @@ export class TensorGCounterCollab extends PrimitiveCRDT<TensorCounterEventsRecor
     return idCounter + " " + sender;
   }
 
-  protected receivePrimitive(
-    message: Uint8Array | string,
-    meta: UpdateMeta
-  ): void {
+  protected receiveCRDT(message: Uint8Array | string, meta: UpdateMeta): void {
     const decoded = proto.TensorGCounterMessage.decode(<Uint8Array>message);
     switch (decoded.data) {
       case "add":
@@ -268,10 +265,10 @@ export class TensorGCounterCollab extends PrimitiveCRDT<TensorCounterEventsRecor
     return this.state.P.size === 0 && this.state.N.size === 0;
   }
 
-  savePrimitive(): Uint8Array {
+  saveCRDT(): Uint8Array {
     throw new Error("Not implemented");
   }
-  loadPrimitive(savedState: Uint8Array | null): void {
+  loadCRDT(savedState: Uint8Array | null): void {
     throw new Error("Not implemented");
   }
 }
@@ -339,7 +336,7 @@ export class TensorCounterCollab extends CObject<TensorCounterEventsRecord> {
 
 export class TensorAverageCollab extends CObject<TensorCounterEventsRecord> {
   private readonly numerator: TensorCounterCollab;
-  private readonly denominator: ResettableCCounter;
+  private readonly denominator: CResettableCounter;
 
   constructor(
     init: InitToken,
@@ -353,7 +350,7 @@ export class TensorAverageCollab extends CObject<TensorCounterEventsRecord> {
     );
     this.denominator = this.registerCollab(
       "2",
-      (init) => new ResettableCCounter(init)
+      (init) => new CResettableCounter(init)
     );
     this.numerator.on("Add", (event) => this.emit("Add", event));
     this.denominator.on("Reset", (event) => this.emit("Reset", event));
