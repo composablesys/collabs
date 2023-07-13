@@ -136,19 +136,19 @@ export interface IList<
   insert(index: number, ...args: InsertArgs): T | undefined;
 
   /**
-   * Delete `count` values starting at `startIndex`, i.e., values
-   * `[startIndex, startIndex + count - 1)`.
+   * Delete `count` values starting at `index`, i.e., values
+   * `[index, index + count - 1)`.
    *
    * All later values shift to the left,
    * decreasing their indices by `count`.
    *
    * @param count The number of values to delete.
-   * Defaults to 1 (delete the value at `startIndex` only).
+   * Defaults to 1 (delete the value at `index` only).
    *
-   * @throws if `startIndex < 0` or
-   * `startIndex + count >= this.length`.
+   * @throws if `index < 0` or
+   * `index + count >= this.length`.
    */
-  delete(startIndex: number, count?: number): void;
+  delete(index: number, count?: number): void;
 
   /**
    * Returns the value currently at index.

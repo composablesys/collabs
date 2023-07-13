@@ -43,7 +43,7 @@ export declare abstract class AbstractList_Collab<
   indexOf(searchElement: T, fromIndex?: number): number;
 
   abstract insert(index: number, ...args: InsertArgs): T | undefined;
-  abstract delete(startIndex: number, count?: number): void;
+  abstract delete(index: number, count?: number): void;
   abstract get(index: number): T;
   abstract getPosition(index: number): Position;
   abstract indexOfPosition(
@@ -95,7 +95,7 @@ export declare abstract class AbstractList_CObject<
   indexOf(searchElement: T, fromIndex?: number): number;
 
   abstract insert(index: number, ...args: InsertArgs): T | undefined;
-  abstract delete(startIndex: number, count?: number): void;
+  abstract delete(index: number, count?: number): void;
   abstract get(index: number): T;
   abstract getPosition(index: number): Position;
   abstract indexOfPosition(
@@ -147,7 +147,7 @@ export declare abstract class AbstractList_CPrimitive<
   indexOf(searchElement: T, fromIndex?: number): number;
 
   abstract insert(index: number, ...args: InsertArgs): T | undefined;
-  abstract delete(startIndex: number, count?: number): void;
+  abstract delete(index: number, count?: number): void;
   abstract get(index: number): T;
   abstract getPosition(index: number): Position;
   abstract indexOfPosition(

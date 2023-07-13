@@ -101,7 +101,7 @@ export function MakeAbstractList<
   Events extends ListEventsRecord<T>,
   TBase extends abstract new (...args: any[]) => {
     insert(index: number, ...args: InsertArgs): T | undefined;
-    delete(startIndex: number, count?: number): void;
+    delete(index: number, count?: number): void;
     get(index: number): T;
     getPosition(index: number): Position;
     indexOfPosition(

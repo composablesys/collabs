@@ -15,9 +15,7 @@ export class ReplicaIDs {
   static readonly CHARS =
     "ABCDEFGHIJKLMNOPQRSTUVWXYZabcdefghijklmnopqrstuvwxyz0123456789+/";
 
-  /**
-   * The default length of a replicaID, in characters.
-   *
+  /*
    * Rationale for value 10:
    * Each character of the replicaID gives us 6 bits of entropy,
    * for a total of 60 bits.  This gives a < 1%
@@ -26,6 +24,9 @@ export class ReplicaIDs {
    * consider the total probability across 100,000,000
    * conversations with 10,000 replicaIDs each
    * (= 10 users * 1,000 days * 1 replica/user/day).
+   */
+  /**
+   * The default length of a replicaID, in characters.
    */
   static readonly DEFAULT_LENGTH = 10;
 

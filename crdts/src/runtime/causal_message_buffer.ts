@@ -11,12 +11,6 @@ import {
   RuntimeMetaSerializer,
 } from "./crdt_meta_implementations";
 
-/**
- * Debug flag, enables console.log's when causality checks
- * fail.
- */
-const DEBUG = false;
-
 interface ReceivedTransaction {
   messageStacks: (Uint8Array | string)[][];
   meta: UpdateMeta;
@@ -50,6 +44,9 @@ export class CausalMessageBuffer {
    * The Lamport timestamp.
    *
    * Do not modify externally.
+   *
+   * Although this starts at 0, any transaction that uses the Lamport timestamp
+   * will have a positive value, since tick() increments it.
    */
   lamportTimestamp = 0;
 
@@ -106,11 +103,6 @@ export class CausalMessageBuffer {
           this.buffer.set(dot, { messageStacks, meta });
         }
       }
-    } else if (DEBUG) {
-      console.log("CausalMessageBuffer.add: not adding");
-      console.log("(already received)");
-      console.log([...this.vc]);
-      console.log(crdtMeta);
     }
     return false;
   }
@@ -136,17 +128,9 @@ export class CausalMessageBuffer {
           // through the whole buffer again.
           recheck = true;
         } else {
-          if (DEBUG) {
-            console.log("CRDTMetaLayer.checkMessageBuffer: not ready");
-          }
           if (this.isAlreadyDelivered(crdtMeta)) {
             // Remove from the buffer.
             this.buffer.delete(dot);
-            if (DEBUG) console.log("(already received)");
-          }
-          if (DEBUG) {
-            console.log([...this.vc]);
-            console.log(crdtMeta);
           }
         }
       }
@@ -219,7 +203,7 @@ export class CausalMessageBuffer {
     this.vc.set(crdtMeta.senderID, crdtMeta.senderCounter);
     // Update Lamport timestamp if it's present.
     // Skipping this when it's not present technically violates the def
-    // of Lamport timestamp, and it is still causally-compatible due to
+    // of Lamport timestamp, but it is still causally-compatible due to
     // causal order delivery.
     this.lamportTimestamp = Math.max(
       this.lamportTimestamp,

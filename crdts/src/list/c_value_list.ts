@@ -150,20 +150,20 @@ export class CValueList<T> extends AbstractList_CObject<T, [T]> {
     return values[0];
   }
 
-  delete(startIndex: number, count = 1): void {
-    if (startIndex < 0) {
-      throw new Error(`startIndex out of bounds: ${startIndex}`);
+  delete(index: number, count = 1): void {
+    if (index < 0) {
+      throw new Error(`index out of bounds: ${index}`);
     }
-    if (startIndex + count > this.length) {
+    if (index + count > this.length) {
       throw new Error(
-        `(startIndex + count) out of bounds: ${startIndex} + ${count} (length: ${this.length})`
+        `(index + count) out of bounds: ${index} + ${count} (length: ${this.length})`
       );
     }
 
     // OPT: native range deletes? E.g. compress waypoint valueIndex ranges.
     // OPT: optimize range iteration (ListView.slice for positions?)
     // Delete from back to front, so indices make sense.
-    for (let i = startIndex + count - 1; i >= startIndex; i--) {
+    for (let i = index + count - 1; i >= index; i--) {
       this.deleteMessenger.sendMessage(this.list.getPosition(i));
     }
   }
@@ -207,30 +207,30 @@ export class CValueList<T> extends AbstractList_CObject<T, [T]> {
    * Deletes and inserts values like [Array.splice](https://developer.mozilla.org/en-US/docs/Web/JavaScript/Reference/Global_Objects/Array/splice).
    *
    * If `deleteCount` is provided, this method first deletes
-   * `deleteCount` values starting at `startIndex`.
-   * Next, this method inserts `values` at `startIndex`.
+   * `deleteCount` values starting at `start`.
+   * Next, this method inserts `values` at `start`.
    *
-   * All values currently at or after `startIndex + deleteCount`
+   * All values currently at or after `start + deleteCount`
    * shift to accommodate the change in length.
    *
    * @returns The deleted values.
    */
-  splice(startIndex: number, deleteCount?: number, ...values: T[]): T[] {
-    // Sanitize startIndex.
-    if (startIndex < 0) startIndex += this.length;
-    if (startIndex < 0) startIndex = 0;
-    if (startIndex > this.length) startIndex = this.length;
+  splice(start: number, deleteCount?: number, ...values: T[]): T[] {
+    // Sanitize start.
+    if (start < 0) start += this.length;
+    if (start < 0) start = 0;
+    if (start > this.length) start = this.length;
 
     // Sanitize deleteCount.
-    if (deleteCount === undefined || deleteCount > this.length - startIndex)
-      deleteCount = this.length - startIndex;
+    if (deleteCount === undefined || deleteCount > this.length - start)
+      deleteCount = this.length - start;
     else if (deleteCount < 0) deleteCount = 0;
 
     // Delete then insert.
-    const ret = this.slice(startIndex, startIndex + deleteCount);
-    this.delete(startIndex, deleteCount);
+    const ret = this.slice(start, start + deleteCount);
+    this.delete(start, deleteCount);
     if (values.length > 0) {
-      this.insert(startIndex, ...values);
+      this.insert(start, ...values);
     }
     return ret;
   }

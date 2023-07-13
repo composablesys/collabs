@@ -127,20 +127,20 @@ export class CText extends CObject<TextEventsRecord> implements ICursorList {
   }
 
   /**
-   * Delete `count` characters starting at `startIndex`, i.e., characters
-   * `[startIndex, startIndex + count - 1)`.
+   * Delete `count` characters starting at `index`, i.e., characters
+   * `[index, index + count - 1)`.
    *
    * All later characters shift to the left,
    * decreasing their indices by `count`.
    *
    * @param count The number of characters to delete.
-   * Defaults to 1 (delete the character at `startIndex` only).
+   * Defaults to 1 (delete the character at `index` only).
    *
-   * @throws if `startIndex < 0` or
-   * `startIndex + count >= this.length`.
+   * @throws if `index < 0` or
+   * `index + count >= this.length`.
    */
-  delete(startIndex: number, count = 1): void {
-    this.list.delete(startIndex, count);
+  delete(index: number, count = 1): void {
+    this.list.delete(index, count);
   }
 
   /**
@@ -228,32 +228,32 @@ export class CText extends CObject<TextEventsRecord> implements ICursorList {
    * Deletes and inserts values like [Array.splice](https://developer.mozilla.org/en-US/docs/Web/JavaScript/Reference/Global_Objects/Array/splice).
    *
    * If `deleteCount` is provided, this method first deletes
-   * `deleteCount` values starting at `startIndex`.
-   * Next, this method inserts `values` as a substring at `startIndex`.
+   * `deleteCount` values starting at `start`.
+   * Next, this method inserts `values` as a substring at `start`.
    *
-   * All values currently at or after `startIndex + deleteCount`
+   * All values currently at or after `start + deleteCount`
    * shift to accommodate the change in length.
    *
    * @param values The characters to insert. They are inserted
    * as individual UTF-16 codepoints.
    * @returns The deleted substring.
    */
-  splice(startIndex: number, deleteCount?: number, values?: string): string {
-    // Sanitize startIndex.
-    if (startIndex < 0) startIndex += this.length;
-    if (startIndex < 0) startIndex = 0;
-    if (startIndex > this.length) startIndex = this.length;
+  splice(start: number, deleteCount?: number, values?: string): string {
+    // Sanitize start.
+    if (start < 0) start += this.length;
+    if (start < 0) start = 0;
+    if (start > this.length) start = this.length;
 
     // Sanitize deleteCount.
-    if (deleteCount === undefined || deleteCount > this.length - startIndex)
-      deleteCount = this.length - startIndex;
+    if (deleteCount === undefined || deleteCount > this.length - start)
+      deleteCount = this.length - start;
     else if (deleteCount < 0) deleteCount = 0;
 
     // Delete then insert.
-    const ret = this.slice(startIndex, startIndex + deleteCount);
-    this.delete(startIndex, deleteCount);
+    const ret = this.slice(start, start + deleteCount);
+    this.delete(start, deleteCount);
     if (values !== undefined) {
-      this.insert(startIndex, values);
+      this.insert(start, values);
     }
     return ret;
   }

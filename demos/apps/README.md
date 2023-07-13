@@ -12,4 +12,4 @@ Run: `npm start`, then open the printed link in a web browser. The linked demos 
 
 ## Development
 
-There appears to be an issue with the nested workspaces and installing dependencies correctly: running `npm i` in the top-level folder will not install dependencies listed in the individual demos only. As a workaround, when using the monorepo as a single workspace, individual demos' dependencies must be duplicated in this folder's `package.json`.
+There appears to be an issue with the nested workspaces and installing dependencies correctly: running `npm i` in the top-level folder will not install dependencies listed in the individual demos only. As a workaround, when using the monorepo as a single workspace, individual demos' dependencies (and devDependencies) must be duplicated in this folder's `package.json`.

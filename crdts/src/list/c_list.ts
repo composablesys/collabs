@@ -288,8 +288,8 @@ export class CList<
   }
 
   /**
-   * Delete `count` values starting at `startIndex`, i.e., values
-   * `[startIndex, startIndex + count - 1)`.
+   * Delete `count` values starting at `index`, i.e., values
+   * `[index, index + count - 1)`.
    *
    * All later values shift to the left,
    * decreasing their indices by `count`.
@@ -302,12 +302,12 @@ export class CList<
    *
    * See also: [[archive]], [[CSet.delete]].
    */
-  delete(startIndex: number, count = 1): void {
+  delete(index: number, count = 1): void {
     if (count < 0 || !Number.isInteger(count)) {
       throw new Error(`invalid count: ${count}`);
     }
     // Get the values to delete.
-    const toDelete = this.list.slice(startIndex, startIndex + count);
+    const toDelete = this.list.slice(index, index + count);
     toDelete.reverse();
     // Delete them.
     for (const value of toDelete) {
@@ -316,8 +316,8 @@ export class CList<
   }
 
   /**
-   * Archives `count` values starting at `startIndex`, i.e., values
-   * `[startIndex, startIndex + count - 1)`.
+   * Archives `count` values starting at `index`, i.e., values
+   * `[index, index + count - 1)`.
    *
    * All later values shift to the left,
    * decreasing their indices by `count`.
@@ -327,17 +327,17 @@ export class CList<
    * and they can be made present again with [[restore]].
    *
    * @param count The number of values to archive.
-   * Defaults to 1 (archive the value at `startIndex` only).
+   * Defaults to 1 (archive the value at `index` only).
    *
-   * @throws if `startIndex < 0` or
-   * `startIndex + count >= this.length`.
+   * @throws if `index < 0` or
+   * `index + count >= this.length`.
    */
-  archive(startIndex: number, count = 1): void {
+  archive(index: number, count = 1): void {
     if (count < 0 || !Number.isInteger(count)) {
       throw new Error(`invalid count: ${count}`);
     }
     // Get the values to archive.
-    const toArchive = this.list.slice(startIndex, startIndex + count);
+    const toArchive = this.list.slice(index, index + count);
     toArchive.reverse();
     // Archive them. Note the entry.position will "remember" the current
     // position (and concurrent moves) for when we are restored.
@@ -376,9 +376,9 @@ export class CList<
   }
 
   /**
-   * Moves `count` values from `startIndex` to `insertionIndex`.
+   * Moves `count` values from `index` to `insertionIndex`.
    *
-   * That is, the range of values at `[startIndex, startIndex + count - 1)` is moved to the position
+   * That is, the range of values at `[index, index + count - 1)` is moved to the position
    * *currently* at `insertionIndex`.
    *
    * Other values shift to accommodate the move.
@@ -387,13 +387,13 @@ export class CList<
    * normally, even if concurrent to the move.
    *
    * @param count The number of values to move.
-   * Defaults to 1 (move the value at `startIndex` only).
+   * Defaults to 1 (move the value at `index` only).
    * @returns The new index of the first moved value.
-   * This will be less then `insertionIndex` if `startIndex < insertionIndex`.
-   * @throws if `startIndex < 0` or
-   * `startIndex + count >= this.length`.
+   * This will be less then `insertionIndex` if `index < insertionIndex`.
+   * @throws if `index < 0` or
+   * `index + count >= this.length`.
    */
-  move(startIndex: number, insertionIndex: number, count = 1): number {
+  move(index: number, insertionIndex: number, count = 1): number {
     if (count < 0 || !Number.isInteger(count)) {
       throw new Error(`invalid count: ${count}`);
     }
@@ -404,7 +404,7 @@ export class CList<
       insertionIndex === 0 ? null : this.list.getPosition(insertionIndex - 1);
     const positions = this.positionSource.createPositions(prevPos, count);
     // Values to move.
-    const toMove = this.list.slice(startIndex, startIndex + count);
+    const toMove = this.list.slice(index, index + count);
     // Move them.
     for (let i = 0; i < count; i++) {
       const entry = this.entryFromValue(toMove[i])!;
