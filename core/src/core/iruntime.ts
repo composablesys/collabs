@@ -25,8 +25,6 @@ export interface IRuntime extends IParent {
    */
   readonly isRuntime: true;
 
-  // Utilities for internal use by Collabs, serializers, etc.
-
   /**
    * An ID that uniquely identifies this replica among
    * all connected replicas.
@@ -35,25 +33,6 @@ export interface IRuntime extends IParent {
    * `this.runtime.replicaID` in a Collab subclass.
    */
   readonly replicaID: string;
-
-  /**
-   * Returns a nonnegative counter value that will only be
-   * associated with this IRuntime's [[replicaID]]
-   * once.
-   *
-   * @param count = 1 When set, treat this as `count` calls,
-   * each claiming one number in sequence. Thus all numbers
-   * in the range [returned number, returned number + count)
-   * will only be associated with this runtime's [[replicaID]]
-   * once.
-   */
-  nextLocalCounter(count?: number): number;
-
-  /**
-   * @return A UID, i.e., a unique string that will only appear once
-   * across all replicas.
-   */
-  nextUID(): string;
 }
 
 export function isRuntime(x: unknown): x is IRuntime {

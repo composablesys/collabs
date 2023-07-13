@@ -5,7 +5,7 @@ import {
   InitToken,
   PrimitiveCRDT,
   ResettableCCounter,
-  UpdateMeta
+  UpdateMeta,
 } from "@collabs/collabs";
 import * as tf from "@tensorflow/tfjs";
 import * as proto from "../generated/proto_compiled";
@@ -118,6 +118,12 @@ function tensorsEqual<R extends tf.Rank>(
 }
 
 export class TensorGCounterCollab extends PrimitiveCRDT<TensorCounterEventsRecord> {
+  /**
+   * Used to generate idCounters. Static so that all TensorCounters with the same replicaID
+   * (and indicentally others on the same device) share the same idCounter source.
+   */
+  private static localCounter = 0;
+
   // TODO: refactor state as proper vars
   readonly state: TensorGCounterState;
   constructor(
@@ -138,7 +144,7 @@ export class TensorGCounterCollab extends PrimitiveCRDT<TensorCounterEventsRecor
     if (this.state.idCounter === undefined) {
       // TODO: do this in constructor once we get
       // access to this.runtime there
-      this.state.idCounter = this.runtime.nextLocalCounter();
+      this.state.idCounter = ++TensorGCounterCollab.localCounter;
     }
     const ownId = this.keyString(this.runtime.replicaID, this.state.idCounter!);
     const prOldValue = this.state.P.get(ownId);

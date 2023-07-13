@@ -46,32 +46,33 @@ export abstract class AbstractRuntime<Events extends EventsRecord>
     return rootCollab;
   }
 
-  private localCounter = 0;
-  nextLocalCounter(count = 1): number {
-    const ans = this.localCounter;
-    this.localCounter += count;
-    return ans;
+  /**
+   * Returns a [[CollabID]] for the given Collab.
+   *
+   * The CollabID may be passed to [[fromID]] on any replica of this
+   * runtime to obtain that replica's copy of `collab`.
+   *
+   * @param collab A Collab that belongs to this runtime.
+   */
+  idOf<C extends Collab<CollabEventsRecord>>(collab: C): CollabID<C> {
+    if (collab.runtime !== this) {
+      throw new Error("idOf called with Collab from different Runtime");
+    }
+    return this.rootCollab.idOf(collab);
   }
 
-  nextUID(): string {
-    // For UID, use a pair (replicaID, replicaUniqueNumber).
-    // These are sometimes called "causal dots".
-    // They are similar to Lamport timestamps,
-    // except that the number is a per-replica counter instead
-    // of a logical clock.
-    // OPT: shorten (base128 instead of base36)
-    return `${this.nextLocalCounter().toString(36)},${this.replicaID}`;
-  }
-
-  idOf<C extends Collab<CollabEventsRecord>>(descendant: C): CollabID<C> {
-    return this.rootCollab.idOf(descendant);
-  }
-
-  fromID<C extends Collab<CollabEventsRecord>>(
-    id: CollabID<C>,
-    startIndex = 0
-  ): C | undefined {
-    return this.rootCollab.fromID(id, startIndex);
+  /**
+   * Inverse of [[idOf]].
+   *
+   * Specifically, given a [[CollabID]] returned by [[idOf]] on some replica of
+   * this runtime, returns this replica's copy of the original
+   * `collab`. If that Collab does not exist (e.g., it was deleted
+   * or it is not present in this program version), returns undefined.
+   *
+   * @param id A CollabID from [[idOf]].
+   */
+  fromID<C extends Collab<CollabEventsRecord>>(id: CollabID<C>): C | undefined {
+    return this.rootCollab.fromID(id);
   }
 
   abstract childSend(
