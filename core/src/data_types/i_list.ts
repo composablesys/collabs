@@ -201,7 +201,7 @@ export interface IList<
   getByPosition(position: Position): T | undefined;
 
   /**
-   * Returns the position of the first occurrence of value, or
+   * Returns the position of the first occurrence of searchElement, or
    * undefined if there are no occurrences.
    *
    * Compare to [[indexOf]].
