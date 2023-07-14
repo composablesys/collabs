@@ -10,7 +10,11 @@ Install: `npm i`.
 
 Build: `npm run buildDemoServer` (`npm run build` also works but takes longer).
 
-Run: `npm start`, then open the printed link in a web browser. The linked demos use that server to collaborate, but you can also follow the instructions to run in Matrix widgets. (To load Matrix widgets from a localhost server, you'll need to start it in HTTPS mode: `npm start -- -- --https`. Note that other clients will only be able to load the widget if they can connect to the server at the same address---if it's a localhost address, all clients need to be on the same machine). See [server/README.md](server/README.md) for more options.
+Run: `npm start`, then open the printed link in a web browser. The linked demos use that server to collaborate, but you can also follow the instructions to run in Matrix widgets.
+
+> To load Matrix widgets from a localhost server, you'll need to start it in HTTPS mode: `npm start -- -- --https`. Note that other clients will only be able to load the widget if they can connect to the server at the same address---if it's a localhost address, all clients need to be on the same machine.
+
+See [server/README.md](server/README.md) for more options.
 
 ### Individual apps
 

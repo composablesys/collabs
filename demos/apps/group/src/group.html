@@ -4,50 +4,75 @@
   <head>
     <meta charset="utf-8" />
 
-    <title>Semidirect Product Group demo</title>
+    <title>Shapes demo - semidirect product</title>
   </head>
 
   <body>
     <div id="header">
       <!-- HTML page title -->
-      Semidirect Product Group Demo
+      Shapes demo - semidirect product
 
       <!-- HTML page variables and buttons -->
       <p></p>
       <div class="btn-ops-1">
         <p>Red Rectangle</p>
+
         <button id="reflectX1">Reflect X-axis</button>
         <button id="reflectY1">Reflect Y-axis</button>
         <button id="rotateCW1">Rotate Clockwise</button>
         <button id="rotateCCW1">Rotate Counter-Clockwise</button>
-        <input type="number" id="rotate-deg1" />
+        <input type="number" id="rotate-deg1" value="30" size="3" />
       </div>
 
       <div class="btn-ops-2">
         <p>Blue Ribbon</p>
+
         <button id="reflectX2">Reflect X-axis</button>
         <button id="reflectY2">Reflect Y-axis</button>
         <button id="rotateCW2">Rotate Clockwise</button>
         <button id="rotateCCW2">Rotate Counter-Clockwise</button>
-        <input type="number" id="rotate-deg2" />
+        <input type="number" id="rotate-deg2" value="30" size="3" />
       </div>
 
       <div class="btn-ops-3">
         <p>Group</p>
+
         <button id="reflectX3">Reflect X-axis</button>
         <button id="reflectY3">Reflect Y-axis</button>
         <button id="rotateCW3">Rotate Clockwise</button>
         <button id="rotateCCW3">Rotate Counter-Clockwise</button>
-        <input type="number" id="rotate-deg3" />
+        <input type="number" id="rotate-deg3" value="30" size="3" />
         <button id="translate3">Translate</button>
-        <input type="number" id="translateX3" placeholder="dX" />
-        <input type="number" id="translateY3" placeholder="dY" />
+        <input
+          type="number"
+          id="translateX3"
+          placeholder="dX"
+          value="100"
+          size="3"
+        />
+        <input
+          type="number"
+          id="translateY3"
+          placeholder="dY"
+          value="50"
+          size="3"
+        />
       </div>
     </div>
 
     <div id="group">
-      <img src="shape1.jpeg" id="shape1" onContextMenu="return false;" />
-      <img src="shape2.jpeg" id="shape2" onContextMenu="return false;" />
+      <img
+        src="shape1.jpeg"
+        id="shape1"
+        onContextMenu="return false;"
+        draggable="false"
+      />
+      <img
+        src="shape2.jpeg"
+        id="shape2"
+        onContextMenu="return false;"
+        draggable="false"
+      />
     </div>
   </body>
 
@@ -63,6 +88,7 @@
       position: absolute;
       top: 300;
       left: 0;
+      user-select: none;
     }
 
     #shape1 {
@@ -72,6 +98,12 @@
       position: absolute;
       top: 300;
       left: 0;
+      user-select: none;
+    }
+
+    #group {
+      height: 100vh;
+      overflow: hidden;
     }
   </style>
 </html>

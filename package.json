@@ -20,7 +20,6 @@
     "template-app",
     "demos/types/number",
     "demos/types/resettable-counter",
-    "demos/apps/aspace",
     "demos/apps/counter",
     "demos/apps/group",
     "demos/apps/horse-color-genetics",
@@ -61,7 +60,6 @@
       "demos/apps/counter"
     ],
     "demoApps": [
-      "demos/apps/aspace",
       "demos/apps/counter",
       "demos/apps/group",
       "demos/apps/horse-color-genetics",
