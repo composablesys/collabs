@@ -491,7 +491,7 @@ export abstract class MultipleSemidirectProduct<
   }
 
   fromID<C extends Collab>(id: CollabID<C>, startIndex = 0): C | undefined {
-    const name = id.namePath[startIndex];
+    const name = id.collabIDPath[startIndex];
     const child = this.crdts[parseInt(name.substring(4))] as Collab;
     if (child === undefined) {
       throw new Error(
@@ -500,7 +500,7 @@ export abstract class MultipleSemidirectProduct<
     }
     // Terminal case.
     // Note that this cast is unsafe, but convenient.
-    if (startIndex === id.namePath.length - 1) return child as C;
+    if (startIndex === id.collabIDPath.length - 1) return child as C;
     // Recursive case.
     if ((child as Parent).fromID === undefined) {
       throw new Error("child is not a parent, but CollabID is its descendant");

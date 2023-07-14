@@ -392,11 +392,11 @@ export class CLazyMap<K, C extends Collab>
   }
 
   fromID<D extends Collab>(id: CollabID<D>, startIndex = 0): D | undefined {
-    const name = id.namePath[startIndex];
+    const name = id.collabIDPath[startIndex];
     const child = this.getInternal(this.stringAsKey(name), name)[0] as Collab;
     // Terminal case.
     // Note that this cast is unsafe, but convenient.
-    if (startIndex === id.namePath.length - 1) return child as D;
+    if (startIndex === id.collabIDPath.length - 1) return child as D;
     // Recursive case.
     if ((child as Parent).fromID === undefined) {
       throw new Error("child is not a parent, but CollabID is its descendant");

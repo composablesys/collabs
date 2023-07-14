@@ -199,7 +199,7 @@ export class CObject<Events extends CollabEventsRecord = CollabEventsRecord>
   }
 
   fromID<C extends Collab>(id: CollabID<C>, startIndex = 0): C | undefined {
-    const name = id.namePath[startIndex];
+    const name = id.collabIDPath[startIndex];
     const child = this.children.get(name);
     if (child === undefined) {
       // Return undefined instead of an erroring, in case it is
@@ -208,7 +208,7 @@ export class CObject<Events extends CollabEventsRecord = CollabEventsRecord>
     }
     // Terminal case.
     // Note that this cast is unsafe, but convenient.
-    if (startIndex === id.namePath.length - 1) return child as C;
+    if (startIndex === id.collabIDPath.length - 1) return child as C;
     // Recursive case.
     if ((child as Parent).fromID === undefined) {
       throw new Error("child is not a parent, but CollabID is its descendant");

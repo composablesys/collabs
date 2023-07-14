@@ -374,13 +374,15 @@ export class CollabIDSerializer<C extends Collab>
   }
 
   serialize(value: CollabID<C>): Uint8Array {
-    const message = CollabIDMessage.create({ namePath: value.namePath });
+    const message = CollabIDMessage.create({
+      collabIDPath: value.collabIDPath,
+    });
     return CollabIDMessage.encode(message).finish();
   }
 
   deserialize(message: Uint8Array): CollabID<C> {
     const decoded = CollabIDMessage.decode(message);
-    return { namePath: decoded.namePath };
+    return { collabIDPath: decoded.collabIDPath };
   }
 }
 

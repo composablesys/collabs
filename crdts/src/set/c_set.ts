@@ -411,14 +411,14 @@ export class CSet<C extends Collab, AddArgs extends unknown[]>
    *
    * @param id A CollabID from [[idOf]].
    * @param startIndex Internal (parent) use only.
-   * If provided, treat `id.namePath` as if
+   * If provided, treat `id.collabIDPath` as if
    * it starts at startIndex instead of 0.
    */
   fromID<D extends Collab<CollabEventsRecord>>(
     id: CollabID<D>,
     startIndex = 0
   ): D | undefined {
-    const name = id.namePath[startIndex];
+    const name = id.collabIDPath[startIndex];
     let child = this.children.get(name) as Collab;
     if (child === undefined) {
       // If it's a just-deleted child, still succeed.
@@ -431,7 +431,7 @@ export class CSet<C extends Collab, AddArgs extends unknown[]>
 
     // Terminal case.
     // Note that this cast is unsafe, but convenient.
-    if (startIndex === id.namePath.length - 1) return child as D;
+    if (startIndex === id.collabIDPath.length - 1) return child as D;
     // Recursive case.
     if ((child as Parent).fromID === undefined) {
       throw new Error("child is not a parent, but CollabID is its descendant");

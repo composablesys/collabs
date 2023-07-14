@@ -54,7 +54,7 @@ export interface IParent {
    *
    * @param id A CollabID from [[idOf]].
    * @param startIndex Internal (parent) use only.
-   * If provided, treat `id.namePath` as if
+   * If provided, treat `id.collabIDPath` as if
    * it starts at startIndex instead of 0.
    */
   fromID<C extends Collab>(id: CollabID<C>, startIndex?: number): C | undefined;
