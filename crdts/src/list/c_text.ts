@@ -177,11 +177,11 @@ export class CText extends CObject<TextEventsRecord> implements ICursorList {
   }
 
   /**
-   * Returns an iterator of [index, position, value] tuples for every
+   * Returns an iterator of [index, value, position] tuples for every
    * character (value) in the text string, in order.
    */
   entries(): IterableIterator<
-    [index: number, position: Position, char: string]
+    [index: number, char: string, position: Position]
   > {
     return this.list.entries();
   }

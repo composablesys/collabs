@@ -635,36 +635,34 @@ export class CRichText<
   }
 
   /**
-   * Returns an iterator of [index, position, value, format] tuples
+   * Returns an iterator of [index, value, format, position] tuples
    * for every character (value) in the text string, in order.
    *
    * Typically, you should instead use [[formatted]], which returns
    * a more efficient representation of the formatted text.
    */
   *entries(): IterableIterator<
-    [index: number, position: Position, value: string, format: Partial<F>]
+    [index: number, value: string, format: Partial<F>, position: Position]
   > {
     const positionsIter = this.text.positions();
     for (const { index, values, format } of this.formatted()) {
       for (let i = 0; i < values.length; i++) {
-        yield [index + i, positionsIter.next().value, values[i], format];
+        yield [index + i, values[i], format, positionsIter.next().value];
       }
     }
   }
-  /**
-   * Returns an iterator of [index, position, value, format] tuples
-   * for every character (value) in the text string, in order.
-   *
-   * Typically, you should instead use [[formatted]], which returns
-   * a more efficient representation of the formatted text.
-   */
-  [Symbol.iterator](): IterableIterator<
-    [index: number, position: Position, value: string, format: Partial<F>]
-  > {
-    return this.entries();
-  }
 
   // We omit Positions for efficiency. If you want them, use entries().
+  /**
+   * Iterates over an efficient representation of the formatted text.
+   *
+   * Specifically, this method iterates over the formatted ranges in text order
+   * (as returned by [[formatted]]).
+   */
+  [Symbol.iterator](): IterableIterator<RichTextRange<F>> {
+    return this.formatted()[Symbol.iterator]();
+  }
+
   /**
    * Returns an efficient representation of the formatted text.
    *
@@ -674,7 +672,7 @@ export class CRichText<
     const sliceBuilder = new SliceBuilder<F, Partial<F>>(this, recordEquals);
     // Starting chars have no format.
     sliceBuilder.add({}, null, false);
-    for (const [, position, data] of this.formatList.entries()) {
+    for (const [, data, position] of this.formatList.entries()) {
       // Format exactly at position, including closedEnds.
       if (this.text.hasPosition(position)) {
         sliceBuilder.add(getDataRecord(data, true), position, true);

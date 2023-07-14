@@ -1266,7 +1266,7 @@ describe("CRichText", () => {
             const formatted = texts[0].formatted();
             for (const list of texts) {
               assert.deepStrictEqual(
-                [...list.entries()].map(([, , value, format]) => ({
+                [...list.entries()].map(([, value, format]) => ({
                   value,
                   format,
                 })),

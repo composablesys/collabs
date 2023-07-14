@@ -471,14 +471,14 @@ export class CList<
   }
 
   /**
-   * Returns an iterator of [index, position, value] tuples for every
+   * Returns an iterator of [index, value, position] tuples for every
    * value in the list, in list order.
    *
    * Note: If you [[move]] list elements, you should not use `position`
    * as a React key, since a value's position changes when it moves.
    * Instead, [use the object itself as the key](https://stackoverflow.com/questions/31394774/reactjs-using-object-ref-as-key).
    */
-  entries(): IterableIterator<[index: number, position: Position, value: C]> {
+  entries(): IterableIterator<[index: number, value: C, position: Position]> {
     return this.list.entries();
   }
 

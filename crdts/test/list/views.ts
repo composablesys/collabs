@@ -7,7 +7,7 @@ export class IListView<
   T,
   L extends IList<T, any> = IList<T, any>
 > extends EventView<L> {
-  readonly view: [position: Position, value: T][] = [];
+  readonly view: [value: T, position: Position][] = [];
 
   constructor(collab: L, autoCheck: boolean) {
     super(collab, autoCheck);
@@ -18,10 +18,10 @@ export class IListView<
         assert.notStrictEqual(e.index, -1);
         assert.isAbove(e.positions.length, 0);
         assert.strictEqual(e.positions.length, e.values.length);
-        const elements: [position: Position, value: T][] = [];
+        const elements: [value: T, position: Position][] = [];
         for (let i = 0; i < e.values.length; i++) {
           assert(collab.hasPosition(e.positions[i]));
-          elements.push([e.positions[i], e.values[i]]);
+          elements.push([e.values[i], e.positions[i]]);
         }
         this.view.splice(e.index, 0, ...elements);
       })
@@ -35,7 +35,7 @@ export class IListView<
         // Check that the deleted values/positions are accurate.
         assert.strictEqual(e.positions.length, e.values.length);
         for (let i = 0; i < e.values.length; i++) {
-          const [position, value] = this.view[e.index + i];
+          const [value, position] = this.view[e.index + i];
           assert.strictEqual(e.values[i], value);
           assert.strictEqual(e.positions[i], position);
           assert.isFalse(collab.hasPosition(e.positions[i]));
@@ -47,7 +47,7 @@ export class IListView<
 
   checkInstance(): void {
     assert.deepStrictEqual(
-      this.view.map(([position, value], index) => [index, position, value]),
+      this.view.map(([value, position], index) => [index, value, position]),
       [...this.collab.entries()]
     );
   }
@@ -63,18 +63,18 @@ export class CListView<C extends Collab> extends IListView<C, CList<C, any>> {
       this.wrap((e) => {
         assert.strictEqual(e.values.length, e.previousPositions.length);
         for (let i = 0; i < e.values.length; i++) {
-          assert.strictEqual(e.values[i], this.view[e.previousIndex + i][1]);
+          assert.strictEqual(e.values[i], this.view[e.previousIndex + i][0]);
           assert.strictEqual(
             e.previousPositions[i],
-            this.view[e.previousIndex + i][0]
+            this.view[e.previousIndex + i][1]
           );
         }
 
         this.view.splice(e.previousIndex, e.values.length);
         assert.strictEqual(e.values.length, e.positions.length);
-        const elements: [position: Position, value: C][] = [];
+        const elements: [value: C, position: Position][] = [];
         for (let i = 0; i < e.values.length; i++) {
-          elements.push([e.positions[i], e.values[i]]);
+          elements.push([e.values[i], e.positions[i]]);
         }
         this.view.splice(e.index, 0, ...elements);
       })
@@ -88,7 +88,7 @@ export class CListView<C extends Collab> extends IListView<C, CList<C, any>> {
 export class CRichTextView<F extends Record<string, any>> extends EventView<
   CRichText<F>
 > {
-  readonly view: [position: Position, value: string, format: Partial<F>][] = [];
+  readonly view: [value: string, format: Partial<F>, position: Position][] = [];
 
   constructor(collab: CRichText<F>, autoCheck: boolean) {
     // Since Format events are "behind" (not sent until a new span
@@ -104,14 +104,14 @@ export class CRichTextView<F extends Record<string, any>> extends EventView<
         assert.isAbove(e.positions.length, 0);
         assert.strictEqual(e.positions.length, e.values.length);
         const elements: [
-          position: Position,
           value: string,
-          format: Partial<F>
+          format: Partial<F>,
+          position: Position
         ][] = [];
         for (let i = 0; i < e.values.length; i++) {
           assert(collab.hasPosition(e.positions[i]));
           // Make a copy of format, so we can mutate it per-character later.
-          elements.push([e.positions[i], e.values[i], { ...e.format }]);
+          elements.push([e.values[i], { ...e.format }, e.positions[i]]);
         }
         this.view.splice(e.index, 0, ...elements);
       })
@@ -125,7 +125,7 @@ export class CRichTextView<F extends Record<string, any>> extends EventView<
         // Check that the deleted values/positions are accurate.
         assert.strictEqual(e.positions.length, e.values.length);
         for (let i = 0; i < e.values.length; i++) {
-          const [position, value] = this.view[e.index + i];
+          const [value, , position] = this.view[e.index + i];
           assert.strictEqual(e.values[i], value);
           assert.strictEqual(e.positions[i], position);
           assert.isFalse(collab.hasPosition(e.positions[i]));
@@ -142,7 +142,7 @@ export class CRichTextView<F extends Record<string, any>> extends EventView<
         assert.notStrictEqual(e.endIndex, -1);
         assert(e.startIndex < e.endIndex);
         for (let i = e.startIndex; i < e.endIndex; i++) {
-          const format = this.view[i][2];
+          const format = this.view[i][1];
           // Check that previousValue is accurate.
           assert.strictEqual(e.previousValue, format[e.key]);
           // Update the view.
@@ -157,11 +157,11 @@ export class CRichTextView<F extends Record<string, any>> extends EventView<
 
   checkInstance(): void {
     assert.deepStrictEqual(
-      this.view.map(([position, value, format], index) => [
+      this.view.map(([value, format, position], index) => [
         index,
-        position,
         value,
         format,
+        position,
       ]),
       [...this.collab.entries()]
     );

@@ -108,7 +108,7 @@ export function MakeAbstractList<
       position: Position,
       searchDir?: "none" | "left" | "right"
     ): number;
-    entries(): IterableIterator<[index: number, position: Position, value: T]>;
+    entries(): IterableIterator<[index: number, value: T, position: Position]>;
     readonly length: number;
   } & Collab<Events>
 >(
@@ -145,13 +145,13 @@ export function MakeAbstractList<
     }
 
     *values(): IterableIterator<T> {
-      for (const [, , value] of this.entries()) {
+      for (const [, value] of this.entries()) {
         yield value;
       }
     }
 
     *positions(): IterableIterator<Position> {
-      for (const [, position] of this.entries()) {
+      for (const [, , position] of this.entries()) {
         yield position;
       }
     }
@@ -181,7 +181,7 @@ export function MakeAbstractList<
       callbackfn: (value: T, index: number, list: this) => void,
       thisArg?: any // eslint-disable-line @typescript-eslint/no-explicit-any
     ): void {
-      for (const [i, , value] of this.entries()) {
+      for (const [i, value] of this.entries()) {
         callbackfn.call(thisArg, value, i, this);
       }
     }
@@ -191,7 +191,7 @@ export function MakeAbstractList<
       thisArg?: any // eslint-disable-line @typescript-eslint/no-explicit-any
     ): U[] {
       const ans = new Array<U>(this.length);
-      for (const [i, , value] of this.entries()) {
+      for (const [i, value] of this.entries()) {
         ans[i] = callbackfn.call(thisArg, value, i, this);
       }
       return ans;
@@ -233,7 +233,7 @@ export function MakeAbstractList<
 
       if (fromIndex === 0) {
         // Optimize common case (indexOf(searchElement)).
-        for (const [i, , value] of this.entries()) {
+        for (const [i, value] of this.entries()) {
           if (value === searchElement) return i;
         }
       } else {

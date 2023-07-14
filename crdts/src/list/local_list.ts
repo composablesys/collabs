@@ -589,10 +589,10 @@ export class LocalList<T> implements ICursorList {
   }
 
   /**
-   * Returns an iterator of [index, position, value] tuples for every
+   * Returns an iterator of [index, value, position] tuples for every
    * value in the list, in list order.
    */
-  *entries(): IterableIterator<[index: number, position: Position, value: T]> {
+  *entries(): IterableIterator<[index: number, value: T, position: Position]> {
     if (this.length === 0) return;
 
     this.iterFailFast = "iter";
@@ -622,8 +622,8 @@ export class LocalList<T> implements ICursorList {
           for (let i = 0; i < valuesOrChild.end - valuesOrChild.start; i++) {
             yield [
               index,
-              this.source.encode(waypoint, valuesOrChild.valueIndex + i),
               valuesOrChild.item[valuesOrChild.start + i],
+              this.source.encode(waypoint, valuesOrChild.valueIndex + i),
             ];
             index++;
           }
@@ -722,12 +722,12 @@ export class LocalList<T> implements ICursorList {
   /** Returns an iterator for values in the list, in list order. */
   *values(): IterableIterator<T> {
     // OPT: do own walk and yield* value items, w/o encoding positions.
-    for (const [, , value] of this.entries()) yield value;
+    for (const [, value] of this.entries()) yield value;
   }
 
   /** Returns an iterator for present positions, in list order. */
   *positions(): IterableIterator<Position> {
-    for (const [, position] of this.entries()) yield position;
+    for (const [, , position] of this.entries()) yield position;
   }
 
   /**

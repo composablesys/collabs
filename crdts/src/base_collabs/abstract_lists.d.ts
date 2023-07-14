@@ -48,7 +48,7 @@ export declare abstract class AbstractList_PrimitiveCRDT<
     searchDir?: "none" | "left" | "right"
   ): number;
   abstract entries(): IterableIterator<
-    [index: number, position: Position, value: T]
+    [index: number, value: T, position: Position]
   >;
   abstract readonly length: number;
 }

@@ -91,7 +91,7 @@ class ListSource
             break;
           case 2:
             // Do an internal op on every value.
-            for (const [i, , cvar] of c.entries()) {
+            for (const [, cvar] of c.entries()) {
               cvar.value += "_op2";
             }
             break;

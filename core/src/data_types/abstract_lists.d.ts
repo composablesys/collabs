@@ -51,7 +51,7 @@ export declare abstract class AbstractList_Collab<
     searchDir?: "none" | "left" | "right"
   ): number;
   abstract entries(): IterableIterator<
-    [index: number, position: Position, value: T]
+    [index: number, value: T, position: Position]
   >;
   abstract readonly length: number;
 }
@@ -103,7 +103,7 @@ export declare abstract class AbstractList_CObject<
     searchDir?: "none" | "left" | "right"
   ): number;
   abstract entries(): IterableIterator<
-    [index: number, position: Position, value: T]
+    [index: number, value: T, position: Position]
   >;
   abstract readonly length: number;
 }
@@ -155,7 +155,7 @@ export declare abstract class AbstractList_CPrimitive<
     searchDir?: "none" | "left" | "right"
   ): number;
   abstract entries(): IterableIterator<
-    [index: number, position: Position, value: T]
+    [index: number, value: T, position: Position]
   >;
   abstract readonly length: number;
 }

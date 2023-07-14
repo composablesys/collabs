@@ -222,10 +222,10 @@ export interface IList<
   [Symbol.iterator](): IterableIterator<T>;
 
   /**
-   * Returns an iterator of [index, position, value] tuples for every
+   * Returns an iterator of [index, value, position] tuples for every
    * value in the list, in list order.
    */
-  entries(): IterableIterator<[index: number, position: Position, value: T]>;
+  entries(): IterableIterator<[index: number, value: T, position: Position]>;
 
   /** Returns an iterator for values in the list, in list order. */
   values(): IterableIterator<T>;

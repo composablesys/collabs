@@ -266,7 +266,7 @@ export class CValueList<T> extends AbstractList_CObject<T, [T]> {
     return this.list.positions();
   }
 
-  entries(): IterableIterator<[index: number, position: Position, value: T]> {
+  entries(): IterableIterator<[index: number, value: T, position: Position]> {
     return this.list.entries();
   }
 
@@ -316,7 +316,7 @@ export class CValueList<T> extends AbstractList_CObject<T, [T]> {
       if (this.list.length > 0) {
         const values = new Array<T>(this.list.length);
         const positions = new Array<Position>(this.list.length);
-        for (const [i, position, value] of this.list.entries()) {
+        for (const [i, value, position] of this.list.entries()) {
           values[i] = value;
           positions[i] = position;
         }
@@ -334,7 +334,7 @@ export class CValueList<T> extends AbstractList_CObject<T, [T]> {
       // OPT: do changes by-waypoint instead, for shorter loops, optimized set/delete,
       // and fewer events.
       const deleteEvents: ListEvent<T>[] = [];
-      for (const [index, position, value] of this.list.entries()) {
+      for (const [index, value, position] of this.list.entries()) {
         if (
           !sourceLoadEvent.isNewRemotely(position) &&
           !remote.hasPosition(position)
@@ -359,7 +359,7 @@ export class CValueList<T> extends AbstractList_CObject<T, [T]> {
       // CPositionSource.
       const insertEvents: ListEvent<T>[] = [];
       let insertedSoFar = 0;
-      for (const [, position, value] of remote.entries()) {
+      for (const [, value, position] of remote.entries()) {
         // OPT: use waypoints to do bulk inserts. Need to be careful about: missing
         // (remotely-deleted) elements; indices that skip over child waypoints.
         // Also, double-check that CRichText's Insert event handler still works
