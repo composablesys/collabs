@@ -177,9 +177,17 @@ export class CMap<
    * Their order is arbitrary but consistent across replicas.
    *
    * If the key is not present, this returns `[]`.
-   * Otherwise, its first element is the set value.
    */
-  getConflicts(key: K): C[] {
+  private getConflicts(key: K): C[] {
+    /*
+     * This method is private because there is not a good way to work
+     * with conflicts: you can't re-set a key to one of its losing
+     * conflicts; conflicting values might be deleted unexpectedly
+     * by [[set]]'s deletion behavior;
+     * and they are not integrated with events.
+     * If you need to work with conflicts, use your own CSet (to generate
+     * values) and CValueMap (to control key-value mappings) instead of a CMap.
+     */
     return this.map
       .getConflicts(key)
       .map((id) => nonNull(this.valueSet.fromID(id)));
