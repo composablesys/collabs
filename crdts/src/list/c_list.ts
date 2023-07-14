@@ -229,9 +229,9 @@ export class CList<
       }
     });
     entry.present.on("Set", (event) => {
+      if (event.value === event.previousValue) return;
+
       const position = entry.position.value;
-      // Here we rely on the fact that CBoolean only emits events when
-      // the value actually changes.
       if (event.value) {
         // entry was un-archived.
         this.list.set(position, entry.value);

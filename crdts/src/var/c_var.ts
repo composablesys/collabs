@@ -78,9 +78,11 @@ export class CVar<T> extends CObject<VarEventsRecord<T>> implements IVar<T> {
       const items = this.mvMap.get(null);
       this._value =
         items === undefined ? initialValue : aggregator.aggregate(items);
-      if (this._value !== previousValue) {
-        this.emit("Set", { value: this._value, previousValue, meta: e.meta });
-      }
+      // Note that we emit a Set event even when the new value ===
+      // the old value. That is useful if you are maintaining a view
+      // of conflicts(): it tells you to refresh the view
+      // even when the winning value doesn't change.
+      this.emit("Set", { value: this._value, previousValue, meta: e.meta });
     });
 
     this._value = initialValue;

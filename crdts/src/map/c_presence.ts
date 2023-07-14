@@ -373,6 +373,11 @@ export class CPresence<V extends Record<string, any>> extends PrimitiveCRDT<
       if (!previousValue.isPresent || newValue !== null) {
         // The value changed (possibly from timedout to not-timedout)
         // and is present.
+        // Note that we emit an event even if newValue was set/updated to
+        // a deep-equal value, including when updated with a === property value.
+        // That is consistent with CValueMap and CVar.
+        // However, we don't emit an event when a heartbeat causes us to
+        // keep the same value alive.
         this.emit("Set", {
           key: meta.senderID,
           value: info.value,

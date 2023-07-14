@@ -76,6 +76,10 @@ export class CValueMap<K, V>
       });
     });
     this.mvMap.on("Set", (e) => {
+      // Note that we emit a Set event even when the new value ===
+      // the old value. That is useful if you are maintaining a view
+      // of getConflicts(): it tells you to refresh the view for `key`
+      // even when the winning value doesn't change.
       this.emit("Set", {
         key: e.key,
         value: this.aggregator.aggregate(e.value),
