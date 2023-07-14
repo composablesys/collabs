@@ -216,8 +216,8 @@ describe("CLazyMap", () => {
 
     beforeEach(() => {
       runtimeGen = new TestingRuntimes();
-      alice = runtimeGen.newRuntime(rng);
-      bob = runtimeGen.newRuntime(rng);
+      alice = runtimeGen.newRuntime({ rng });
+      bob = runtimeGen.newRuntime({ rng });
 
       const valueConstructor = (valueInitToken: InitToken) =>
         new CVar(valueInitToken, 0);

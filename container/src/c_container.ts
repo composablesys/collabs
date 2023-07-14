@@ -68,7 +68,7 @@ export class CContainer extends EventEmitter<CContainerEventsRecord> {
    */
   constructor(options?: {
     debugReplicaID?: string;
-    autoTransactions?: "microtask" | "op" | "error";
+    autoTransactions?: "microtask" | "debugOp" | "error";
   }) {
     super();
 

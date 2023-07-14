@@ -160,7 +160,7 @@ export class CContainerHost extends CPrimitive<ContainerHostEventsRecord> {
     switch (e.data.type) {
       case "Ready":
         this._isContainerReady = true;
-        this.emit("ContainerReady", {} as CollabEvent, false);
+        this.emit("ContainerReady", {} as CollabEvent, { skipAnyEvent: true });
         // Deliver queued ReceiveMessages.
         this.updateMessageQueue!.forEach((message) =>
           this.messagePortSend(message)

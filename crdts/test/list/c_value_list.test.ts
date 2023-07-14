@@ -485,8 +485,8 @@ describe("CValueList", () => {
 
     beforeEach(() => {
       runtimeGen = new TestingRuntimes();
-      alice = runtimeGen.newRuntime(rng);
-      bob = runtimeGen.newRuntime(rng);
+      alice = runtimeGen.newRuntime({ rng });
+      bob = runtimeGen.newRuntime({ rng });
 
       aliceList = alice.registerCollab("list", (init) => new CValueList(init));
       bobList = bob.registerCollab("list", (init) => new CValueList(init));
@@ -672,7 +672,7 @@ describe("CValueList", () => {
       });
 
       it("at other node going right", () => {
-        const charlie = runtimeGen.newRuntime(rng);
+        const charlie = runtimeGen.newRuntime({ rng });
         const charlieList = charlie.registerCollab(
           "list",
           (init) => new CValueList<number>(init)
@@ -696,7 +696,7 @@ describe("CValueList", () => {
       });
 
       it("at other node going left", () => {
-        const charlie = runtimeGen.newRuntime(rng);
+        const charlie = runtimeGen.newRuntime({ rng });
         const charlieList = charlie.registerCollab(
           "list",
           (init) => new CValueList<number>(init)
@@ -731,7 +731,7 @@ describe("CValueList", () => {
         runtimes = [];
         lists = [];
         for (let i = 0; i < numUsers; i++) {
-          const runtime = runtimeGen.newRuntime(rng);
+          const runtime = runtimeGen.newRuntime({ rng });
           runtimes.push(runtime);
           const list = runtime.registerCollab(
             "list",
@@ -877,7 +877,7 @@ describe("CValueList", () => {
     // check that they have the correct value (undefined), presence, and index.
     const copyRuntime = new CRuntime({
       debugReplicaID: ReplicaIDs.pseudoRandom(rng),
-      autoTransactions: "op",
+      autoTransactions: "debugOp",
     });
     const copy = copyRuntime.registerCollab(
       "list",

@@ -31,18 +31,22 @@ export class TestingRuntimes {
    * Returns a new [[CRuntime]] linked with all prior
    * runtimes created by this TestingRuntime.
    *
-   * @param rng As in [[CRuntime]]'s constructor.
-   * @param causalityGuaranteed As in [[CRuntime]]'s constructor.
+   * @param options.rng As in [[CRuntime]]'s constructor.
+   * @param options.causalityGuaranteed As in [[CRuntime]]'s constructor.
    */
   newRuntime(
-    rng: seedrandom.prng | undefined = undefined,
-    causalityGuaranteed = false
+    options: {
+      rng?: seedrandom.prng;
+      causalityGuaranteed?: boolean;
+    } = {}
   ): CRuntime {
-    const debugReplicaID = rng ? ReplicaIDs.pseudoRandom(rng) : undefined;
+    const debugReplicaID = options.rng
+      ? ReplicaIDs.pseudoRandom(options.rng)
+      : undefined;
     const runtime = new CRuntime({
-      autoTransactions: "op",
+      autoTransactions: "debugOp",
       debugReplicaID,
-      causalityGuaranteed,
+      causalityGuaranteed: options.causalityGuaranteed,
     });
 
     const appQueue = new Map<CRuntime, Uint8Array[]>();

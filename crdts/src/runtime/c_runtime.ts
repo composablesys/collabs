@@ -105,11 +105,12 @@ export interface RuntimeOptions {
    * (specifically, until `Promise.resolve().then()` executes).
    * - "error": Throw an error if there is an operation
    * outside a top-level `transact` call.
-   * - "op": Each operation is its own transaction.
-   * This is not recommended except for testing or benchmarking, since Collabs may expect that sequential
+   * - "debugOp": Each operation is its own transaction.
+   * This is not recommended except for testing or benchmarking, since
+   * individual Collabs may expect that sequential
    * operations are delivered together.
    */
-  autoTransactions?: "microtask" | "error" | "op";
+  autoTransactions?: "microtask" | "error" | "debugOp";
 }
 
 /**
@@ -135,7 +136,7 @@ export class CRuntime
   private readonly registry: PublicCObject;
   private readonly buffer: CausalMessageBuffer;
 
-  private readonly autoTransactions: "microtask" | "op" | "error";
+  private readonly autoTransactions: "microtask" | "debugOp" | "error";
 
   // State vars.
   private used = false;
@@ -156,7 +157,7 @@ export class CRuntime
    */
   constructor(options: RuntimeOptions = {}) {
     super(options.debugReplicaID ?? ReplicaIDs.random());
-    const causalityGuaranteed = options?.causalityGuaranteed ?? false;
+    const causalityGuaranteed = options.causalityGuaranteed ?? false;
     this.autoTransactions = options.autoTransactions ?? "microtask";
 
     this.registry = super.setRootCollab((init) => new PublicCObject(init));
@@ -278,7 +279,7 @@ export class CRuntime
           this.beginTransaction();
           void Promise.resolve().then(() => this.endTransaction());
           break;
-        case "op":
+        case "debugOp":
           this.beginTransaction();
           autoEndTransaction = true;
           break;

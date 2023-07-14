@@ -57,11 +57,11 @@ export class CCounter extends CPrimitive<CounterEventsRecord> {
    *
    * @param options.initialValue The initial value. Defaults to 0.
    */
-  constructor(init: InitToken, { initialValue = 0 } = {}) {
+  constructor(init: InitToken, options: { initialValue?: number } = {}) {
     super(init);
 
-    this.initialValue = initialValue;
-    this._value = initialValue;
+    this.initialValue = options.initialValue ?? 0;
+    this._value = this.initialValue;
   }
 
   /**
