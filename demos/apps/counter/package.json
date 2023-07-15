@@ -1,10 +1,10 @@
 {
   "dependencies": {
-    "@collabs/collabs": "0.11.1",
-    "@collabs/container": "0.11.1"
+    "@collabs/collabs": "0.12.0",
+    "@collabs/container": "0.12.0"
   },
   "devDependencies": {
-    "@collabs/container-testing-server": "0.11.1",
+    "@collabs/container-testing-server": "0.12.0",
     "@types/node": "^15.6.1",
     "@types/react-dev-utils": "^9.0.8",
     "@types/webpack": "^5.28.0",
