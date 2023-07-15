@@ -1,4 +1,4 @@
-import * as collabs from "@collabs/collabs";
+import { CRuntime } from "@collabs/collabs";
 import { CContainerHost } from "@collabs/container";
 import { MatrixWidgetNetwork } from "@collabs/matrix-widget";
 
@@ -23,7 +23,7 @@ if (doLoad) {
 
 // --- Setup our app ---
 
-const runtime = new collabs.CRuntime();
+const runtime = new CRuntime();
 const network = new MatrixWidgetNetwork(
   runtime,
   "com.herokuapp.@collabs/tests.counter"

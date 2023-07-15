@@ -4,9 +4,9 @@ import {
   CollabEventsRecord,
   InitToken,
   PrimitiveCRDT,
-  ResettableCCounter,
-  UpdateMeta
+  UpdateMeta,
 } from "@collabs/collabs";
+import { CResettableCounter } from "@collabs/resettable-counter";
 import * as tf from "@tensorflow/tfjs";
 import * as proto from "../generated/proto_compiled";
 
@@ -118,6 +118,12 @@ function tensorsEqual<R extends tf.Rank>(
 }
 
 export class TensorGCounterCollab extends PrimitiveCRDT<TensorCounterEventsRecord> {
+  /**
+   * Used to generate idCounters. Static so that all TensorCounters with the same replicaID
+   * (and indicentally others on the same device) share the same idCounter source.
+   */
+  private static localCounter = 0;
+
   // TODO: refactor state as proper vars
   readonly state: TensorGCounterState;
   constructor(
@@ -138,7 +144,7 @@ export class TensorGCounterCollab extends PrimitiveCRDT<TensorCounterEventsRecor
     if (this.state.idCounter === undefined) {
       // TODO: do this in constructor once we get
       // access to this.runtime there
-      this.state.idCounter = this.runtime.nextLocalCounter();
+      this.state.idCounter = ++TensorGCounterCollab.localCounter;
     }
     const ownId = this.keyString(this.runtime.replicaID, this.state.idCounter!);
     const prOldValue = this.state.P.get(ownId);
@@ -192,10 +198,7 @@ export class TensorGCounterCollab extends PrimitiveCRDT<TensorCounterEventsRecor
     return idCounter + " " + sender;
   }
 
-  protected receivePrimitive(
-    message: Uint8Array | string,
-    meta: UpdateMeta
-  ): void {
+  protected receiveCRDT(message: Uint8Array | string, meta: UpdateMeta): void {
     const decoded = proto.TensorGCounterMessage.decode(<Uint8Array>message);
     switch (decoded.data) {
       case "add":
@@ -262,10 +265,10 @@ export class TensorGCounterCollab extends PrimitiveCRDT<TensorCounterEventsRecor
     return this.state.P.size === 0 && this.state.N.size === 0;
   }
 
-  savePrimitive(): Uint8Array {
+  saveCRDT(): Uint8Array {
     throw new Error("Not implemented");
   }
-  loadPrimitive(savedState: Uint8Array | null): void {
+  loadCRDT(savedState: Uint8Array | null): void {
     throw new Error("Not implemented");
   }
 }
@@ -333,7 +336,7 @@ export class TensorCounterCollab extends CObject<TensorCounterEventsRecord> {
 
 export class TensorAverageCollab extends CObject<TensorCounterEventsRecord> {
   private readonly numerator: TensorCounterCollab;
-  private readonly denominator: ResettableCCounter;
+  private readonly denominator: CResettableCounter;
 
   constructor(
     init: InitToken,
@@ -347,7 +350,7 @@ export class TensorAverageCollab extends CObject<TensorCounterEventsRecord> {
     );
     this.denominator = this.registerCollab(
       "2",
-      (init) => new ResettableCCounter(init)
+      (init) => new CResettableCounter(init)
     );
     this.numerator.on("Add", (event) => this.emit("Add", event));
     this.denominator.on("Reset", (event) => this.emit("Reset", event));

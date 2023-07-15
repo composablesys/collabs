@@ -16,8 +16,8 @@ describe("template-custom-type", () => {
     // It is recommended to use rng with a fixed seed so that
     // the tests are deterministic.
     runtimeGen = new TestingRuntimes();
-    alice = runtimeGen.newRuntime(rng);
-    bob = runtimeGen.newRuntime(rng);
+    alice = runtimeGen.newRuntime({ rng });
+    bob = runtimeGen.newRuntime({ rng });
   });
 
   describe("CPair", () => {

@@ -31,12 +31,12 @@ You can also try disconnecting one tab by unchecking the box at the top. Verify 
 For example, our [whiteboard demo](https://collabs-demos.herokuapp.com/web_socket.html?container=demos/whiteboard/dist/whiteboard.html) uses a map collaborative data structure to store the board state. Specifically, it uses an [`CValueMap`](../api/collabs/classes/CValueMap.html) from coordinates `[x: number, y: number]` to `Color = [r: number, g: number, b: number]`
 
 ```
-const boardState: collabs.CValueMap<[x: number, y: number], Color>
+const boardState: CValueMap<[x: number, y: number], Color>
 ```
 
 Here:
 
-- We write the type as `collabs.CValueMap` because we have imported as the library as `import * as collabs from @collabs/collabs`. This is the recommended style if you want to keep the library in its own namespace, although you can also import individual names directly, e.g., `import { CValueMap } from @collabs/collabs`.
+- `CValueMap` is imported via `import { CValueMap } from @collabs/collabs`.
 - The `boardState` is a `const` because we always use the same `CValueMap` _instance_; all operations mutate the map internally. This is a general rule for Collabs: you keep the same instance of a `Collab` for its whole lifetime, while operations (either by the local user and by other collaborators) mutate its internal state.
 
 Once `boardState` is initialized (discussed later in [Initialization](./initialization.html)), you can use it like an ordinary `Map<[x: number, y: number], Color>`:

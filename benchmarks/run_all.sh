@@ -54,14 +54,6 @@ function go {
   do
     for mode in "rotate" "concurrent"
     do
-      # Skip RealText concurrent mode for now, since Collabs is OOMing and it
-      # takes a while.
-      # TODO: undo once it works.
-      if [ $trace == "RealText" ] && [ $mode == "concurrent" ]
-      then
-        echo "Skipping RealText concurrent, see comment"
-        continue
-      fi
       for measurement in "receiveAll"
       do
         npm start -- $in1 $in2 $in3 $in4 $measurement $trace $implementation $mode
@@ -90,8 +82,8 @@ othersMulti=("AutomergeVariable" "YjsVariable")
 go
 
 trace="RealText"
-oursSingle=("CollabsTextWithCursor" "CollabsRichTextWithCursor")
-oursMulti=("CollabsTextWithCursor" "CollabsCGTextWithCursor" "CollabsRichTextWithCursor" "CollabsCGRichTextWithCursor")
+oursSingle=("CollabsRichTextWithCursor")
+oursMulti=("CollabsRichTextWithCursor" "CollabsCGRichTextWithCursor")
 othersSingle=("AutomergeTextWithCursor" "YjsTextWithCursor")
 othersMulti=("AutomergeTextWithCursor" "YjsTextWithCursor")
 go

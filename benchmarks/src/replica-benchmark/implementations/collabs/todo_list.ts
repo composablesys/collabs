@@ -1,24 +1,20 @@
-import * as collabs from "@collabs/collabs";
+import { CBoolean, CList, CObject, CText, InitToken } from "@collabs/collabs";
 import { Data } from "../../../util";
 import { ITodoList, ITodoListInternal } from "../../interfaces/todo_list";
 import { CollabsReplica } from "./replica";
 
-class TodoListInternal extends collabs.CObject implements ITodoListInternal {
-  private readonly text: collabs.CText;
-  private readonly doneCollab: collabs.CBoolean;
-  private readonly items: collabs.CList<TodoListInternal, []>;
+class TodoListInternal extends CObject implements ITodoListInternal {
+  private readonly text: CText;
+  private readonly doneCollab: CBoolean;
+  private readonly items: CList<TodoListInternal, []>;
 
-  constructor(init: collabs.InitToken) {
+  constructor(init: InitToken) {
     super(init);
-    this.text = this.registerCollab("text", (init) => new collabs.CText(init));
-    this.doneCollab = this.registerCollab(
-      "done",
-      (init) => new collabs.CBoolean(init)
-    );
+    this.text = this.registerCollab("text", (init) => new CText(init));
+    this.doneCollab = this.registerCollab("done", (init) => new CBoolean(init));
     this.items = this.registerCollab(
       "items",
-      (init) =>
-        new collabs.CList(init, (valueInit) => new TodoListInternal(valueInit))
+      (init) => new CList(init, (valueInit) => new TodoListInternal(valueInit))
     );
   }
 

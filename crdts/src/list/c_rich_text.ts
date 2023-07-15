@@ -9,11 +9,12 @@ import {
   Serializer,
   StringSerializer,
   UpdateMeta,
+  nonNull,
 } from "@collabs/core";
-import { charArraySerializer } from "./char_array_serializer";
 import { CSpanLog, Span } from "./c_span_log";
 import { TextEvent } from "./c_text";
 import { CValueList } from "./c_value_list";
+import { charArraySerializer } from "./char_array_serializer";
 import { LocalList } from "./local_list";
 
 /**
@@ -303,7 +304,7 @@ export class CRichText<
     );
     for (let i = start; i < end; i++) {
       const position = this.formatList.getPosition(i);
-      const data = this.formatList.getByPosition(position)!;
+      const data = nonNull(this.formatList.getByPosition(position));
       if (this.wins(span, data.normalSpans.get(span.key))) {
         const previousValueOpen = getDataValue(data, false, span.key);
         const previousValueClosed = getDataValue(data, true, span.key);
@@ -354,7 +355,7 @@ export class CRichText<
         // and the existing normalSpan, as described in FormatData.endClosedSpan's
         // docs.
         // Non-null assertion okay because we created the FormatData above.
-        const data = this.formatList.getByPosition(span.endPosition)!;
+        const data = nonNull(this.formatList.getByPosition(span.endPosition));
         if (
           this.wins(span, data.endClosedSpans.get(span.key)) &&
           this.wins(span, data.normalSpans.get(span.key))
@@ -561,20 +562,20 @@ export class CRichText<
   }
 
   /**
-   * Delete `count` characters starting at `startIndex`, i.e., characters
-   * `[startIndex, startIndex + count - 1)`.
+   * Delete `count` characters starting at `index`, i.e., characters
+   * `[index, index + count - 1)`.
    *
    * All later characters shift to the left,
    * decreasing their indices by `count`.
    *
    * @param count The number of characters to delete.
-   * Defaults to 1 (delete the character at `startIndex` only).
+   * Defaults to 1 (delete the character at `index` only).
    *
-   * @throws if `startIndex < 0` or
-   * `startIndex + count >= this.length`.
+   * @throws if `index < 0` or
+   * `index + count >= this.length`.
    */
-  delete(startIndex: number, count?: number | undefined): void {
-    this.text.delete(startIndex, count);
+  delete(index: number, count?: number | undefined): void {
+    this.text.delete(index, count);
   }
 
   /**
@@ -609,8 +610,7 @@ export class CRichText<
    * Returns the format at position.
    *
    * If position is not currently present, returns the formatting that
-   * a character at position would have if present
-   * (unlike getFormatByPosition, which returns undefined).
+   * a character at position would have if present..
    */
   private getFormatInternal(position: Position): Partial<F> {
     // Find the closest <= FormatData.
@@ -621,7 +621,7 @@ export class CRichText<
       return {};
     }
     const dataPos = this.formatList.getPosition(dataIndex);
-    const data = this.formatList.getByPosition(dataPos)!;
+    const data = nonNull(this.formatList.getByPosition(dataPos));
     return getDataRecord(data, dataPos === position);
   }
 
@@ -635,36 +635,34 @@ export class CRichText<
   }
 
   /**
-   * Returns an iterator of [index, position, value, format] tuples
+   * Returns an iterator of [index, value, format, position] tuples
    * for every character (value) in the text string, in order.
    *
    * Typically, you should instead use [[formatted]], which returns
    * a more efficient representation of the formatted text.
    */
   *entries(): IterableIterator<
-    [index: number, position: Position, value: string, format: Partial<F>]
+    [index: number, value: string, format: Partial<F>, position: Position]
   > {
     const positionsIter = this.text.positions();
     for (const { index, values, format } of this.formatted()) {
       for (let i = 0; i < values.length; i++) {
-        yield [index + i, positionsIter.next().value, values[i], format];
+        yield [index + i, values[i], format, positionsIter.next().value];
       }
     }
   }
-  /**
-   * Returns an iterator of [index, position, value, format] tuples
-   * for every character (value) in the text string, in order.
-   *
-   * Typically, you should instead use [[formatted]], which returns
-   * a more efficient representation of the formatted text.
-   */
-  [Symbol.iterator](): IterableIterator<
-    [index: number, position: Position, value: string, format: Partial<F>]
-  > {
-    return this.entries();
-  }
 
   // We omit Positions for efficiency. If you want them, use entries().
+  /**
+   * Iterates over an efficient representation of the formatted text.
+   *
+   * Specifically, this method iterates over the formatted ranges in text order
+   * (as returned by [[formatted]]).
+   */
+  [Symbol.iterator](): IterableIterator<RichTextRange<F>> {
+    return this.formatted()[Symbol.iterator]();
+  }
+
   /**
    * Returns an efficient representation of the formatted text.
    *
@@ -674,7 +672,7 @@ export class CRichText<
     const sliceBuilder = new SliceBuilder<F, Partial<F>>(this, recordEquals);
     // Starting chars have no format.
     sliceBuilder.add({}, null, false);
-    for (const [, position, data] of this.formatList.entries()) {
+    for (const [, data, position] of this.formatList.entries()) {
       // Format exactly at position, including closedEnds.
       if (this.text.hasPosition(position)) {
         sliceBuilder.add(getDataRecord(data, true), position, true);
@@ -730,52 +728,50 @@ export class CRichText<
    * Deletes and inserts values like [Array.splice](https://developer.mozilla.org/en-US/docs/Web/JavaScript/Reference/Global_Objects/Array/splice).
    *
    * If `deleteCount` is provided, this method first deletes
-   * `deleteCount` values starting at `startIndex`.
-   * Next, this method inserts `values` as a substring at `startIndex`, with the given format.
+   * `deleteCount` values starting at `start`.
+   * Next, this method inserts `values` as a substring at `start`, with the given format.
    *
-   * All values currently at or after `startIndex + deleteCount`
+   * All values currently at or after `start + deleteCount`
    * shift to accommodate the change in length.
+   *
+   * @param values The characters to insert. They are inserted
+   * as individual UTF-16 codepoints.
+   * @param format The characters' initial format.
+   * @returns The deleted substring.
    */
-  splice(startIndex: number, deleteCount: number): void;
+  splice(start: number, deleteCount: number): string;
   splice(
-    startIndex: number,
+    start: number,
     deleteCount: number | undefined,
     values: string,
     format: Partial<F>
-  ): void;
+  ): string;
   splice(
-    startIndex: number,
+    start: number,
     deleteCount: number | undefined,
     values?: string,
     format?: Partial<F>
-  ): void {
-    // Sanitize deleteCount
-    if (deleteCount === undefined || deleteCount > this.length - startIndex)
-      deleteCount = this.length - startIndex;
+  ): string {
+    // Sanitize start.
+    if (start < 0) start += this.length;
+    if (start < 0) start = 0;
+    if (start > this.length) start = this.length;
+
+    // Sanitize deleteCount.
+    if (deleteCount === undefined || deleteCount > this.length - start)
+      deleteCount = this.length - start;
     else if (deleteCount < 0) deleteCount = 0;
-    // Delete then insert
-    this.delete(startIndex, deleteCount);
+
+    // Delete then insert.
+    const ret = this.slice(start, start + deleteCount);
+    this.delete(start, deleteCount);
     if (values !== undefined) {
-      this.insert(startIndex, values, format!);
+      this.insert(start, values, nonNull(format));
     }
+    return ret;
   }
 
   // Convenience accessors.
-
-  /**
-   * Returns a string consisting of the single character
-   * (UTF-16 codepoint) at `index`, with behavior
-   * like [String.at](https://developer.mozilla.org/en-US/docs/Web/JavaScript/Reference/Global_Objects/String/at).
-   *
-   * Negative indices are relative to
-   * end of the text string, and out-of-bounds
-   * indices return undefined.
-   */
-  at(index: number): string | undefined {
-    if (index < 0) index += this.length;
-    if (index < 0 || index >= this.length) return undefined;
-    return this.text.get(index);
-  }
 
   // slice() is the most reasonable out of {slice, substring, substr}.
 
@@ -833,16 +829,6 @@ export class CRichText<
     return this.text.getByPosition(position);
   }
 
-  /**
-   * Returns the format at position, or undefined if it is not currently present
-   * ([[hasPosition]] returns false).
-   */
-  getFormatByPosition(position: Position): Partial<F> | undefined {
-    if (this.text.hasPosition(position)) {
-      return this.getFormatInternal(position);
-    } else return undefined;
-  }
-
   /** Returns an iterator for present positions, in list order. */
   positions(): IterableIterator<Position> {
     return this.text.positions();
@@ -874,9 +860,7 @@ interface FormatData<F extends Record<string, any>> {
    * OPT: Clear this field once the position is deleted, and also
    * delete from spanLog any singleton spans (form [position]).
    * Such formats are no longer needed and might be large (e.g. if you
-   * store Quill embeds as a single-char format). Note that then
-   * we will have to change the contract of getFormatByPosition
-   * (won't be accurate for deleted positions).
+   * store Quill embeds as a single-char format).
    */
   readonly endClosedSpans: Map<keyof F & string, Span<F>>;
 }
@@ -900,13 +884,16 @@ function getDataValue<
   // eslint fails to infer types here, but TypeScript is fine.
   if (includeClosed && data.endClosedSpans.has(key)) {
     // eslint-disable-next-line @typescript-eslint/no-unsafe-return
-    return data.endClosedSpans.get(key)!.value;
+    return nonNull(data.endClosedSpans.get(key)).value;
     // eslint-disable-next-line @typescript-eslint/no-unsafe-return
   } else return data.normalSpans.get(key)?.value;
 }
 
 /**
  * Returns data's complete format.
+ *
+ * The value is a new immutable object; mutations to it do not
+ * affect CRichText and vice-versa.
  *
  * @param includeClosed Whether to consider endClosedSpans, i.e., you are
  * getting the format exactly at data's position.
@@ -972,6 +959,8 @@ class SliceBuilder<F extends Record<string, any>, D> {
 
     if (this.prevIndex !== -1) {
       // Record the previous call's data.
+      // Use ! instead of nonNull because D might allow null.
+      // eslint-disable-next-line @typescript-eslint/no-non-null-assertion
       this.record(this.prevIndex, index, this.prevData!);
     }
 
@@ -990,6 +979,8 @@ class SliceBuilder<F extends Record<string, any>, D> {
         index = this.list.indexOfPosition(nextPos, "right");
       } else index = this.list.indexOfPosition(nextPos, "left") + 1;
 
+      // Use ! instead of nonNull because D might allow null.
+      // eslint-disable-next-line @typescript-eslint/no-non-null-assertion
       this.record(this.prevIndex, index, this.prevData!);
     }
     return this.slices;

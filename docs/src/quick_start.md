@@ -20,7 +20,7 @@ In this quick start, you will make a collaborative counter app: a webpage where 
 4. Open `src/app.ts`. Replace the file with the TypeScript code below. This code connects the display area and increment button to a Collabs `CCounter`---a collaborative counter.
 
 ```ts
-import * as collabs from "@collabs/collabs";
+import { CCounter } from "@collabs/collabs";
 import { CContainer } from "@collabs/container";
 
 (async function () {
@@ -32,7 +32,7 @@ import { CContainer } from "@collabs/container";
   // Register Collabs.
   const counter = container.registerCollab(
     "counter",
-    (init) => new collabs.CCounter(init)
+    (init) => new CCounter(init)
   );
 
   // Refresh the display when the Collabs state changes, possibly

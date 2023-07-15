@@ -46,32 +46,15 @@ export abstract class AbstractRuntime<Events extends EventsRecord>
     return rootCollab;
   }
 
-  private localCounter = 0;
-  nextLocalCounter(count = 1): number {
-    const ans = this.localCounter;
-    this.localCounter += count;
-    return ans;
+  idOf<C extends Collab<CollabEventsRecord>>(collab: C): CollabID<C> {
+    if (collab.runtime !== this) {
+      throw new Error("idOf called with Collab from different Runtime");
+    }
+    return this.rootCollab.idOf(collab);
   }
 
-  nextUID(): string {
-    // For UID, use a pair (replicaID, replicaUniqueNumber).
-    // These are sometimes called "causal dots".
-    // They are similar to Lamport timestamps,
-    // except that the number is a per-replica counter instead
-    // of a logical clock.
-    // OPT: shorten (base128 instead of base36)
-    return `${this.nextLocalCounter().toString(36)},${this.replicaID}`;
-  }
-
-  idOf<C extends Collab<CollabEventsRecord>>(descendant: C): CollabID<C> {
-    return this.rootCollab.idOf(descendant);
-  }
-
-  fromID<C extends Collab<CollabEventsRecord>>(
-    id: CollabID<C>,
-    startIndex = 0
-  ): C | undefined {
-    return this.rootCollab.fromID(id, startIndex);
+  fromID<C extends Collab<CollabEventsRecord>>(id: CollabID<C>): C | undefined {
+    return this.rootCollab.fromID(id);
   }
 
   abstract childSend(

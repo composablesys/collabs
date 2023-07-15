@@ -10,7 +10,11 @@ import {
   SavedStateTree,
   UpdateMeta,
 } from "@collabs/collabs";
-import { collabIDOf, MessageStacksSerializer } from "@collabs/core";
+import {
+  collabIDOf,
+  MessageStacksSerializer,
+  protobufHas,
+} from "@collabs/core";
 import {
   IMultiSemidirectProductSenderHistory,
   MultiSemidirectProductHistorySave,
@@ -286,7 +290,7 @@ class MultipleSemidirectState<S extends object> {
               message.sender,
               message.senderCounter,
               message.receiptCounter,
-              message.hasOwnProperty("messageStack")
+              protobufHas(message, "messageStack")
                 ? MessageStacksSerializer.instance.deserialize(
                     message.messageStack!
                   )[0]
@@ -487,7 +491,7 @@ export abstract class MultipleSemidirectProduct<
   }
 
   fromID<C extends Collab>(id: CollabID<C>, startIndex = 0): C | undefined {
-    const name = id.namePath[startIndex];
+    const name = id.collabIDPath[startIndex];
     const child = this.crdts[parseInt(name.substring(4))] as Collab;
     if (child === undefined) {
       throw new Error(
@@ -496,7 +500,7 @@ export abstract class MultipleSemidirectProduct<
     }
     // Terminal case.
     // Note that this cast is unsafe, but convenient.
-    if (startIndex === id.namePath.length - 1) return child as C;
+    if (startIndex === id.collabIDPath.length - 1) return child as C;
     // Recursive case.
     if ((child as Parent).fromID === undefined) {
       throw new Error("child is not a parent, but CollabID is its descendant");

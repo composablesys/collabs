@@ -34,7 +34,7 @@ class Manager<C extends Collab, V> {
   setup(count: number, doSetupOp: boolean): CRuntime[] {
     const ans: CRuntime[] = [];
     for (let i = 0; i < count; i++) {
-      const runtime = this.gen.newRuntime(this.source.rng);
+      const runtime = this.gen.newRuntime({ rng: this.source.rng });
       const c = runtime.registerCollab("", (init) => this.source.pre(init));
       this.cs.set(runtime, c);
       ans.push(runtime);
@@ -52,7 +52,7 @@ class Manager<C extends Collab, V> {
       // tiebreakers, which makes it harder to write trace tests. Note that CRDT
       // correctness is not affected in any case - see the comment in
       // CausalMessageBuffer.processRemoteDelivery.)
-      const setupRuntime = this.gen.newRuntime(this.source.rng);
+      const setupRuntime = this.gen.newRuntime({ rng: this.source.rng });
       const setupC = setupRuntime.registerCollab("", (init) =>
         this.source.pre(init)
       );

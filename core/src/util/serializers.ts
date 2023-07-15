@@ -8,6 +8,7 @@ import {
   PairSerializerMessage,
 } from "../../generated/proto_compiled";
 import { Collab, CollabID } from "../core";
+import { nonNull } from "./assertions";
 import { Optional } from "./optional";
 import { SafeWeakRef } from "./safe_weak_ref";
 
@@ -25,11 +26,14 @@ import { SafeWeakRef } from "./safe_weak_ref";
  * Serializer\<T\>, typically in the Collab constructor's
  * `options` parameter.
  *
- * Serializers provided with the library include [[DefaultSerializer]],
- * [[CollabIDSerializer]], [[StringSerializer]], [[Uint8ArraySerializer]],
- * [[ArraySerializer]], [[PairSerializer]], and [[ConstSerializer]].
- *
- * See also: [[Bytes]], which encodes Uint8Arrays as strings.
+ * Serializers provided with the library (often in package `@collabs/core`)
+ * include [[DefaultSerializer]],
+ * [CollabIDSerializer](../../core/classes/CollabIDSerializer.html),
+ * [StringSerializer](../../core/classes/StringSerializer.html),
+ * [Uint8ArraySerializer](../../core/classes/Uint8ArraySerializer.html),
+ * [ArraySerializer](../../core/classes/ArraySerializer.html),
+ * [PairSerializer](../../core/classes/PairSerializer.html),
+ * and [ConstSerializer](../../core/classes/ConstSerializer.html).
  */
 export interface Serializer<T> {
   /**
@@ -182,14 +186,14 @@ export class DefaultSerializer<T> implements Serializer<T> {
         ans = null;
         break;
       case "arrayValue":
-        ans = decoded.arrayValue!.elements!.map((serialized) =>
+        ans = nonNull(nonNull(decoded.arrayValue).elements).map((serialized) =>
           this.deserialize(serialized)
         );
         break;
       case "objectValue":
         ans = {};
         for (const [key, serialized] of Object.entries(
-          decoded.objectValue!.properties!
+          nonNull(nonNull(decoded.objectValue).properties)
         )) {
           (<Record<string, unknown>>ans)[key] = this.deserialize(serialized);
         }
@@ -197,18 +201,15 @@ export class DefaultSerializer<T> implements Serializer<T> {
       case "bytesValue":
         ans = decoded.bytesValue;
         break;
-      case "optionalValue":
-        if (
-          Object.prototype.hasOwnProperty.call(
-            decoded.optionalValue,
-            "valueIfPresent"
-          )
-        ) {
+      case "optionalValue": {
+        const optionalValue = nonNull(decoded.optionalValue);
+        if (protobufHas(optionalValue, "valueIfPresent")) {
           ans = Optional.of(
-            this.deserialize(decoded.optionalValue!.valueIfPresent!)
+            this.deserialize(nonNull(optionalValue.valueIfPresent))
           );
         } else ans = Optional.empty();
         break;
+      }
       default:
         throw new Error(`Bad message format: decoded.value=${decoded.value}`);
     }
@@ -376,13 +377,15 @@ export class CollabIDSerializer<C extends Collab>
   }
 
   serialize(value: CollabID<C>): Uint8Array {
-    const message = CollabIDMessage.create({ namePath: value.namePath });
+    const message = CollabIDMessage.create({
+      collabIDPath: value.collabIDPath,
+    });
     return CollabIDMessage.encode(message).finish();
   }
 
   deserialize(message: Uint8Array): CollabID<C> {
     const decoded = CollabIDMessage.decode(message);
-    return { namePath: decoded.namePath };
+    return { collabIDPath: decoded.collabIDPath };
   }
 }
 
@@ -400,4 +403,24 @@ export function int64AsNumber(num: number | Long): number {
   // flaky because a dependency might import Long.
   if (typeof num === "number") return num;
   else return num.toNumber();
+}
+
+/**
+ * Internal utility for working with protobuf encodings.
+ *
+ * Returns whether the optional property `prop` is present in
+ * the deserialized protobufjs message `message`. (Accessing a not-present
+ * property directly will return its type's default value
+ * instead of `undefined`.)
+ */
+export function protobufHas<N extends string>(
+  message: Partial<Record<N, unknown>>,
+  prop: N
+): boolean {
+  // message is allowed to be Partial in case it's an I...Message type
+  // (e.g. an inner field of a deserialized protobufjs message),
+  // which has all optional properties.
+  // Despite Partial, TypeScript will still complain if you misspell
+  // prop.
+  return Object.prototype.hasOwnProperty.call(message, prop);
 }

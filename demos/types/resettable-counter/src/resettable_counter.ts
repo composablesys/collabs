@@ -45,6 +45,12 @@ export interface ResettableCounterEventsRecord extends CollabEventsRecord {
  * `CRuntime.load` function in the initial state.
  */
 export class CGrowOnlyResettableCounter extends PrimitiveCRDT<ResettableCounterEventsRecord> {
+  /**
+   * Used to generate idCounters. Static so that all CCounters with the same replicaID
+   * (and indicentally others on the same device) share the same idCounter source.
+   */
+  private static localCounter = 0;
+
   // M entry format: [p, n, idCounter]
   private readonly M = new Map<string, [number, number, number]>();
   /**
@@ -64,7 +70,8 @@ export class CGrowOnlyResettableCounter extends PrimitiveCRDT<ResettableCounterE
     }
 
     const m = this.M.get(this.runtime.replicaID);
-    const idCounter = m === undefined ? this.runtime.nextLocalCounter() : m[2];
+    const idCounter =
+      m === undefined ? ++CGrowOnlyResettableCounter.localCounter : m[2];
     const prOld = m === undefined ? 0 : m[0];
     const message = GrowOnlyResettableCounterMessage.create({
       add: {

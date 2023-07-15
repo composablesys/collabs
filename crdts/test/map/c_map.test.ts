@@ -46,6 +46,7 @@ class MapSource
       assert.deepStrictEqual(actual.get(key)!.conflicts(), expected[key][0][1]);
       assert.deepStrictEqual(
         actual
+          // @ts-expect-error getConflicts is private
           .getConflicts(key)
           .map((conflict) => [conflict.value, conflict.conflicts()]),
         expected[key]

@@ -1,4 +1,4 @@
-import * as collabs from "@collabs/collabs";
+import { CText } from "@collabs/collabs";
 import { Data } from "../../../util";
 import { ITextWithCursor } from "../../interfaces/text_with_cursor";
 import { CollabsReplica } from "./replica";
@@ -8,16 +8,13 @@ export function CollabsTextWithCursor(causalityGuaranteed: boolean) {
     extends CollabsReplica
     implements ITextWithCursor
   {
-    private readonly text: collabs.CText;
+    private readonly text: CText;
     private cursor = -1;
 
     constructor(onsend: (msg: Data) => void, replicaIdRng: seedrandom.prng) {
       super(onsend, replicaIdRng, causalityGuaranteed);
 
-      this.text = this.runtime.registerCollab(
-        "",
-        (init) => new collabs.CText(init)
-      );
+      this.text = this.runtime.registerCollab("", (init) => new CText(init));
 
       // Maintain cursor position.
       // We use the fact that all ops are single character insertions/deletions.

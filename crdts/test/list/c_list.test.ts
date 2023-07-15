@@ -91,13 +91,13 @@ class ListSource
             break;
           case 2:
             // Do an internal op on every value.
-            for (const [i, , cvar] of c.entries()) {
+            for (const [, cvar] of c.entries()) {
               cvar.value += "_op2";
             }
             break;
           case 3:
             // Insert and delete stuff.
-            c.pop();
+            c.delete(c.length - 1);
             c.push("op3");
             break;
           default:
@@ -609,8 +609,8 @@ describe("CList", () => {
 
     beforeEach(() => {
       runtimeGen = new TestingRuntimes();
-      alice = runtimeGen.newRuntime(rng);
-      bob = runtimeGen.newRuntime(rng);
+      alice = runtimeGen.newRuntime({ rng });
+      bob = runtimeGen.newRuntime({ rng });
 
       aliceList = alice.registerCollab(
         "list",

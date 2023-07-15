@@ -5,6 +5,7 @@ import {
   SavedStateTree,
   UpdateMeta,
 } from "../core";
+import { nonNull } from "../util/assertions";
 
 /**
  * Convenience base class for a [[Collab]] implementation that sends
@@ -100,7 +101,10 @@ export abstract class CPrimitive<
   protected abstract savePrimitive(): Uint8Array;
 
   load(savedState: SavedStateTree | null, meta: UpdateMeta): void {
-    this.loadPrimitive(savedState === null ? null : savedState.self!, meta);
+    this.loadPrimitive(
+      savedState === null ? null : nonNull(savedState.self),
+      meta
+    );
   }
 
   /**

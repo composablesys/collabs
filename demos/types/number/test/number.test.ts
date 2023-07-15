@@ -17,8 +17,8 @@ describe("Number", () => {
   beforeEach(() => {
     rng = seedrandom("42");
     runtimeGen = new TestingRuntimes();
-    alice = runtimeGen.newRuntime(rng);
-    bob = runtimeGen.newRuntime(rng);
+    alice = runtimeGen.newRuntime({ rng });
+    bob = runtimeGen.newRuntime({ rng });
   });
 
   function init(initialValue: number, name = "numberId"): void {

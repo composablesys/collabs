@@ -7,6 +7,7 @@ import {
   InitToken,
   PairSerializer,
   Serializer,
+  nonNull,
 } from "@collabs/core";
 import { CSet } from "../set";
 import { Aggregator } from "./c_multi_value_map";
@@ -111,18 +112,18 @@ export class CMap<
     // because CSet remembers just-deleted values until the end of
     // the transaction.
     this.map.on("Set", (e) => {
-      const previousValue = e.previousValue.map(
-        (id) => this.valueSet.fromID(id)!
+      const previousValue = e.previousValue.map((id) =>
+        nonNull(this.valueSet.fromID(id))
       );
       this.emit("Set", {
         key: e.key,
-        value: this.valueSet.fromID(e.value)!,
+        value: nonNull(this.valueSet.fromID(e.value)),
         previousValue,
         meta: e.meta,
       });
     });
     this.map.on("Delete", (e) => {
-      const value = this.valueSet.fromID(e.value)!;
+      const value = nonNull(this.valueSet.fromID(e.value));
       this.emit("Delete", {
         key: e.key,
         value,
@@ -167,7 +168,7 @@ export class CMap<
 
   get(key: K): C | undefined {
     const id = this.map.get(key);
-    return id === undefined ? undefined : this.valueSet.fromID(id)!;
+    return id === undefined ? undefined : nonNull(this.valueSet.fromID(id));
   }
 
   /**
@@ -176,10 +177,20 @@ export class CMap<
    * Their order is arbitrary but consistent across replicas.
    *
    * If the key is not present, this returns `[]`.
-   * Otherwise, its first element is the set value.
    */
-  getConflicts(key: K): C[] {
-    return this.map.getConflicts(key).map((id) => this.valueSet.fromID(id)!);
+  private getConflicts(key: K): C[] {
+    /*
+     * This method is private because there is not a good way to work
+     * with conflicts: you can't re-set a key to one of its losing
+     * conflicts; conflicting values might be deleted unexpectedly
+     * by [[set]]'s deletion behavior;
+     * and they are not integrated with events.
+     * If you need to work with conflicts, use your own CSet (to generate
+     * values) and CValueMap (to control key-value mappings) instead of a CMap.
+     */
+    return this.map
+      .getConflicts(key)
+      .map((id) => nonNull(this.valueSet.fromID(id)));
   }
 
   has(key: K): boolean {
@@ -188,7 +199,7 @@ export class CMap<
 
   *entries(): IterableIterator<[K, C]> {
     for (const [key, id] of this.map) {
-      yield [key, this.valueSet.fromID(id)!];
+      yield [key, nonNull(this.valueSet.fromID(id))];
     }
   }
 

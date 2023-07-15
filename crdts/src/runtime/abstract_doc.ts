@@ -1,4 +1,9 @@
-import { EventEmitter } from "@collabs/core";
+import {
+  Collab,
+  CollabEventsRecord,
+  CollabID,
+  EventEmitter,
+} from "@collabs/core";
 import { CRuntime, RuntimeEventsRecord, RuntimeOptions } from "./c_runtime";
 
 const runtimeEventNames: (keyof RuntimeEventsRecord)[] = [
@@ -18,7 +23,7 @@ const runtimeEventNames: (keyof RuntimeEventsRecord)[] = [
  *
  * See [Data Modeling](../../../guide/data_modeling.html#abstractdoc) for a usage example.
  *
- * <!-- TODO: link to example in docs: Entry Points? -->
+ *
  */
 export abstract class AbstractDoc extends EventEmitter<RuntimeEventsRecord> {
   /**
@@ -106,5 +111,44 @@ export abstract class AbstractDoc extends EventEmitter<RuntimeEventsRecord> {
    */
   load(savedState: Uint8Array): void {
     this.runtime.load(savedState);
+  }
+
+  /**
+   * Returns a [[CollabID]] for the given Collab.
+   *
+   * The CollabID may be passed to [[fromID]] on any replica of this
+   * AbstractDoc to obtain that replica's copy of `collab`.
+   *
+   * @param collab A Collab that belongs to this AbstractDoc.
+   */
+  idOf<C extends Collab<CollabEventsRecord>>(collab: C): CollabID<C> {
+    if (collab.runtime !== this.runtime) {
+      throw new Error("idOf called with Collab from different AbstractDoc");
+    }
+    return this.runtime.idOf(collab);
+  }
+
+  /**
+   * Inverse of [[idOf]].
+   *
+   * Specifically, given a [[CollabID]] returned by [[idOf]] on some replica of
+   * this AbstractDoc, returns this replica's copy of the original
+   * `collab`. If that Collab does not exist (e.g., it was deleted
+   * or it is not present in this program version), returns undefined.
+   *
+   * @param id A CollabID from [[idOf]].
+   */
+  fromID<C extends Collab<CollabEventsRecord>>(id: CollabID<C>): C | undefined {
+    return this.runtime.fromID(id);
+  }
+
+  /**
+   * An ID that uniquely identifies this replica among
+   * all connected replicas.
+   *
+   * See [[CRuntime.replicaID]].
+   */
+  get replicaID(): string {
+    return this.runtime.replicaID;
   }
 }

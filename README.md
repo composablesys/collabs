@@ -26,5 +26,3 @@ To run commands in the `docs/` folder, also install its Python dependencies: `pi
 When installing dependencies, instead of running `npm i <dependency>` in the relevant package's folder, you should run `npm i <dependency> -w <package>` in this top-level folder. That will ensure that the dependency is installed in the workspace's top-level `node_modules` folder, but it is recorded in the correct package's `package.json`. See [https://docs.npmjs.com/cli/v7/using-npm/workspaces#adding-dependencies-to-a-workspace](https://docs.npmjs.com/cli/v7/using-npm/workspaces#adding-dependencies-to-a-workspace).
 
 If you are only making changes to one package, you can skip running `npm i` in this directory and instead do it only in the directory for the package you are working on.
-
-> **Node version** Until [https://github.com/npm/cli/issues/4618](https://github.com/npm/cli/issues/4618) is fixed, you will need to use a slightly old version of NodeJS/npm in order to run top-level commands like `npm run build`. [NodeJS v16.13.1](https://nodejs.org/download/release/v16.13.1/) works.

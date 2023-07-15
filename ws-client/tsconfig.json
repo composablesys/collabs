@@ -14,12 +14,7 @@
     "moduleResolution": "node",
     /* Enable strict type checking. */
     "strict": true,
-    /* The workspace structure causes tsc to check all
-     * projects in node_modules during compilation, including
-     * one tfjs dependency (webgl pinned version) that has
-     * a bug.  So while we are using workspaces, we need
-     * to skipLibChecks.
-     */
+    /* Prevent errors caused by other libraries. */
     "skipLibCheck": true,
     /* Enable interop with dependencies using different module systems. */
     "esModuleInterop": true,

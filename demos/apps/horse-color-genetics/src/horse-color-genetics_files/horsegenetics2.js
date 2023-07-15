@@ -21,7 +21,7 @@
 	- randomhorse()
 */
 
-import * as collabs from "@collabs/collabs";
+import { CVar } from "@collabs/collabs";
 import { CContainer } from "@collabs/container";
 // CSS
 import css from "./horsegenetics.css";
@@ -1929,7 +1929,7 @@ async function collabsSetup() {
       const defaultValue = IRREGULAR_DEFAULTS[alleleName] ?? "_" + gene;
       alleles[alleleName] = container.registerCollab(
         alleleName,
-        (init) => new collabs.CVar(init, defaultValue)
+        (init) => new CVar(init, defaultValue)
       );
       alleles[alleleName].on("Set", () => {
         // Reflect the change in the GUI.

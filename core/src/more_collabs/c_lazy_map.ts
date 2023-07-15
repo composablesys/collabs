@@ -1,24 +1,20 @@
+import { fromByteArray, toByteArray } from "base64-js";
 import {
   Collab,
   CollabEventsRecord,
   CollabID,
-  collabIDOf,
-  InitToken,
   IParent,
+  InitToken,
   MetaRequest,
   Parent,
   SavedStateTree,
   UpdateMeta,
+  collabIDOf,
 } from "../core";
-import {
-  Bytes,
-  DefaultSerializer,
-  Optional,
-  Serializer,
-  WeakValueMap,
-} from "../util";
 // Import from specific file to avoid circular dependencies.
 import { AbstractMap_Collab } from "../data_types/abstract_maps";
+import { DefaultSerializer, Optional, Serializer, WeakValueMap } from "../util";
+import { nonNull } from "../util/assertions";
 
 interface InUpdateData<C extends Collab> {
   keyString: string;
@@ -126,10 +122,10 @@ export class CLazyMap<K, C extends Collab>
   }
 
   private keyAsString(key: K) {
-    return Bytes.stringify(this.keySerializer.serialize(key));
+    return fromByteArray(this.keySerializer.serialize(key));
   }
   private stringAsKey(str: string) {
-    return this.keySerializer.deserialize(Bytes.parse(str));
+    return this.keySerializer.deserialize(toByteArray(str));
   }
 
   private getInternal(
@@ -378,13 +374,14 @@ export class CLazyMap<K, C extends Collab>
       return;
     }
 
-    for (const [name, childSave] of savedStateTree.children!) {
+    const children = nonNull(savedStateTree.children);
+    for (const [name, childSave] of children) {
       this.applyUpdate(name, (child) => child.load(childSave, meta), meta);
     }
     // Call null on other (nontrivial) children, in case they weren't saved
     // because they had canGC() = true in the saved state.
     for (const name of this.nontrivialMap.keys()) {
-      if (!savedStateTree.children!.has(name)) {
+      if (!children.has(name)) {
         this.applyUpdate(name, (child) => child.load(null, meta), meta);
       }
     }
@@ -395,11 +392,11 @@ export class CLazyMap<K, C extends Collab>
   }
 
   fromID<D extends Collab>(id: CollabID<D>, startIndex = 0): D | undefined {
-    const name = id.namePath[startIndex];
+    const name = id.collabIDPath[startIndex];
     const child = this.getInternal(this.stringAsKey(name), name)[0] as Collab;
     // Terminal case.
     // Note that this cast is unsafe, but convenient.
-    if (startIndex === id.namePath.length - 1) return child as D;
+    if (startIndex === id.collabIDPath.length - 1) return child as D;
     // Recursive case.
     if ((child as Parent).fromID === undefined) {
       throw new Error("child is not a parent, but CollabID is its descendant");

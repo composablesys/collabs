@@ -152,16 +152,16 @@ export abstract class Collab<
    * that forces events to extend [[CollabEvent]]
    * and also emits an "Any" event.
    *
-   * @param emitAnyEvent = true Set to false
+   * @param options.skipAnyEvent Set to true
    * to skip emitting an "Any" event.
    */
   protected emit<K extends keyof Events>(
     eventName: K,
     event: Events[K] & CollabEvent,
-    emitAnyEvent = true
+    options?: { skipAnyEvent?: boolean }
   ): void {
     super.emit(eventName, event);
-    if (emitAnyEvent && eventName !== "Any") {
+    if (!options?.skipAnyEvent && eventName !== "Any") {
       super.emit("Any", { meta: event.meta });
     }
   }

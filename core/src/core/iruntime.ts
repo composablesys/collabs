@@ -1,3 +1,5 @@
+import { Collab, CollabEventsRecord } from "./collab";
+import { CollabID } from "./collab_id";
 import { IParent } from "./parent";
 
 /**
@@ -25,8 +27,6 @@ export interface IRuntime extends IParent {
    */
   readonly isRuntime: true;
 
-  // Utilities for internal use by Collabs, serializers, etc.
-
   /**
    * An ID that uniquely identifies this replica among
    * all connected replicas.
@@ -37,23 +37,26 @@ export interface IRuntime extends IParent {
   readonly replicaID: string;
 
   /**
-   * Returns a nonnegative counter value that will only be
-   * associated with this IRuntime's [[replicaID]]
-   * once.
+   * Returns a [[CollabID]] for the given Collab.
    *
-   * @param count = 1 When set, treat this as `count` calls,
-   * each claiming one number in sequence. Thus all numbers
-   * in the range [returned number, returned number + count)
-   * will only be associated with this runtime's [[replicaID]]
-   * once.
+   * The CollabID may be passed to [[fromID]] on any replica of this
+   * runtime to obtain that replica's copy of `collab`.
+   *
+   * @param collab A Collab that belongs to this runtime.
    */
-  nextLocalCounter(count?: number): number;
+  idOf<C extends Collab<CollabEventsRecord>>(collab: C): CollabID<C>;
 
   /**
-   * @return A UID, i.e., a unique string that will only appear once
-   * across all replicas.
+   * Inverse of [[idOf]].
+   *
+   * Specifically, given a [[CollabID]] returned by [[idOf]] on some replica of
+   * this runtime, returns this replica's copy of the original
+   * `collab`. If that Collab does not exist (e.g., it was deleted
+   * or it is not present in this program version), returns undefined.
+   *
+   * @param id A CollabID from [[idOf]].
    */
-  nextUID(): string;
+  fromID<C extends Collab<CollabEventsRecord>>(id: CollabID<C>): C | undefined;
 }
 
 export function isRuntime(x: unknown): x is IRuntime {

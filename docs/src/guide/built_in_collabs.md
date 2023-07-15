@@ -63,7 +63,7 @@ We distinguish immutable value collections by including `Value` in their names, 
 In some situations, the immutable vs. mutable distinction is subtle:
 
 1. `CValueMap<K, V>` has immutable values of type `V`. However, you can still change the value associated to a key, e.g., `map.set("foo", 7)`. The difference between `CValueMap` and a map with mutable values is that in `CValueMap`, you must not mutate a value in-place, e.g., `map.get("foo")!.doMutatingOperation()`. Instead, you can _only_ change a key's value using `map.set`. If two users set the same key concurrently like this, then one of their values will be chosen arbitrarily.
-2. You can use a _reference_ to a `Collab`s as an immutable value, in the form of a [`CollabID`](../api/collabs/interfaces/CollabID.html).
+2. You can use a _reference_ to a `Collab`s as an immutable value, in the form of a [`CollabID`](../api/collabs/modules.html#CollabID).
    > **Example.** In a project planning app, suppose you want to let users describe the set of people working on the project and assign one of them as the project lead. Let `CPerson` be a `Collab` that you are using to represent a person. Then you can use a (mutable value) `CSet<CPerson>` to represent the set of people, and an (immutable value) `CVar<CollabID<CPerson>>` to store a reference to the project lead, chosen from the set's values.
 
 **Caution:** The library will not prevent you from internally mutating a value that you used in an immutable collection. Instead, you must take care not to do this. If you do mutate a value stored in an immutable collection, then that mutation will not be replicated to other users. Thus the mutating user may see the mutated state, while the other users will not, violating consistency.

@@ -62,6 +62,7 @@ export interface CRDTMessageMeta {
   /**
    * The [Lamport timestamp](https://en.wikipedia.org/wiki/Lamport_timestamp)
    * for the transaction that created this item.
+   * When present, it is always positive.
    *
    * If not requested or accessed by the sender, this is null.
    */

@@ -20,6 +20,7 @@ import { GroupCRDT, GroupState } from "./groupcrdt";
   var groupdY = <HTMLInputElement>document.getElementById("translateY3");
   var img1 = <HTMLCanvasElement>document.getElementById("shape2");
   var img2 = <HTMLCanvasElement>document.getElementById("shape1");
+  var groupDiv = <HTMLDivElement>document.getElementById("group");
 
   let updateImg = function () {
     let state: GroupState = clientGroup.getState();
@@ -130,43 +131,41 @@ import { GroupCRDT, GroupState } from "./groupcrdt";
   });
 
   var offsetY = document.getElementById("header")!.offsetHeight || 100;
-  // Move CMU image around screen
+
+  // Move images around screen.
   var isDown1 = false;
   var X1: number, Y1: number;
-  $(img1)
-    .on("mousedown", function (e: JQuery.MouseDownEvent) {
-      isDown1 = true;
-      X1 = e.pageX;
-      Y1 = e.pageY;
-    })
+  var isDown2 = false;
+  var X2: number, Y2: number;
+
+  $(img1).on("mousedown", function (e: JQuery.MouseDownEvent) {
+    isDown1 = true;
+    isDown2 = false;
+    X1 = e.pageX;
+    Y1 = e.pageY;
+  });
+  $(img2).on("mousedown", function (e: JQuery.MouseDownEvent) {
+    isDown2 = true;
+    isDown1 = false;
+    X2 = e.pageX;
+    Y2 = e.pageY;
+  });
+
+  $(groupDiv)
     .on("mousemove", function (e: JQuery.MouseMoveEvent) {
       if (isDown1) {
         clientGroup.translate(e.pageX - X1, e.pageY - Y1, 1);
         X1 = e.pageX;
         Y1 = e.pageY;
       }
-    })
-    .on("mouseup", function () {
-      isDown1 = false;
-    });
-
-  // Move ISR image around screen
-  var isDown2 = false;
-  var X2: number, Y2: number;
-  $(img2)
-    .on("mousedown", function (e: JQuery.MouseDownEvent) {
-      isDown2 = true;
-      X2 = e.pageX;
-      Y2 = e.pageY;
-    })
-    .on("mousemove", function (e: JQuery.MouseMoveEvent) {
       if (isDown2) {
         clientGroup.translate(e.pageX - X2, e.pageY - Y2, 2);
         X2 = e.pageX;
         Y2 = e.pageY;
       }
     })
-    .on("mouseup", function () {
+    .on("mouseup mouseleave", function () {
+      isDown1 = false;
       isDown2 = false;
     });
 

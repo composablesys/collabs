@@ -8,6 +8,6 @@ This is a demo that the library can build custom CRDTs, including novel ones wit
 
 Author: Maxime Kjaer
 
-**Monorepo note:** To build this package, you must run `npm ci` (or `npm i`) in this directory. It is not one of the monorepo's workspaces, to avoid installing the (huge) tensorflow dependency during normal development.
+**Monorepo note:** To build this package, you must run `npm i` in this directory. It is not one of the monorepo's workspaces, to avoid installing the (huge) tensorflow dependency during normal development.
 
-TODO: not currently building - needs a Collabs resettable counter first (or import `../resettable-counter`).
+Also, this package depends upon the local `@collabs/collabs` package and `../resettable-counter`, which must be built first.

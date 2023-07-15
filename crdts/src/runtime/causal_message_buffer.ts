@@ -1,6 +1,7 @@
 import {
   int64AsNumber,
   MessageStacksSerializer,
+  nonNull,
   UpdateMeta,
 } from "@collabs/core";
 import { CausalMessageBufferSave } from "../../generated/proto_compiled";
@@ -10,12 +11,6 @@ import {
   ReceiveCRDTMeta,
   RuntimeMetaSerializer,
 } from "./crdt_meta_implementations";
-
-/**
- * Debug flag, enables console.log's when causality checks
- * fail.
- */
-const DEBUG = false;
 
 interface ReceivedTransaction {
   messageStacks: (Uint8Array | string)[][];
@@ -50,6 +45,9 @@ export class CausalMessageBuffer {
    * The Lamport timestamp.
    *
    * Do not modify externally.
+   *
+   * Although this starts at 0, any transaction that uses the Lamport timestamp
+   * will have a positive value, since tick() increments it.
    */
   lamportTimestamp = 0;
 
@@ -106,11 +104,6 @@ export class CausalMessageBuffer {
           this.buffer.set(dot, { messageStacks, meta });
         }
       }
-    } else if (DEBUG) {
-      console.log("CausalMessageBuffer.add: not adding");
-      console.log("(already received)");
-      console.log([...this.vc]);
-      console.log(crdtMeta);
     }
     return false;
   }
@@ -136,17 +129,9 @@ export class CausalMessageBuffer {
           // through the whole buffer again.
           recheck = true;
         } else {
-          if (DEBUG) {
-            console.log("CRDTMetaLayer.checkMessageBuffer: not ready");
-          }
           if (this.isAlreadyDelivered(crdtMeta)) {
             // Remove from the buffer.
             this.buffer.delete(dot);
-            if (DEBUG) console.log("(already received)");
-          }
-          if (DEBUG) {
-            console.log([...this.vc]);
-            console.log(crdtMeta);
           }
         }
       }
@@ -219,7 +204,7 @@ export class CausalMessageBuffer {
     this.vc.set(crdtMeta.senderID, crdtMeta.senderCounter);
     // Update Lamport timestamp if it's present.
     // Skipping this when it's not present technically violates the def
-    // of Lamport timestamp, and it is still causally-compatible due to
+    // of Lamport timestamp, but it is still causally-compatible due to
     // causal order delivery.
     this.lamportTimestamp = Math.max(
       this.lamportTimestamp,
@@ -232,7 +217,7 @@ export class CausalMessageBuffer {
    */
   tick() {
     // Update vc.
-    this.vc.set(this.replicaID, this.vc.get(this.replicaID)! + 1);
+    this.vc.set(this.replicaID, nonNull(this.vc.get(this.replicaID)) + 1);
     if (!this.causalityGuaranteed) {
       // Our own message causally dominates every current key.
       this.maximalVCKeys.clear();
@@ -297,7 +282,7 @@ export class CausalMessageBuffer {
     // (Strictly speaking, we compare entries not keys: values must match
     // to be present in the intersection.)
     for (const key of this.maximalVCKeys) {
-      const localValue = this.vc.get(key)!;
+      const localValue = nonNull(this.vc.get(key));
       const remoteValue = remoteVC.get(key) ?? 0;
       // If the entry is not in the intersection...
       if (!(remoteMaximalVCKeys.has(key) && localValue === remoteValue)) {
@@ -308,7 +293,7 @@ export class CausalMessageBuffer {
     // 2. Add new maximal entries that are not
     // causally dominated by the local VC.
     for (const key of remoteMaximalVCKeys) {
-      if ((this.vc.get(key) ?? 0) < remoteVC.get(key)!) {
+      if ((this.vc.get(key) ?? 0) < nonNull(remoteVC.get(key))) {
         this.maximalVCKeys.add(key);
       }
     }

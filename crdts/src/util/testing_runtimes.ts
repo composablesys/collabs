@@ -1,4 +1,4 @@
-import { ReplicaIDs } from "@collabs/core";
+import { ReplicaIDs, nonNull } from "@collabs/core";
 import type seedrandom from "seedrandom";
 import { CRuntime } from "../runtime";
 
@@ -31,18 +31,23 @@ export class TestingRuntimes {
    * Returns a new [[CRuntime]] linked with all prior
    * runtimes created by this TestingRuntime.
    *
-   * @param rng As in [[CRuntime]]'s constructor.
-   * @param causalityGuaranteed As in [[CRuntime]]'s constructor.
+   * @param options.rng A PRNG used to deterministically set the replicaID
+   * (via [[ReplicaIDs.pseudoRandom]]).
+   * @param options.causalityGuaranteed As in [[CRuntime]]'s constructor.
    */
   newRuntime(
-    rng: seedrandom.prng | undefined = undefined,
-    causalityGuaranteed = false
+    options: {
+      rng?: seedrandom.prng;
+      causalityGuaranteed?: boolean;
+    } = {}
   ): CRuntime {
-    const debugReplicaID = rng ? ReplicaIDs.pseudoRandom(rng) : undefined;
+    const debugReplicaID = options.rng
+      ? ReplicaIDs.pseudoRandom(options.rng)
+      : undefined;
     const runtime = new CRuntime({
-      autoTransactions: "op",
+      autoTransactions: "debugOp",
       debugReplicaID,
-      causalityGuaranteed,
+      causalityGuaranteed: options.causalityGuaranteed,
     });
 
     const appQueue = new Map<CRuntime, Uint8Array[]>();
@@ -58,7 +63,7 @@ export class TestingRuntimes {
     runtime.on("Send", (e) => {
       this.sentBytes.set(
         runtime,
-        this.sentBytes.get(runtime)! + e.message.byteLength
+        nonNull(this.sentBytes.get(runtime)) + e.message.byteLength
       );
       for (const queue of appQueue.values()) {
         queue.push(e.message);
@@ -79,13 +84,13 @@ export class TestingRuntimes {
    */
   release(sender: CRuntime, ...recipients: CRuntime[]): void {
     if (recipients.length === 0) recipients = [...this.messageQueues.keys()];
-    const senderMap = this.messageQueues.get(sender)!;
+    const senderMap = nonNull(this.messageQueues.get(sender));
     for (const recipient of recipients) {
       if (recipient === sender) continue;
-      for (const queued of senderMap.get(recipient)!) {
+      for (const queued of nonNull(senderMap.get(recipient))) {
         this.receivedBytes.set(
           recipient,
-          this.receivedBytes.get(recipient)! + queued.byteLength
+          nonNull(this.receivedBytes.get(recipient)) + queued.byteLength
         );
         recipient.receive(queued);
       }

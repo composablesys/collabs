@@ -238,8 +238,8 @@ describe("CSet", () => {
 
     beforeEach(() => {
       runtimeGen = new TestingRuntimes();
-      alice = runtimeGen.newRuntime(rng);
-      bob = runtimeGen.newRuntime(rng);
+      alice = runtimeGen.newRuntime({ rng });
+      bob = runtimeGen.newRuntime({ rng });
 
       aliceSource = alice.registerCollab(
         "source",

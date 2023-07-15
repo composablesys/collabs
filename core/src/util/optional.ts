@@ -3,7 +3,7 @@ import {
   OptionalMessage,
 } from "../../generated/proto_compiled";
 import { SafeWeakRef } from "./safe_weak_ref";
-import { Serializer } from "./serializers";
+import { Serializer, protobufHas } from "./serializers";
 
 /**
  * An optional value of type T.
@@ -30,6 +30,8 @@ export class Optional<T> {
     if (!this.isPresent) {
       throw new Error("Optional.get() called but isPresent is false");
     }
+    // Use ! instead of nonNull because T might allow null.
+    // eslint-disable-next-line @typescript-eslint/no-non-null-assertion
     return this.valueIfPresent!;
   }
 
@@ -37,6 +39,8 @@ export class Optional<T> {
    * Returns the value if present, else returning other.
    */
   orElse(other: T): T {
+    // Use ! instead of nonNull because T might allow null.
+    // eslint-disable-next-line @typescript-eslint/no-non-null-assertion
     if (this.isPresent) return this.valueIfPresent!;
     else return other;
   }
@@ -47,6 +51,8 @@ export class Optional<T> {
    * @return                [description]
    */
   map<U>(f: (value: T) => U): Optional<U> {
+    // Use ! instead of nonNull because T might allow null.
+    // eslint-disable-next-line @typescript-eslint/no-non-null-assertion
     if (this.isPresent) return Optional.of(f(this.valueIfPresent!));
     else return Optional.empty();
   }
@@ -96,7 +102,7 @@ export class OptionalSerializer<T> implements Serializer<Optional<T>> {
 
   deserialize(message: Uint8Array): Optional<T> {
     const decoded = OptionalMessage.decode(message);
-    if (Object.prototype.hasOwnProperty.call(decoded, "valueIfPresent")) {
+    if (protobufHas(decoded, "valueIfPresent")) {
       return Optional.of(
         this.valueSerializer.deserialize(decoded.valueIfPresent)
       );

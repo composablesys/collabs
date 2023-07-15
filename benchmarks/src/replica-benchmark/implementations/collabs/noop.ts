@@ -1,9 +1,9 @@
-import * as collabs from "@collabs/collabs";
+import { PrimitiveCRDT } from "@collabs/collabs";
 import { Data } from "../../../util";
 import { INoop } from "../../interfaces/noop";
 import { CollabsReplica } from "./replica";
 
-export class NoopCRDT extends collabs.PrimitiveCRDT {
+export class NoopCRDT extends PrimitiveCRDT {
   noop() {
     super.sendPrimitive(new Uint8Array());
   }

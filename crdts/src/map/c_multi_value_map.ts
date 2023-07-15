@@ -1,13 +1,15 @@
 import {
-  Bytes,
   DefaultSerializer,
   IMap,
   InitToken,
   int64AsNumber,
+  nonNull,
   Optional,
+  protobufHas,
   Serializer,
   UpdateMeta,
 } from "@collabs/core";
+import { fromByteArray, toByteArray } from "base64-js";
 import {
   IMultiValueMapItemsSave,
   MultiValueMapItemsSave,
@@ -163,8 +165,8 @@ export class CMultiValueMap<K, V>
     // vector clock entries (those corresponding to current
     // items in this.get(key)) and optional wallClockTime/lamportTimestamp.
     super.sendCRDT(MultiValueMapMessage.encode(message).finish());
-    // OPT: don't re-serialize here
-    return this.get(key)!;
+    // OPT: don't re-serialize key here
+    return nonNull(this.get(key));
   }
 
   delete(key: K): void {
@@ -185,7 +187,7 @@ export class CMultiValueMap<K, V>
     crdtMeta: CRDTMessageMeta
   ): void {
     const decoded = MultiValueMapMessage.decode(<Uint8Array>message);
-    const keyAsString = Bytes.stringify(decoded.key);
+    const keyAsString = fromByteArray(decoded.key);
     const previousValue = this.getInternal(keyAsString);
 
     const newItems: MultiValueMapItem<V>[] = [];
@@ -200,17 +202,17 @@ export class CMultiValueMap<K, V>
         }
       }
     }
-    if (Object.prototype.hasOwnProperty.call(decoded, "value")) {
+    if (protobufHas(decoded, "value")) {
       // It's a set operation; add the set item.
       newItems.push({
         value: this.valueSerializer.deserialize(decoded.value),
         senderID: meta.senderID,
         senderCounter: crdtMeta.senderCounter,
         ...(this.wallClockTime
-          ? { wallClockTime: crdtMeta.wallClockTime! }
+          ? { wallClockTime: nonNull(crdtMeta.wallClockTime) }
           : {}),
         ...(this.lamportTimestamp
-          ? { lamportTimestamp: crdtMeta.lamportTimestamp! }
+          ? { lamportTimestamp: nonNull(crdtMeta.lamportTimestamp) }
           : {}),
       });
       needsSort = true;
@@ -240,7 +242,7 @@ export class CMultiValueMap<K, V>
     }
 
     const key = this.keySerializer.deserialize(
-      keyAsBytes ?? Bytes.parse(keyAsString)
+      keyAsBytes ?? toByteArray(keyAsString)
     );
 
     if (newItems.length === 0) {
@@ -265,11 +267,15 @@ export class CMultiValueMap<K, V>
     }
   }
 
-  private asArray(
+  /**
+   * Returns value in array form. The array is always new, to prevent
+   * the caller from mutating our internal state or vice-versa.
+   */
+  private asNewArray(
     value: MultiValueMapItem<V> | MultiValueMapItem<V>[]
   ): MultiValueMapItem<V>[] {
     if (value === undefined) return [];
-    if (Array.isArray(value)) return value;
+    if (Array.isArray(value)) return value.slice();
     else return [value];
   }
 
@@ -281,20 +287,18 @@ export class CMultiValueMap<K, V>
    * If defined, the return value is always non-empty, and its order is
    * eventually consistent. Specifically, it is
    * in order by [[MultiValueMapItem.sender]].
-   *
-   * Do not modify a returned array.
    */
   get(key: K): MultiValueMapItem<V>[] | undefined {
-    return this.getInternal(Bytes.stringify(this.keySerializer.serialize(key)));
+    return this.getInternal(fromByteArray(this.keySerializer.serialize(key)));
   }
 
   private getInternal(keyAsString: string): MultiValueMapItem<V>[] | undefined {
     const value = this.state.get(keyAsString);
-    return value === undefined ? undefined : this.asArray(value);
+    return value === undefined ? undefined : this.asNewArray(value);
   }
 
   has(key: K): boolean {
-    return this.state.has(Bytes.stringify(this.keySerializer.serialize(key)));
+    return this.state.has(fromByteArray(this.keySerializer.serialize(key)));
   }
 
   get size(): number {
@@ -311,8 +315,8 @@ export class CMultiValueMap<K, V>
   *entries(): IterableIterator<[K, MultiValueMapItem<V>[]]> {
     for (const [key, value] of this.state) {
       yield [
-        this.keySerializer.deserialize(Bytes.parse(key)),
-        this.asArray(value),
+        this.keySerializer.deserialize(toByteArray(key)),
+        this.asNewArray(value),
       ];
     }
   }
@@ -322,7 +326,7 @@ export class CMultiValueMap<K, V>
     const senders: string[] = [];
     const indexBySender = new Map<string, number>();
     for (const [keyAsString, itemsRaw] of this.state) {
-      const items = this.asArray(itemsRaw);
+      const items = this.asNewArray(itemsRaw);
       const entry: IMultiValueMapItemsSave = {
         values: new Array(items.length),
         senders: new Array(items.length),
@@ -333,18 +337,27 @@ export class CMultiValueMap<K, V>
         entry.lamportTimestamps = new Array(items.length);
 
       for (let i = 0; i < items.length; i++) {
+        // Skip nonNull() checks for efficiency; it's just a weakness
+        // of how we've organized the code.
+        // eslint-disable-next-line @typescript-eslint/no-non-null-assertion
         entry.values![i] = this.valueSerializer.serialize(items[i].value);
         let sender = indexBySender.get(items[i].senderID);
         if (sender === undefined) {
           sender = senders.length;
           senders.push(items[i].senderID);
         }
+        // eslint-disable-next-line @typescript-eslint/no-non-null-assertion
         entry.senders![i] = sender;
+        // eslint-disable-next-line @typescript-eslint/no-non-null-assertion
         entry.senderCounters![i] = items[i].senderCounter;
-        if (this.wallClockTime)
+        if (this.wallClockTime) {
+          // eslint-disable-next-line @typescript-eslint/no-non-null-assertion
           entry.wallClockTimes![i] = items[i].wallClockTime!;
-        if (this.lamportTimestamp)
+        }
+        if (this.lamportTimestamp) {
+          // eslint-disable-next-line @typescript-eslint/no-non-null-assertion
           entry.lamportTimestamps![i] = items[i].lamportTimestamp!;
+        }
       }
 
       entries[keyAsString] = entry;
@@ -371,7 +384,7 @@ export class CMultiValueMap<K, V>
     for (const [keyAsString, itemsRaw] of this.state) {
       this.loadOneKey(
         keyAsString,
-        this.asArray(itemsRaw),
+        this.asNewArray(itemsRaw),
         decoded.entries[keyAsString] as MultiValueMapItemsSave | undefined,
         decoded.senders,
         meta,

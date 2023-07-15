@@ -8,6 +8,7 @@ import {
   isRuntime,
   ListEvent,
   ListEventsRecord,
+  nonNull,
   PairSerializer,
   Position,
   Serializer,
@@ -24,23 +25,113 @@ import { LocalList } from "./local_list";
  * when a range of values is moved.
  */
 export interface ListMoveEvent<C> extends CollabEvent {
+  /**
+   * The new index of the first moved value.
+   *
+   * Collectively, the values have indices
+   * `index` through `index + values.length - 1`.
+   */
   index: number;
-  previousIndex: number;
+  /**
+   * The moved values, in list order.
+   */
   values: C[];
-  previousPositions: Position[];
+  /**
+   * The new positions corresponding to [[values]].
+   */
   positions: Position[];
+  /**
+   * The previous index of the first moved value,
+   * i.e., its index just before it moved.
+   */
+  previousIndex: number;
+  /**
+   * The previous positions corresponding to [[values]]
+   * i.e., their positions just before they moved.
+   */
+  previousPositions: Position[];
+}
+
+/**
+ * Event emitted by a [[CList]]`<C>` when values that were already
+ * archived are permanently deleted.
+ */
+export interface ListArchivedEvent<C> extends CollabEvent {
+  /**
+   * The deleted values, in arbitrary order. All of these values
+   * were already archived.
+   */
+  values: C[];
+  /**
+   * The positions corresponding to [[values]].
+   */
+  positions: Position[];
+}
+
+/**
+ * Event emitted by a [[CList]]`<C>`
+ * when values that were already archived are moved.
+ */
+export interface ListMoveArchivedEvent<C> extends CollabEvent {
+  /**
+   * The moved values, in arbitrary order. All of these values
+   * are in an (unchanged) archived state.
+   */
+  values: C[];
+  /**
+   * The new positions corresponding to [[values]].
+   *
+   * I.e., the new positions that the values would have when restored
+   * (cf. [[CList.positionOf]]).
+   */
+  positions: Position[];
+  /**
+   * The previous positions corresponding to [[values]].
+   */
+  previousPositions: Position[];
 }
 
 /**
  * Events record for [[CList]]`<C>`.
  */
 export interface ListExtendedEventsRecord<C> extends ListEventsRecord<C> {
-  Insert: ListEvent<C> & { method: "insert" | "restore" };
-  Delete: ListEvent<C> & { method: "delete" | "archive" };
+  Insert: ListEvent<C> & {
+    /**
+     * The method that caused this event:
+     * - [[CList.insert]], which inserts new values.
+     * - [[CList.restore]], which restores archived values.
+     */
+    method: "insert" | "restore";
+  };
+  /**
+   * Emitted when a range of values is deleted or archived,
+   * making them no longer present in the list.
+   *
+   * This event is *not* emitted when already-archived values
+   * are permanently deleted by [[CList.delete]]; that instead emits
+   * [[DeleteArchived]].
+   */
+  Delete: ListEvent<C> & {
+    /**
+     * The method that caused this event:
+     * - [[CList.delete]], which permanently deletes values.
+     * - [[CList.archive]], which archives values.
+     */
+    method: "delete" | "archive";
+  };
   /**
    * Emitted when a range of values is moved.
    */
   Move: ListMoveEvent<C>;
+  /**
+   * Emitted when values that were already
+   * archived are permanently deleted by [[CList.delete]].
+   */
+  DeleteArchived: ListArchivedEvent<C>;
+  /**
+   * Emitted when archived values are moved.
+   */
+  MoveArchived: ListMoveArchivedEvent<C>;
 }
 
 class CListEntry<C extends Collab> extends CObject {
@@ -163,6 +254,10 @@ export class CList<
     // the corresponding entry.
     // Also dispatch our own events.
     this.set.on("Add", (event) => {
+      // During load, CSet always emits a new value's Add event before
+      // loading that value. Thus the value starts off not-archived.
+      // If it was archived in the loaded state, we'll get a separate
+      // event from value itself later.
       const position = event.value.position.value;
       this.list.set(position, event.value.value);
       this.emit("Insert", {
@@ -174,8 +269,8 @@ export class CList<
       });
     });
     this.set.on("Delete", (event) => {
+      const position = event.value.position.value;
       if (event.value.present.value) {
-        const position = event.value.position.value;
         const index = this.list.indexOfPosition(position);
         this.list.delete(position);
         this.emit("Delete", {
@@ -185,9 +280,14 @@ export class CList<
           method: "delete",
           meta: event.meta,
         });
+      } else {
+        // Archived -> deleted.
+        this.emit("DeleteArchived", {
+          values: [event.value.value],
+          positions: [position],
+          meta: event.meta,
+        });
       }
-      // else archived -> deleted; no new event.
-      // A value that needs to know when this happens can override Collab.finalize.
     });
   }
 
@@ -212,8 +312,10 @@ export class CList<
     // OPT: avoid creating closures for each entry here?
     entry.position.on("Set", (event) => {
       // Handle move ops.
-      // Note that we only do this when the value is present (not archived).
+      if (event.value === event.previousValue) return;
+
       if (entry.present.value) {
+        // Moving a present value.
         const previousIndex = this.list.indexOfPosition(event.previousValue);
         this.list.delete(event.previousValue);
         this.list.set(event.value, entry.value);
@@ -225,12 +327,26 @@ export class CList<
           positions: [event.value],
           meta: event.meta,
         });
+      } else {
+        // Moving an archived value.
+        // This happens when we receive a move operation after a
+        // concurrent archive operation.
+        // Some users may wish to track a view of archived values' positions
+        // (e.g., to show where they would be restored to), so we still emit
+        // an event, just without indices.
+        this.emit("MoveArchived", {
+          values: [entry.value],
+          previousPositions: [event.previousValue],
+          positions: [event.value],
+          meta: event.meta,
+        });
       }
     });
     entry.present.on("Set", (event) => {
+      // Handle archive/restore ops.
+      if (event.value === event.previousValue) return;
+
       const position = entry.position.value;
-      // Here we rely on the fact that CBoolean only emits events when
-      // the value actually changes.
       if (event.value) {
         // entry was un-archived.
         this.list.set(position, entry.value);
@@ -288,8 +404,8 @@ export class CList<
   }
 
   /**
-   * Delete `count` values starting at `startIndex`, i.e., values
-   * `[startIndex, startIndex + count - 1)`.
+   * Delete `count` values starting at `index`, i.e., values
+   * `[index, index + count - 1)`.
    *
    * All later values shift to the left,
    * decreasing their indices by `count`.
@@ -302,22 +418,22 @@ export class CList<
    *
    * See also: [[archive]], [[CSet.delete]].
    */
-  delete(startIndex: number, count = 1): void {
+  delete(index: number, count = 1): void {
     if (count < 0 || !Number.isInteger(count)) {
       throw new Error(`invalid count: ${count}`);
     }
     // Get the values to delete.
-    const toDelete = this.list.slice(startIndex, startIndex + count);
+    const toDelete = this.list.slice(index, index + count);
     toDelete.reverse();
     // Delete them.
     for (const value of toDelete) {
-      this.set.delete(this.entryFromValue(value)!);
+      this.set.delete(nonNull(this.entryFromValue(value)));
     }
   }
 
   /**
-   * Archives `count` values starting at `startIndex`, i.e., values
-   * `[startIndex, startIndex + count - 1)`.
+   * Archives `count` values starting at `index`, i.e., values
+   * `[index, index + count - 1)`.
    *
    * All later values shift to the left,
    * decreasing their indices by `count`.
@@ -327,22 +443,22 @@ export class CList<
    * and they can be made present again with [[restore]].
    *
    * @param count The number of values to archive.
-   * Defaults to 1 (archive the value at `startIndex` only).
+   * Defaults to 1 (archive the value at `index` only).
    *
-   * @throws if `startIndex < 0` or
-   * `startIndex + count >= this.length`.
+   * @throws if `index < 0` or
+   * `index + count >= this.length`.
    */
-  archive(startIndex: number, count = 1): void {
+  archive(index: number, count = 1): void {
     if (count < 0 || !Number.isInteger(count)) {
       throw new Error(`invalid count: ${count}`);
     }
     // Get the values to archive.
-    const toArchive = this.list.slice(startIndex, startIndex + count);
+    const toArchive = this.list.slice(index, index + count);
     toArchive.reverse();
     // Archive them. Note the entry.position will "remember" the current
     // position (and concurrent moves) for when we are restored.
     for (const value of toArchive) {
-      const entry = this.entryFromValue(value)!;
+      const entry = nonNull(this.entryFromValue(value));
       entry.present.value = false;
     }
   }
@@ -376,9 +492,9 @@ export class CList<
   }
 
   /**
-   * Moves `count` values from `startIndex` to `insertionIndex`.
+   * Moves `count` values from `index` to `insertionIndex`.
    *
-   * That is, the range of values at `[startIndex, startIndex + count - 1)` is moved to the position
+   * That is, the range of values at `[index, index + count - 1)` is moved to the position
    * *currently* at `insertionIndex`.
    *
    * Other values shift to accommodate the move.
@@ -387,13 +503,13 @@ export class CList<
    * normally, even if concurrent to the move.
    *
    * @param count The number of values to move.
-   * Defaults to 1 (move the value at `startIndex` only).
+   * Defaults to 1 (move the value at `index` only).
    * @returns The new index of the first moved value.
-   * This will be less then `insertionIndex` if `startIndex < insertionIndex`.
-   * @throws if `startIndex < 0` or
-   * `startIndex + count >= this.length`.
+   * This will be less then `insertionIndex` if `index < insertionIndex`.
+   * @throws if `index < 0` or
+   * `index + count >= this.length`.
    */
-  move(startIndex: number, insertionIndex: number, count = 1): number {
+  move(index: number, insertionIndex: number, count = 1): number {
     if (count < 0 || !Number.isInteger(count)) {
       throw new Error(`invalid count: ${count}`);
     }
@@ -404,10 +520,10 @@ export class CList<
       insertionIndex === 0 ? null : this.list.getPosition(insertionIndex - 1);
     const positions = this.positionSource.createPositions(prevPos, count);
     // Values to move.
-    const toMove = this.list.slice(startIndex, startIndex + count);
+    const toMove = this.list.slice(index, index + count);
     // Move them.
     for (let i = 0; i < count; i++) {
-      const entry = this.entryFromValue(toMove[i])!;
+      const entry = nonNull(this.entryFromValue(toMove[i]));
       entry.position.value = positions[i];
     }
     // Return the new index of toMove[0].
@@ -461,6 +577,10 @@ export class CList<
     return this.list.indexOfPosition(position, searchDir);
   }
 
+  /**
+   * Returns whether position is currently present in the list,
+   * i.e., its value is present (neither deleted nor archived).
+   */
   hasPosition(position: Position): boolean {
     return this.list.hasPosition(position);
   }
@@ -469,7 +589,15 @@ export class CList<
     return this.list.getByPosition(position);
   }
 
-  entries(): IterableIterator<[index: number, position: Position, value: C]> {
+  /**
+   * Returns an iterator of [index, value, position] tuples for every
+   * value in the list, in list order.
+   *
+   * Note: If you [[move]] list elements, you should not use `position`
+   * as a React key, since a value's position changes when it moves.
+   * Instead, [use the object itself as the key](https://stackoverflow.com/questions/31394774/reactjs-using-object-ref-as-key).
+   */
+  entries(): IterableIterator<[index: number, value: C, position: Position]> {
     return this.list.entries();
   }
 
@@ -492,6 +620,8 @@ export class CList<
   }
 
   indexOf(searchElement: C, fromIndex = 0): number {
+    // Override AbstractList's implementation to use entryFromValue (O(1) time)
+    // instead of a linear search.
     const entry = this.entryFromValue(searchElement);
     if (entry !== null && this.set.has(entry) && entry.present.value) {
       const index = this.list.indexOfPosition(entry.position.value);
@@ -501,24 +631,20 @@ export class CList<
     return -1;
   }
 
-  lastIndexOf(searchElement: C, fromIndex = this.length - 1): number {
-    const index = this.indexOf(searchElement);
-    if (index !== -1) {
-      if (fromIndex < 0) fromIndex += this.length;
-      if (index <= fromIndex) return index;
-    }
-    return -1;
-  }
-
-  positionOf(searchElement: C): Position | undefined {
-    const entry = this.entryFromValue(searchElement);
+  /**
+   * Returns value's position, or undefined if it is deleted or
+   * never an element of this list.
+   *
+   * For an archived (but not deleted) value, returns the position
+   * that it would have when restored. You can use
+   * `list.indexOfPosition(list.positionOf(value), "right")` to find
+   * the index that it would have when restored.
+   */
+  positionOf(value: C): Position | undefined {
+    const entry = this.entryFromValue(value);
     if (entry !== null && this.set.has(entry) && entry.present.value) {
       return entry.position.value;
     }
     return undefined;
-  }
-
-  includes(searchElement: C, fromIndex = 0): boolean {
-    return this.indexOf(searchElement, fromIndex) !== -1;
   }
 }

@@ -312,7 +312,7 @@ class CMinesweeper extends collabs.CObject {
 Finally, we need to convert the variable `currentGame: Minesweeper | null` that holds the app's top-level state. This is a bit tricky because it requires two parts:
 
 1. A "factory" that creates new `CMinesweeper` instances dynamically. For this, we use a `CSet<CMinesweeper>` and "add" new instances to it.
-2. A variable holding a _reference_ to the current game (or `null`). In general, Collabs uses a [CollabID](../api/collabs/interfaces/CollabID.html) to store a reference to a Collab in another collection. So, we use a `CVar<CollabID<CMinesweeper> | null>`.
+2. A variable holding a _reference_ to the current game (or `null`). In general, Collabs uses a [CollabID](../api/collabs/modules.html#CollabID) to store a reference to a Collab in another collection. So, we use a `CVar<CollabID<CMinesweeper> | null>`.
 
 ```ts
 const gameFactory = container.registerCollab(

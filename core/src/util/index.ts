@@ -1,4 +1,4 @@
-export * from "./bytes";
+export * from "./assertions";
 export * from "./cursors";
 export * from "./optional";
 export * from "./safe_weak_ref";

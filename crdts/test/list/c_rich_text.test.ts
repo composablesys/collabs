@@ -530,8 +530,8 @@ describe("CRichText", () => {
 
     beforeEach(() => {
       runtimeGen = new TestingRuntimes();
-      alice = runtimeGen.newRuntime(rng);
-      bob = runtimeGen.newRuntime(rng);
+      alice = runtimeGen.newRuntime({ rng });
+      bob = runtimeGen.newRuntime({ rng });
 
       aliceText = alice.registerCollab(
         "richText",
@@ -1171,7 +1171,7 @@ describe("CRichText", () => {
         runtimes = [];
         texts = [];
         for (let i = 0; i < numUsers; i++) {
-          const runtime = runtimeGen.newRuntime(rng);
+          const runtime = runtimeGen.newRuntime({ rng });
           runtimes.push(runtime);
           const text = runtime.registerCollab(
             "text",
@@ -1266,7 +1266,7 @@ describe("CRichText", () => {
             const formatted = texts[0].formatted();
             for (const list of texts) {
               assert.deepStrictEqual(
-                [...list.entries()].map(([, , value, format]) => ({
+                [...list.entries()].map(([, value, format]) => ({
                   value,
                   format,
                 })),

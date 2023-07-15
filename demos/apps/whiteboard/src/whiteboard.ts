@@ -1,4 +1,4 @@
-import * as collabs from "@collabs/collabs";
+import { MultiValueMapItem, CValueMap } from "@collabs/collabs";
 import { CContainer } from "@collabs/container";
 import $ from "jquery";
 
@@ -7,7 +7,7 @@ type Color = [r: number, g: number, b: number];
 (async function () {
   const container = new CContainer();
 
-  function aggregate(items: collabs.MultiValueMapItem<Color>[]): Color {
+  function aggregate(items: MultiValueMapItem<Color>[]): Color {
     const sum = items
       .map((item) => item.value)
       .reduce(
@@ -23,7 +23,7 @@ type Color = [r: number, g: number, b: number];
   const boardState = container.registerCollab(
     "whiteboard",
     (init) =>
-      new collabs.CValueMap<[x: number, y: number], Color>(init, {
+      new CValueMap<[x: number, y: number], Color>(init, {
         aggregator: { aggregate },
       })
   );

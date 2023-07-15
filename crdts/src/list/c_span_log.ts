@@ -2,10 +2,12 @@ import {
   CollabEvent,
   CollabEventsRecord,
   InitToken,
-  int64AsNumber,
   Position,
   Serializer,
   UpdateMeta,
+  int64AsNumber,
+  nonNull,
+  protobufHas,
 } from "@collabs/core";
 import {
   SpanLogPartialSpanMessage,
@@ -58,11 +60,11 @@ class PartialSpanSerializer<F extends Record<string, any>>
     const decoded = SpanLogPartialSpanMessage.decode(message);
     return {
       key: decoded.key,
-      value: Object.prototype.hasOwnProperty.call(decoded, "value")
+      value: protobufHas(decoded, "value")
         ? this.formatSerializer.deserialize(decoded.value)
         : undefined,
       startPosition: decoded.startPosition,
-      endPosition: Object.prototype.hasOwnProperty.call(decoded, "endPosition")
+      endPosition: protobufHas(decoded, "endPosition")
         ? decoded.endPosition
         : null,
       ...(decoded.endClosed ? { endClosed: true } : {}),
@@ -134,7 +136,7 @@ export class CSpanLog<F extends Record<string, any>> extends PrimitiveCRDT<
     const decoded = this.partialSpanSerializer.deserialize(<Uint8Array>message);
     const span: Span<F> = {
       ...decoded,
-      lamport: crdtMeta.lamportTimestamp!,
+      lamport: nonNull(crdtMeta.lamportTimestamp),
       senderID: crdtMeta.senderID,
     };
     let bySender = this.log.get(crdtMeta.senderID);

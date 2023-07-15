@@ -1,5 +1,5 @@
 import { CollabEventsRecord, InitToken, UpdateMeta } from "@collabs/collabs";
-import { CollabEvent, CPrimitive } from "@collabs/core";
+import { CPrimitive, CollabEvent, protobufHas } from "@collabs/core";
 import { ContainerHostSave } from "../generated/proto_compiled";
 import {
   ContainerMessage,
@@ -160,7 +160,7 @@ export class CContainerHost extends CPrimitive<ContainerHostEventsRecord> {
     switch (e.data.type) {
       case "Ready":
         this._isContainerReady = true;
-        this.emit("ContainerReady", {} as CollabEvent, false);
+        this.emit("ContainerReady", {} as CollabEvent, { skipAnyEvent: true });
         // Deliver queued ReceiveMessages.
         this.updateMessageQueue!.forEach((message) =>
           this.messagePortSend(message)
@@ -365,10 +365,7 @@ export class CContainerHost extends CPrimitive<ContainerHostEventsRecord> {
 
       // Set our latestSaveData and furtherMessages.
       const decoded = ContainerHostSave.decode(savedState);
-      this.latestSaveData = Object.prototype.hasOwnProperty.call(
-        decoded,
-        "latestSaveData"
-      )
+      this.latestSaveData = protobufHas(decoded, "latestSaveData")
         ? decoded.latestSaveData
         : null;
       const furtherUpdates: Update[] = decoded.furtherUpdatesData.map(

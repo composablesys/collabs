@@ -10,6 +10,7 @@ import {
   Serializer,
   StringSerializer,
   UpdateMeta,
+  nonNull,
 } from "@collabs/core";
 import { CPositionSource, PositionSourceLoadEvent } from "./c_position_source";
 import { LocalList } from "./local_list";
@@ -86,10 +87,11 @@ export class CValueList<T> extends AbstractList_CObject<T, [T]> {
     // Operation handlers.
     this.positionSource.on("Create", (e) => {
       // e.info is valuesSer from this.insert.
+      const info = nonNull(e.info);
       const values =
         e.count === 1
-          ? [this.valueSerializer.deserialize(e.info!)]
-          : this.valueArraySerializer.deserialize(e.info!);
+          ? [this.valueSerializer.deserialize(info)]
+          : this.valueArraySerializer.deserialize(info);
       this.list.setCreated(e, values);
       // Here we exploit forwards non-interleaving, which guarantees
       // that the values are contiguous.
@@ -103,6 +105,8 @@ export class CValueList<T> extends AbstractList_CObject<T, [T]> {
     this.deleteMessenger.on("Message", (e) => {
       // OPT: combine calls?
       if (this.list.hasPosition(e.message)) {
+        // Use ! instead of nonNull because T might allow null.
+        // eslint-disable-next-line @typescript-eslint/no-non-null-assertion
         const value = this.list.getByPosition(e.message)!;
         const index = this.list.indexOfPosition(e.message);
         this.list.delete(e.message);
@@ -150,20 +154,20 @@ export class CValueList<T> extends AbstractList_CObject<T, [T]> {
     return values[0];
   }
 
-  delete(startIndex: number, count = 1): void {
-    if (startIndex < 0) {
-      throw new Error(`startIndex out of bounds: ${startIndex}`);
+  delete(index: number, count = 1): void {
+    if (index < 0) {
+      throw new Error(`index out of bounds: ${index}`);
     }
-    if (startIndex + count > this.length) {
+    if (index + count > this.length) {
       throw new Error(
-        `(startIndex + count) out of bounds: ${startIndex} + ${count} (length: ${this.length})`
+        `(index + count) out of bounds: ${index} + ${count} (length: ${this.length})`
       );
     }
 
     // OPT: native range deletes? E.g. compress waypoint valueIndex ranges.
     // OPT: optimize range iteration (ListView.slice for positions?)
     // Delete from back to front, so indices make sense.
-    for (let i = startIndex + count - 1; i >= startIndex; i--) {
+    for (let i = index + count - 1; i >= index; i--) {
       this.deleteMessenger.sendMessage(this.list.getPosition(i));
     }
   }
@@ -207,22 +211,32 @@ export class CValueList<T> extends AbstractList_CObject<T, [T]> {
    * Deletes and inserts values like [Array.splice](https://developer.mozilla.org/en-US/docs/Web/JavaScript/Reference/Global_Objects/Array/splice).
    *
    * If `deleteCount` is provided, this method first deletes
-   * `deleteCount` values starting at `startIndex`.
-   * Next, this method inserts `values` at `startIndex`.
+   * `deleteCount` values starting at `start`.
+   * Next, this method inserts `values` at `start`.
    *
-   * All values currently at or after `startIndex + deleteCount`
+   * All values currently at or after `start + deleteCount`
    * shift to accommodate the change in length.
+   *
+   * @returns The deleted values.
    */
-  splice(startIndex: number, deleteCount?: number, ...values: T[]): void {
-    // Sanitize deleteCount
-    if (deleteCount === undefined || deleteCount > this.length - startIndex)
-      deleteCount = this.length - startIndex;
+  splice(start: number, deleteCount?: number, ...values: T[]): T[] {
+    // Sanitize start.
+    if (start < 0) start += this.length;
+    if (start < 0) start = 0;
+    if (start > this.length) start = this.length;
+
+    // Sanitize deleteCount.
+    if (deleteCount === undefined || deleteCount > this.length - start)
+      deleteCount = this.length - start;
     else if (deleteCount < 0) deleteCount = 0;
-    // Delete then insert
-    this.delete(startIndex, deleteCount);
+
+    // Delete then insert.
+    const ret = this.slice(start, start + deleteCount);
+    this.delete(start, deleteCount);
     if (values.length > 0) {
-      this.insert(startIndex, ...values);
+      this.insert(start, ...values);
     }
+    return ret;
   }
 
   slice(start?: number, end?: number): T[] {
@@ -252,7 +266,7 @@ export class CValueList<T> extends AbstractList_CObject<T, [T]> {
     return this.list.positions();
   }
 
-  entries(): IterableIterator<[index: number, position: Position, value: T]> {
+  entries(): IterableIterator<[index: number, value: T, position: Position]> {
     return this.list.entries();
   }
 
@@ -294,7 +308,7 @@ export class CValueList<T> extends AbstractList_CObject<T, [T]> {
     );
     super.load(savedStateTree, meta);
 
-    const savedState = savedStateTree.self!;
+    const savedState = nonNull(savedStateTree.self);
 
     if (this.list.inInitialState) {
       // Shortcut: No need to merge, just load the state directly.
@@ -302,7 +316,7 @@ export class CValueList<T> extends AbstractList_CObject<T, [T]> {
       if (this.list.length > 0) {
         const values = new Array<T>(this.list.length);
         const positions = new Array<Position>(this.list.length);
-        for (const [i, position, value] of this.list.entries()) {
+        for (const [i, value, position] of this.list.entries()) {
           values[i] = value;
           positions[i] = position;
         }
@@ -320,7 +334,7 @@ export class CValueList<T> extends AbstractList_CObject<T, [T]> {
       // OPT: do changes by-waypoint instead, for shorter loops, optimized set/delete,
       // and fewer events.
       const deleteEvents: ListEvent<T>[] = [];
-      for (const [index, position, value] of this.list.entries()) {
+      for (const [index, value, position] of this.list.entries()) {
         if (
           !sourceLoadEvent.isNewRemotely(position) &&
           !remote.hasPosition(position)
@@ -345,7 +359,7 @@ export class CValueList<T> extends AbstractList_CObject<T, [T]> {
       // CPositionSource.
       const insertEvents: ListEvent<T>[] = [];
       let insertedSoFar = 0;
-      for (const [, position, value] of remote.entries()) {
+      for (const [, value, position] of remote.entries()) {
         // OPT: use waypoints to do bulk inserts. Need to be careful about: missing
         // (remotely-deleted) elements; indices that skip over child waypoints.
         // Also, double-check that CRichText's Insert event handler still works

@@ -1,4 +1,10 @@
-import { int64AsNumber, Serializer, UpdateMeta } from "@collabs/core";
+import {
+  int64AsNumber,
+  nonNull,
+  protobufHas,
+  Serializer,
+  UpdateMeta,
+} from "@collabs/core";
 import { CRDTMetaMessage } from "../../generated/proto_compiled";
 import { CRDTMessageMeta, CRDTSavedStateMeta, VectorClock } from "./crdt_meta";
 
@@ -50,7 +56,7 @@ export class SendCRDTMeta implements CRDTMessageMeta {
     private readonly actualWallClockTime: number,
     private readonly actualLamportTimestamp: number
   ) {
-    this.senderCounter = actualVC.get(senderID)!;
+    this.senderCounter = nonNull(actualVC.get(senderID));
     this.vcEntries.set(senderID, this.senderCounter);
 
     if (causallyMaximalVCKeys.has(senderID)) {
@@ -58,7 +64,7 @@ export class SendCRDTMeta implements CRDTMessageMeta {
     }
     this.maximalVCKeyCount = causallyMaximalVCKeys.size;
     for (const replicaID of causallyMaximalVCKeys) {
-      this.vcEntries.set(replicaID, actualVC.get(replicaID)!);
+      this.vcEntries.set(replicaID, nonNull(actualVC.get(replicaID)));
     }
 
     this.vectorClock = { get: this.vectorClockGet.bind(this) };
@@ -245,10 +251,10 @@ export class RuntimeMetaSerializer implements Serializer<UpdateMeta> {
       vc,
       // Missing converted to 0 by protobufjs - okay.
       decoded.maximalVcKeyCount,
-      Object.prototype.hasOwnProperty.call(decoded, "wallClockTime")
+      protobufHas(decoded, "wallClockTime")
         ? int64AsNumber(decoded.wallClockTime)
         : null,
-      Object.prototype.hasOwnProperty.call(decoded, "lamportTimestamp")
+      protobufHas(decoded, "lamportTimestamp")
         ? int64AsNumber(decoded.lamportTimestamp)
         : null
     );

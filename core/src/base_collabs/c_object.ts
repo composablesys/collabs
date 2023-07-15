@@ -10,6 +10,7 @@ import {
   SavedStateTree,
   UpdateMeta,
 } from "../core";
+import { nonNull } from "../util/assertions";
 
 /**
  * Base class for a collaborative object, containing
@@ -182,7 +183,7 @@ export class CObject<Events extends CollabEventsRecord = CollabEventsRecord>
       return;
     }
 
-    for (const [name, childSave] of savedStateTree.children!) {
+    for (const [name, childSave] of nonNull(savedStateTree.children)) {
       const child = this.children.get(name);
       // For versioning purposes, skip loading children that we don't have.
       if (child !== undefined) {
@@ -198,7 +199,7 @@ export class CObject<Events extends CollabEventsRecord = CollabEventsRecord>
   }
 
   fromID<C extends Collab>(id: CollabID<C>, startIndex = 0): C | undefined {
-    const name = id.namePath[startIndex];
+    const name = id.collabIDPath[startIndex];
     const child = this.children.get(name);
     if (child === undefined) {
       // Return undefined instead of an erroring, in case it is
@@ -207,7 +208,7 @@ export class CObject<Events extends CollabEventsRecord = CollabEventsRecord>
     }
     // Terminal case.
     // Note that this cast is unsafe, but convenient.
-    if (startIndex === id.namePath.length - 1) return child as C;
+    if (startIndex === id.collabIDPath.length - 1) return child as C;
     // Recursive case.
     if ((child as Parent).fromID === undefined) {
       throw new Error("child is not a parent, but CollabID is its descendant");
@@ -234,7 +235,7 @@ export class CObject<Events extends CollabEventsRecord = CollabEventsRecord>
    * Internal (parent) use only.
    *
    * By default, this methods calls `finalize` on every child.
-   * on every child. Override to change this behavior,
+   * Override to change this behavior,
    * e.g., to add your own finalization steps
    * (but consider calling `super.finalize()`).
    */

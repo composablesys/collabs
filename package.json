@@ -20,7 +20,15 @@
     "template-app",
     "demos/types/number",
     "demos/types/resettable-counter",
-    "demos/apps",
+    "demos/apps/counter",
+    "demos/apps/group",
+    "demos/apps/horse-color-genetics",
+    "demos/apps/minesweeper",
+    "demos/apps/plaintext",
+    "demos/apps/rich-text",
+    "demos/apps/whiteboard",
+    "demos/apps/selector",
+    "demos/apps/server",
     "benchmarks",
     "docs"
   ],
@@ -41,33 +49,42 @@
     "noTest": [
       "template-container",
       "template-app",
-      "docs"
+      "docs",
+      "demos/apps/counter"
     ],
     "noFix": [
       "template-container",
       "template-app",
       "template-custom-type",
-      "docs"
+      "docs",
+      "demos/apps/counter"
     ],
-    "noHeroku": [
-      "benchmarks",
-      "docs"
+    "demoApps": [
+      "demos/apps/counter",
+      "demos/apps/group",
+      "demos/apps/horse-color-genetics",
+      "demos/apps/minesweeper",
+      "demos/apps/plaintext",
+      "demos/apps/rich-text",
+      "demos/apps/whiteboard",
+      "demos/apps/selector",
+      "demos/apps/server"
     ]
   },
   "scripts": {
-    "start": "npm start --prefix demos/apps",
+    "start": "npm start --prefix demos/apps/server",
     "build": "node foreach-workspace.js all \"npm run build -w\"",
+    "buildDemoServer": "node foreach-workspace.js publish \"npm run build -w\" && node foreach-workspace.js demoApps \"npm run build -w\"",
+    "heroku-postbuild": "npm run buildDemoServer",
     "buildForTypedoc": "node foreach-workspace.js publish -s publishNoTypedoc \"npm run build -w\"",
-    "heroku-postbuild": "node foreach-workspace.js all -s noHeroku \"npm run build -w\"",
     "test": "node foreach-workspace.js all -s noTest \"npm run test -w\"",
     "fix": "node foreach-workspace.js all -s noFix \"npm run fix -w\"",
     "version": "bash version_script.sh",
     "publish": "node foreach-workspace.js publish \"npm publish -w\"",
     "clean": "node foreach-workspace.js all \"npm run clean -w\"",
-    "reset": "rimraf */package-lock.json */node_modules package-lock.json node_modules"
+    "reset": "rimraf node_modules package-lock.json **/package-lock.json **/node_modules"
   },
   "engines": {
-    "node": "16.x",
-    "npm": "8.1.2"
+    "node": "18.x"
   }
 }

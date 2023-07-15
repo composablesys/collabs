@@ -25,6 +25,8 @@
   <body>
     <h2>Collabs Demos</h2>
 
+    <p></p>
+
     <div id="demoList"></div>
 
     <script>
@@ -35,15 +37,12 @@
           "whiteboard/dist/whiteboard.html": "Whiteboard",
           "plaintext/dist/plaintext.html": "Plain text editor",
           "rich-text/dist/rich_text.html": "Rich text editor",
-          "group/dist/group.html":
-            "Shapes - multiple<br />semidirect (experimental)",
-          "aspace/dist/aspace.html": "A Space",
           "minesweeper/dist/minesweeper.html": "Minesweeper",
-          "horse-color-genetics/dist/standalone/horse-color-genetics.html":
-            "Horse color genetics -<br />standalone",
           "horse-color-genetics/dist/multi/horse-color-genetics.html":
-            "Horse color genetics -<br /> multi-file",
+            "Horse color genetics",
           "selector/dist/selector.html": "Container selector",
+          "group/dist/group.html":
+            "Shapes - semidirect<br />product (experimental)",
         }),
       ];
 
@@ -57,127 +56,18 @@
     </script>
 
     <div id="prose">
+      <a id="matrix"><h3>Usage Over Matrix</h3></a>
       <p>
-        Each link leads to a collaborative app. Anyone who visits that page can
-        make edits and (hopefully) see the same state. Try it out by opening a
-        demo in multiple tabs or using it at the same time as a friend.
-      </p>
-      <p>
-        <b>Note:</b> Collabs is alpha software, and the demos are prototypes. So
-        errors or inconsistencies (different users seeing different states) may
-        occur. This is especially true for demos marked "(experimental)", which
-        try out new or more complex library features. Additionally, the server
-        occasionally resets when no one is using it, erasing the demos' states.
+        Use the <code>/addwidget</code> command in a demo's "More Info" page to
+        add it as a widget in a <a href="https://matrix.org/">Matrix</a> room.
       </p>
 
-      <a id="matrix"><h2>Usage Over Matrix</h2></a>
+      <h3>About</h3>
       <p>
-        You can also run the above demos over
-        <a href="https://matrix.org/">Matrix</a>, using a Matrix room (group
-        chat) to communicate instead of this server.
+        Live collaboration using the
+        <a href="https://collabs.readthedocs.io/en/latest/">Collabs library</a>.
       </p>
 
-      <p>To add a demo to a Matrix room:</p>
-
-      <ol>
-        <li>
-          Copy the "Matrix widget command" from the demo's "More Info" page.
-          E.g., for the rich text editor, it is<br />
-          <code id="command"></code><br />
-          <button id="copy">Copy</button>
-          <script>
-            {
-              const loc = window.location;
-              const command = document.getElementById("command");
-              const commandText = `/addwidget ${loc.protocol}//${loc.host}/matrix.html?container=demos/rich-text/dist/rich_text.html`;
-              command.innerHTML = commandText;
-              document.getElementById("copy").addEventListener("click", () => {
-                navigator.clipboard.writeText(commandText);
-              });
-            }
-          </script>
-        </li>
-        <li>
-          Send that command as a message to the room. This adds the widget.
-        </li>
-        <li>
-          Now or later, open the widget using a widget-capable Matrix client.
-          E.g., in <a href="https://app.element.io/">Element Web</a>: click
-          "Room Info" in the top-right, then select "Custom Widget".
-        </li>
-      </ol>
-
-      When you use Matrix instead of the above links:
-
-      <ul>
-        <li>Your edits are private, only visible within the room.</li>
-        <li>
-          Someday in the future, the demo's state will be saved within the room,
-          so that it acts as a long-lived document. This is currently flaky, so
-          it's best to only use the demo with all collaborators online at once
-          (<a href="https://github.com/composablesys/collabs/issues/209"
-            >track progress</a
-          >).
-        </li>
-        <li>
-          You're not dependent on this site for communication, only for static
-          content.
-        </li>
-      </ul>
-
-      <a id="containers"><h2>Demo Containers</h2></a>
-
-      <p>
-        All of the demos are packaged as
-        <a
-          href="https://github.com/composablesys/collabs/blob/master/collabs/docs/containers.md"
-          >Collabs containers</a
-        >
-        that you can run on the network of your choice. Specifically, you can
-        run the container in any "container host", which handles networking and
-        storage for the container. This is how we deploy our demos both on this
-        server and over Matrix: each runs a container host, while the demo is
-        compiled only once.
-        <a href="web_socket.html?container=demos/selector/dist/selector.html"
-          >Selector</a
-        >
-        also runs nested apps this way.
-      </p>
-      <p>
-        Each demo's "More Info" page has a download link that you can use to
-        download or link to its container. You can provide this file/link to a
-        container host run by someone else, or to
-        <a href="web_socket.html?container=demos/selector/dist/selector.html"
-          >Selector</a
-        >
-        or
-        <a
-          href="web_socket.html?container=demos/tile-board/dist/tile_board.html"
-          >Tile Board</a
-        >
-        when they ask for a file/URL. Unless noted otherwise, the file is an
-        HTML file that includes all of the demo's code and dependencies. This
-        means that if you download the file now, you can use it later in a
-        (version-compatible) container host, even if this website goes down.
-      </p>
-
-      <h2>About</h2>
-
-      <p>
-        <a href="https://collabs.readthedocs.io/en/latest/">Collabs</a> is a
-        TypeScript library for building and using
-        <i>collaborative data structures</i>. This site demos collaborative apps
-        built on top of the library, made by Collabs contributors.
-      </p>
-      <p>
-        The demos linked above connect users via this server and don't really
-        support offline editing. However, in principle, they can run on top of
-        any network (Matrix, WebRTC, someone else's server, a mix, etc.) and
-        continue working offline, syncing changes later. They can also be
-        downloaded (link on each demo's "More Info" page) and used indefinitely,
-        unlike traditional cloud-based collaborative apps, which can go away at
-        any time.
-      </p>
       <p>
         <a
           href="https://github.com/composablesys/collabs/tree/master/demos/apps"
