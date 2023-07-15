@@ -235,7 +235,7 @@ export class CObject<Events extends CollabEventsRecord = CollabEventsRecord>
    * Internal (parent) use only.
    *
    * By default, this methods calls `finalize` on every child.
-   * on every child. Override to change this behavior,
+   * Override to change this behavior,
    * e.g., to add your own finalization steps
    * (but consider calling `super.finalize()`).
    */

@@ -329,8 +329,8 @@ export class CList<
         });
       } else {
         // Moving an archived value.
-        // This happens when we receive an archive operation prior to a
-        // concurrent move operation.
+        // This happens when we receive a move operation after a
+        // concurrent archive operation.
         // Some users may wish to track a view of archived values' positions
         // (e.g., to show where they would be restored to), so we still emit
         // an event, just without indices.

@@ -119,7 +119,7 @@ export abstract class AbstractDoc extends EventEmitter<RuntimeEventsRecord> {
    * The CollabID may be passed to [[fromID]] on any replica of this
    * AbstractDoc to obtain that replica's copy of `collab`.
    *
-   * @param collab A Collab that belongs to this runtime.
+   * @param collab A Collab that belongs to this AbstractDoc.
    */
   idOf<C extends Collab<CollabEventsRecord>>(collab: C): CollabID<C> {
     if (collab.runtime !== this.runtime) {
@@ -142,6 +142,12 @@ export abstract class AbstractDoc extends EventEmitter<RuntimeEventsRecord> {
     return this.runtime.fromID(id);
   }
 
+  /**
+   * An ID that uniquely identifies this replica among
+   * all connected replicas.
+   *
+   * See [[CRuntime.replicaID]].
+   */
   get replicaID(): string {
     return this.runtime.replicaID;
   }

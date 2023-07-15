@@ -46,14 +46,6 @@ export abstract class AbstractRuntime<Events extends EventsRecord>
     return rootCollab;
   }
 
-  /**
-   * Returns a [[CollabID]] for the given Collab.
-   *
-   * The CollabID may be passed to [[fromID]] on any replica of this
-   * runtime to obtain that replica's copy of `collab`.
-   *
-   * @param collab A Collab that belongs to this runtime.
-   */
   idOf<C extends Collab<CollabEventsRecord>>(collab: C): CollabID<C> {
     if (collab.runtime !== this) {
       throw new Error("idOf called with Collab from different Runtime");
@@ -61,16 +53,6 @@ export abstract class AbstractRuntime<Events extends EventsRecord>
     return this.rootCollab.idOf(collab);
   }
 
-  /**
-   * Inverse of [[idOf]].
-   *
-   * Specifically, given a [[CollabID]] returned by [[idOf]] on some replica of
-   * this runtime, returns this replica's copy of the original
-   * `collab`. If that Collab does not exist (e.g., it was deleted
-   * or it is not present in this program version), returns undefined.
-   *
-   * @param id A CollabID from [[idOf]].
-   */
   fromID<C extends Collab<CollabEventsRecord>>(id: CollabID<C>): C | undefined {
     return this.rootCollab.fromID(id);
   }

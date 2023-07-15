@@ -1,3 +1,5 @@
+import { Collab, CollabEventsRecord } from "./collab";
+import { CollabID } from "./collab_id";
 import { IParent } from "./parent";
 
 /**
@@ -33,6 +35,28 @@ export interface IRuntime extends IParent {
    * `this.runtime.replicaID` in a Collab subclass.
    */
   readonly replicaID: string;
+
+  /**
+   * Returns a [[CollabID]] for the given Collab.
+   *
+   * The CollabID may be passed to [[fromID]] on any replica of this
+   * runtime to obtain that replica's copy of `collab`.
+   *
+   * @param collab A Collab that belongs to this runtime.
+   */
+  idOf<C extends Collab<CollabEventsRecord>>(collab: C): CollabID<C>;
+
+  /**
+   * Inverse of [[idOf]].
+   *
+   * Specifically, given a [[CollabID]] returned by [[idOf]] on some replica of
+   * this runtime, returns this replica's copy of the original
+   * `collab`. If that Collab does not exist (e.g., it was deleted
+   * or it is not present in this program version), returns undefined.
+   *
+   * @param id A CollabID from [[idOf]].
+   */
+  fromID<C extends Collab<CollabEventsRecord>>(id: CollabID<C>): C | undefined;
 }
 
 export function isRuntime(x: unknown): x is IRuntime {

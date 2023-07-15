@@ -31,7 +31,8 @@ export class TestingRuntimes {
    * Returns a new [[CRuntime]] linked with all prior
    * runtimes created by this TestingRuntime.
    *
-   * @param options.rng As in [[CRuntime]]'s constructor.
+   * @param options.rng A PRNG used to deterministically set the replicaID
+   * (via [[ReplicaIDs.pseudoRandom]]).
    * @param options.causalityGuaranteed As in [[CRuntime]]'s constructor.
    */
   newRuntime(

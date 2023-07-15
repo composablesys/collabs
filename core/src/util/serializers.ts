@@ -26,11 +26,14 @@ import { SafeWeakRef } from "./safe_weak_ref";
  * Serializer\<T\>, typically in the Collab constructor's
  * `options` parameter.
  *
- * Serializers provided with the library include [[DefaultSerializer]],
- * [[CollabIDSerializer]], [[StringSerializer]], [[Uint8ArraySerializer]],
- * [[ArraySerializer]], [[PairSerializer]], and [[ConstSerializer]].
- *
- * See also: [[Bytes]], which encodes Uint8Arrays as strings.
+ * Serializers provided with the library (often in package `@collabs/core`)
+ * include [[DefaultSerializer]],
+ * [CollabIDSerializer](../../core/classes/CollabIDSerializer.html),
+ * [StringSerializer](../../core/classes/StringSerializer.html),
+ * [Uint8ArraySerializer](../../core/classes/Uint8ArraySerializer.html),
+ * [ArraySerializer](../../core/classes/ArraySerializer.html),
+ * [PairSerializer](../../core/classes/PairSerializer.html),
+ * and [ConstSerializer](../../core/classes/ConstSerializer.html).
  */
 export interface Serializer<T> {
   /**
