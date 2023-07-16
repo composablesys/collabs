@@ -6,8 +6,6 @@ Template for a generic Collabs app, using the [CRuntime](https://collabs.readthe
 
 [@collabs/collabs API](https://collabs.readthedocs.io/en/latest/api/collabs/index.html)
 
-See also: [template-container](https://github.com/composablesys/collabs/tree/master/template-container), which is for a [Collabs container](https://collabs.readthedocs.io/en/latest/guide/containers.html) using [CContainer](https://collabs.readthedocs.io/en/latest/api/container/classes/CContainer.html).
-
 ## Installation
 
 First, install [Node.js](https://nodejs.org/). Then run `npm i`.
@@ -47,8 +45,6 @@ Delete `dist/`.
 The template uses `Collabs-ws-client`'s `WebSocketNetwork` on the client and `Collabs-ws-server` on the testing server. So, all communication happens through the testing server, which clients connect to using WebSockets.
 
 While the starter server is convenient for testing, it is not appropriate for actual deployments: all users on the site are collaborators, and the state is not saved, except as an ever-growing message log in the server's memory. You should instead customize the app's networking to integrate with your own server, or use one of our premade networks (e.g., `MatrixWidgetNetwork` from [@collabs/matrix-widget](https://www.npmjs.com/package/@collabs/matrix-widget)). You should also set up [saving and loading](https://github.com/composablesys/collabs/tree/master/collabs/docs/saving_and_loading.md) in the client app.
-
-(If you don't want to bother with all that, and you don't care what network your users use, consider using [template-container](https://github.com/composablesys/collabs/tree/master/template-container) instead.)
 
 You can easily modify the testing server for testing with these other premade networks:
 

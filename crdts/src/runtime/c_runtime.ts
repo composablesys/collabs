@@ -123,11 +123,8 @@ export interface RuntimeOptions {
  *
  * For a usage example, see [Entry Points](../../../guide/entry_points.html#cruntime).
  *
- * See also:
- * - [[AbstractDoc]], which lets you encapsulate
+ * See also: [[AbstractDoc]], which lets you encapsulate
  * a runtime and your "global variable" Collabs in a single object.
- * - [@collabs/container's CContainer](../../container/classes/CContainer.html), which replaces CRuntime
- * in [containers](../../../guide/containers.html).
  */
 export class CRuntime
   extends AbstractRuntime<RuntimeEventsRecord>
