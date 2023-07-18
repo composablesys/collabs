@@ -93,5 +93,6 @@ export {
   TestingRuntimes,
   TextEvent,
   TextEventsRecord,
+  TransactionEvent,
   VectorClock,
 } from "@collabs/crdts";

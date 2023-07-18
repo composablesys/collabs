@@ -4,6 +4,5 @@ message CausalMessageBufferSave {
   // OPT: dedupe with vcKeys
   repeated string maximalVcKeys = 3;
   required uint64 lamportTimestamp = 4;
-  repeated bytes bufferMessageStacks = 5;
-  repeated bytes bufferMetas = 6;
+  repeated bytes bufferMessages = 5;
 }

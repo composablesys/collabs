@@ -201,13 +201,7 @@ export class ReceiveCRDTMeta implements CRDTMessageMeta {
  *
  * Not for saved state's UpdateMeta, which instead use LoadCRDTMeta.
  */
-export class RuntimeMetaSerializer implements Serializer<UpdateMeta> {
-  private constructor() {
-    // Singleton.
-  }
-
-  static instance = new this();
-
+export const RuntimeMetaSerializer: Serializer<UpdateMeta> = {
   serialize(value: UpdateMeta): Uint8Array {
     const crdtMeta = value.runtimeExtra as SendCRDTMeta | ReceiveCRDTMeta;
     const vcKeys = new Array<string>(crdtMeta.vcEntries.size - 1);
@@ -236,7 +230,7 @@ export class RuntimeMetaSerializer implements Serializer<UpdateMeta> {
       isLoad: value.updateType === "savedState" ? true : undefined,
     });
     return CRDTMetaMessage.encode(message).finish();
-  }
+  },
 
   deserialize(message: Uint8Array): UpdateMeta {
     const decoded = CRDTMetaMessage.decode(message);
@@ -264,8 +258,8 @@ export class RuntimeMetaSerializer implements Serializer<UpdateMeta> {
       isLocalOp: false,
       runtimeExtra: crdtMeta,
     };
-  }
-}
+  },
+} as const;
 
 export class LoadCRDTMeta implements CRDTSavedStateMeta {
   readonly remoteVectorClock: BasicVectorClock;

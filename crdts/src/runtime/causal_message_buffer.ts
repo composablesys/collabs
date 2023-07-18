@@ -1,18 +1,14 @@
-import {
-  int64AsNumber,
-  MessageStacksSerializer,
-  nonNull,
-  UpdateMeta,
-} from "@collabs/core";
+import { int64AsNumber, nonNull, UpdateMeta } from "@collabs/core";
 import { CausalMessageBufferSave } from "../../generated/proto_compiled";
 import { CRDTMessageMeta } from "./crdt_meta";
-import {
-  LoadCRDTMeta,
-  ReceiveCRDTMeta,
-  RuntimeMetaSerializer,
-} from "./crdt_meta_implementations";
+import { LoadCRDTMeta, ReceiveCRDTMeta } from "./crdt_meta_implementations";
+import { MessageSerializer } from "./message_serializer";
 
 interface ReceivedTransaction {
+  // OPT: dedupe message and messageStacks. Perhaps parse meta first,
+  // then wait to parse messageStacks until you're ready to deliver?
+  /** The original serialized message. */
+  message: Uint8Array;
   messageStacks: (Uint8Array | string)[][];
   meta: UpdateMeta;
 }
@@ -69,6 +65,7 @@ export class CausalMessageBuffer {
     private readonly replicaID: string,
     private readonly causalityGuaranteed: boolean,
     private readonly deliver: (
+      message: Uint8Array,
       messageStacks: (Uint8Array | string)[][],
       meta: UpdateMeta
     ) => void
@@ -89,19 +86,23 @@ export class CausalMessageBuffer {
    *
    * @returns Whether the message was delivered.
    */
-  process(messageStacks: (Uint8Array | string)[][], meta: UpdateMeta): boolean {
+  process(
+    message: Uint8Array,
+    messageStacks: (Uint8Array | string)[][],
+    meta: UpdateMeta
+  ): boolean {
     const crdtMeta = <ReceiveCRDTMeta>meta.runtimeExtra;
     if (!this.isAlreadyDelivered(crdtMeta)) {
       if (this.isReady(crdtMeta)) {
         // Ready for delivery.
-        this.deliver(messageStacks, meta);
+        this.deliver(message, messageStacks, meta);
         this.processRemoteDelivery(crdtMeta);
         return true;
       } else {
         // Add to this.buffer if it's not already present.
         const dot = this.encodeDot(crdtMeta);
         if (!this.buffer.has(dot)) {
-          this.buffer.set(dot, { messageStacks, meta });
+          this.buffer.set(dot, { message, messageStacks, meta });
         }
       }
     }
@@ -123,7 +124,7 @@ export class CausalMessageBuffer {
         if (this.isReady(crdtMeta)) {
           // Ready for delivery.
           this.buffer.delete(dot);
-          this.deliver(tr.messageStacks, tr.meta);
+          this.deliver(tr.message, tr.messageStacks, tr.meta);
           this.processRemoteDelivery(crdtMeta);
           // Delivering messages may make new ones ready, so go
           // through the whole buffer again.
@@ -238,15 +239,10 @@ export class CausalMessageBuffer {
       i++;
     }
 
-    // OPT: compress repeated senders in VCs.
-    const bufferMessageStacks = new Array<Uint8Array>(this.buffer.size);
-    const bufferMetas = new Array<Uint8Array>(this.buffer.size);
+    const bufferMessages = new Array<Uint8Array>(this.buffer.size);
     i = 0;
     for (const tr of this.buffer.values()) {
-      bufferMessageStacks[i] = MessageStacksSerializer.instance.serialize(
-        tr.messageStacks
-      );
-      bufferMetas[i] = RuntimeMetaSerializer.instance.serialize(tr.meta);
+      bufferMessages[i] = tr.message;
       i++;
     }
 
@@ -255,8 +251,7 @@ export class CausalMessageBuffer {
       vcValues,
       maximalVcKeys: [...this.maximalVCKeys],
       lamportTimestamp: this.lamportTimestamp,
-      bufferMessageStacks,
-      bufferMetas,
+      bufferMessages,
     });
     return CausalMessageBufferSave.encode(saveMessage).finish();
   }
@@ -311,16 +306,14 @@ export class CausalMessageBuffer {
     // Blindly merge buffers for now. CRuntime will call check() later
     // to process any newly-ready messages (local or remote)
     // and delete already-received messages.
-    for (let i = 0; i < decoded.bufferMessageStacks.length; i++) {
-      const meta = RuntimeMetaSerializer.instance.deserialize(
-        decoded.bufferMetas[i]
-      );
+    for (let i = 0; i < decoded.bufferMessages.length; i++) {
+      const message = decoded.bufferMessages[i];
+      const [messageStacks, meta] = MessageSerializer.deserialize(message);
       const dot = this.encodeDot(<CRDTMessageMeta>meta.runtimeExtra);
       if (!this.buffer.has(dot)) {
         this.buffer.set(dot, {
-          messageStacks: MessageStacksSerializer.instance.deserialize(
-            decoded.bufferMessageStacks[i]
-          ),
+          message,
+          messageStacks,
           meta,
         });
       }

@@ -6,7 +6,6 @@ import {
   CollabEventsRecord,
   InitToken,
   IRuntime,
-  MessageStacksSerializer,
   MetaRequest,
   nonNull,
   ReplicaIDs,
@@ -15,10 +14,8 @@ import {
 } from "@collabs/core";
 import { CausalMessageBuffer } from "./causal_message_buffer";
 import { CRDTMetaRequest } from "./crdt_meta";
-import {
-  RuntimeMetaSerializer,
-  SendCRDTMeta,
-} from "./crdt_meta_implementations";
+import { SendCRDTMeta } from "./crdt_meta_implementations";
+import { MessageSerializer } from "./message_serializer";
 
 class PublicCObject extends CObject {
   registerCollab<C extends Collab>(
@@ -40,6 +37,24 @@ export interface SendEvent {
   message: Uint8Array;
 }
 
+export interface TransactionEvent extends CollabEvent {
+  /**
+   * Metadata for the update that caused this transaction.
+   *
+   * Same as the `meta` field on all of the transaction's events.
+   */
+  meta: UpdateMeta;
+  /**
+   * The serialized update corresponding to this transaction.
+   *
+   * Specifically, this is:
+   * - For a local operation, its [[SendEvent.message]].
+   * - For a remote message, the `message` passed to [[receive]].
+   * - For a loaded state, the `savedState` passed to [[load]].
+   */
+  update: Uint8Array;
+}
+
 /**
  * Events record for [[CRuntime]] and [[AbstractDoc]].
  */
@@ -55,11 +70,8 @@ export interface RuntimeEventsRecord {
   /**
    * Emitted at the end of each transaction (local or remote)
    * and at the end of loading a saved state.
-   *
-   * The event's [[CollabEvent.updateMeta]] is the same as
-   * for all of the transaction's events.
    */
-  Transaction: CollabEvent;
+  Transaction: TransactionEvent;
   /**
    * Emitted after each synchronous set of changes. This
    * is a good time to rerender the GUI.
@@ -214,20 +226,18 @@ export class CRuntime
 
     const meta = this.meta;
     nonNull(this.crdtMeta).freeze();
-    this.messageBatches.push([RuntimeMetaSerializer.instance.serialize(meta)]);
+
+    const message = MessageSerializer.serialize([this.messageBatches, meta]);
+
+    this.messageBatches = [];
     this.crdtMeta = null;
     this.meta = null;
-
-    const message = MessageStacksSerializer.instance.serialize(
-      this.messageBatches
-    );
-    this.messageBatches = [];
 
     // Send. It will be delivered to each other replica's
     // receive function, eventually at-least-once.
     this.emit("Send", { message });
 
-    this.emit("Transaction", { meta });
+    this.emit("Transaction", { meta, update: message });
     this.emit("Change", {});
   }
 
@@ -362,12 +372,8 @@ export class CRuntime
 
     this.inApplyUpdate = true;
     try {
-      const messageStacks =
-        MessageStacksSerializer.instance.deserialize(message);
-      const meta = RuntimeMetaSerializer.instance.deserialize(
-        (<Uint8Array[]>messageStacks.pop())[0]
-      );
-      if (this.buffer.process(messageStacks, meta)) {
+      const [messageStacks, meta] = MessageSerializer.deserialize(message);
+      if (this.buffer.process(message, messageStacks, meta)) {
         this.buffer.check();
         this.emit("Change", {});
       }
@@ -382,13 +388,14 @@ export class CRuntime
    * so errors will propagate to there.
    */
   private deliverFromBuffer(
+    message: Uint8Array,
     messageStacks: (Uint8Array | string)[][],
     meta: UpdateMeta
   ) {
     for (const messageStack of messageStacks) {
       this.rootCollab.receive(messageStack, meta);
     }
-    this.emit("Transaction", { meta });
+    this.emit("Transaction", { meta, update: message });
   }
 
   /**
@@ -456,7 +463,7 @@ export class CRuntime
       };
       this.rootCollab.load(savedStateTree, meta);
 
-      this.emit("Transaction", { meta });
+      this.emit("Transaction", { meta, update: savedState });
 
       this.buffer.check();
 
