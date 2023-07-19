@@ -11,6 +11,7 @@ interface ReceivedTransaction {
   message: Uint8Array;
   messageStacks: (Uint8Array | string)[][];
   meta: UpdateMeta;
+  caller: unknown;
 }
 
 /**
@@ -67,7 +68,8 @@ export class CausalMessageBuffer {
     private readonly deliver: (
       message: Uint8Array,
       messageStacks: (Uint8Array | string)[][],
-      meta: UpdateMeta
+      meta: UpdateMeta,
+      caller: unknown | undefined
     ) => void
   ) {
     // this.replicaID is the first map entry.
@@ -89,20 +91,21 @@ export class CausalMessageBuffer {
   process(
     message: Uint8Array,
     messageStacks: (Uint8Array | string)[][],
-    meta: UpdateMeta
+    meta: UpdateMeta,
+    caller: unknown
   ): boolean {
     const crdtMeta = <ReceiveCRDTMeta>meta.runtimeExtra;
     if (!this.isAlreadyDelivered(crdtMeta)) {
       if (this.isReady(crdtMeta)) {
         // Ready for delivery.
-        this.deliver(message, messageStacks, meta);
+        this.deliver(message, messageStacks, meta, caller);
         this.processRemoteDelivery(crdtMeta);
         return true;
       } else {
         // Add to this.buffer if it's not already present.
         const dot = this.encodeDot(crdtMeta);
         if (!this.buffer.has(dot)) {
-          this.buffer.set(dot, { message, messageStacks, meta });
+          this.buffer.set(dot, { message, messageStacks, meta, caller });
         }
       }
     }
@@ -124,7 +127,7 @@ export class CausalMessageBuffer {
         if (this.isReady(crdtMeta)) {
           // Ready for delivery.
           this.buffer.delete(dot);
-          this.deliver(tr.message, tr.messageStacks, tr.meta);
+          this.deliver(tr.message, tr.messageStacks, tr.meta, tr.caller);
           this.processRemoteDelivery(crdtMeta);
           // Delivering messages may make new ones ready, so go
           // through the whole buffer again.
@@ -260,7 +263,7 @@ export class CausalMessageBuffer {
    * @param savedState
    * @param used
    */
-  load(savedState: Uint8Array): LoadCRDTMeta {
+  load(savedState: Uint8Array, caller: unknown): LoadCRDTMeta {
     const oldLocalVC = new Map(this.vc);
     const oldLocalLamportTimestamp = this.lamportTimestamp;
 
@@ -315,6 +318,7 @@ export class CausalMessageBuffer {
           message,
           messageStacks,
           meta,
+          caller,
         });
       }
     }

@@ -53,6 +53,17 @@ export interface TransactionEvent extends CollabEvent {
    * - For a loaded state, the `savedState` passed to [[load]].
    */
   update: Uint8Array;
+  /**
+   * The caller who triggered this transaction.
+   *
+   * Specifically, this is:
+   * - For a local operation, `undefined`.
+   * - For a remote message, the `caller` passed to [[receive]].
+   * - For a loaded state, the `caller` passed to [[load]].
+   * - For a remote message delivered as part of a loaded state
+   * (due to unmet causal dependencies), the `caller` passed to [[load]].
+   */
+  caller: unknown | undefined;
 }
 
 /**
@@ -237,7 +248,7 @@ export class CRuntime
     // receive function, eventually at-least-once.
     this.emit("Send", { message });
 
-    this.emit("Transaction", { meta, update: message });
+    this.emit("Transaction", { meta, update: message, caller: undefined });
     this.emit("Change", {});
   }
 
@@ -358,8 +369,12 @@ export class CRuntime
    * reordering, and delivery of (redundant) messages from this replica
    * are acceptable. Two replicas will be in the same
    * state once they have the same set of received (or sent) messages.
+   *
+   * @param caller Optionally, a value to use as the [[TransactionEvent.caller]] field.
+   * A caller can use that field to distinguish its own updates from updates
+   * delivered by other sources.
    */
-  receive(message: Uint8Array): void {
+  receive(message: Uint8Array, caller?: unknown): void {
     if (this.inTransaction) {
       throw new Error("Cannot call receive() during a transaction");
     }
@@ -373,7 +388,7 @@ export class CRuntime
     this.inApplyUpdate = true;
     try {
       const [messageStacks, meta] = MessageSerializer.deserialize(message);
-      if (this.buffer.process(message, messageStacks, meta)) {
+      if (this.buffer.process(message, messageStacks, meta, caller)) {
         this.buffer.check();
         this.emit("Change", {});
       }
@@ -390,12 +405,13 @@ export class CRuntime
   private deliverFromBuffer(
     message: Uint8Array,
     messageStacks: (Uint8Array | string)[][],
-    meta: UpdateMeta
+    meta: UpdateMeta,
+    caller: unknown | undefined
   ) {
     for (const messageStack of messageStacks) {
       this.rootCollab.receive(messageStack, meta);
     }
-    this.emit("Transaction", { meta, update: message });
+    this.emit("Transaction", { meta, update: message, caller });
   }
 
   /**
@@ -436,8 +452,11 @@ export class CRuntime
    * but it is typically much more efficient.
    *
    * @param savedState Saved state from another replica's [[save]] call.
+   * @param caller Optionally, a value to use as the [[TransactionEvent.caller]] field.
+   * A caller can use that field to distinguish its own updates from updates
+   * delivered by other sources.
    */
-  load(savedState: Uint8Array): void {
+  load(savedState: Uint8Array, caller?: unknown): void {
     if (this.inTransaction) {
       throw new Error("Cannot call load() during a transaction");
     }
@@ -453,7 +472,10 @@ export class CRuntime
     try {
       const savedStateTree =
         SavedStateTreeSerializer.instance.deserialize(savedState);
-      const loadCRDTMeta = this.buffer.load(nonNull(savedStateTree.self));
+      const loadCRDTMeta = this.buffer.load(
+        nonNull(savedStateTree.self),
+        caller
+      );
       savedStateTree.self = undefined;
       const meta: UpdateMeta = {
         senderID: loadCRDTMeta.senderID,
@@ -463,7 +485,7 @@ export class CRuntime
       };
       this.rootCollab.load(savedStateTree, meta);
 
-      this.emit("Transaction", { meta, update: savedState });
+      this.emit("Transaction", { meta, update: savedState, caller });
 
       this.buffer.check();
 
