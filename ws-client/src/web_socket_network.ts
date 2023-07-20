@@ -1,133 +1,244 @@
-import { AbstractDoc, CRuntime, SendEvent } from "@collabs/collabs";
+import { AbstractDoc, CRuntime, EventEmitter } from "@collabs/collabs";
+import { nonNull } from "@collabs/core";
 import { fromByteArray, toByteArray } from "base64-js";
-import ReconnectingWebSocket from "reconnecting-websocket";
+import { Subscribe, WSMessage } from "./message_types";
 
-export class WebSocketNetwork {
+type Doc = AbstractDoc | CRuntime;
+
+export interface WebSocketNetworkEventsRecord {
+  Connect: {};
+  Disconnect: {
+    cause: "close" | "error" | "disconnect";
+    wsEvent: CloseEvent | Event | null;
+  };
   /**
-   * Connection to the server.
+   * Emitted after all of doc's local changes are confirmed saved to the server.
+   */
+  Save: { doc: AbstractDoc | CRuntime; roomName: string };
+  /**
+   * Emitted after doc loads the server's current state.
    *
-   * Use ReconnectingWebSocket so we don't have to worry about
-   * reopening closed connections.
+   * This may be emitted multiple times for a doc - in particular, after
+   * reconnecting.
    */
-  readonly ws: ReconnectingWebSocket;
+  Load: { doc: AbstractDoc | CRuntime; roomName: string };
+}
 
-  private _sendConnected = true;
-  private _receiveConnected = true;
-  private sendQueue: SendEvent[] = [];
-  private receiveQueue: MessageEvent[] = [];
+interface RoomInfo {
+  readonly roomName: string;
+  readonly off: () => void;
+  localCounter: number;
+}
 
-  /**
-   * [constructor description]
-   * @param url The url to pass to WebSocket's constructor.
-   * @param group A group name that uniquely identifies this
-   * app and group of collaborators on the server.
-   * (The server broadcasts messages between WebSocketNetworks
-   * in the same group.)
-   */
-  constructor(
-    readonly doc: AbstractDoc | CRuntime,
-    url: string,
-    readonly group: string
-  ) {
-    this.ws = new ReconnectingWebSocket(url);
-    this.ws.addEventListener("message", this.wsReceive.bind(this));
+export class WebSocketNetwork extends EventEmitter<WebSocketNetworkEventsRecord> {
+  private ws: WebSocket | null = null;
 
-    this.doc.on("Send", this.docSend.bind(this));
+  private readonly subs = new Map<Doc, RoomInfo>();
+  /** Inverse map roomName -> Doc. */
+  private readonly docByRoom = new Map<string, Doc>();
 
-    // Register with the server.
-    // TODO: wait until after "loading", so we only request
-    // messages we need, and also this won't start delivering
-    // messages before the user signals that the app is ready.
-    // Make sure server won't give us *any* messages (even new
-    // ones) until after registration, or if it does, we queue them.
-    const register = JSON.stringify({
-      type: "register",
-      group: group,
+  // TODO: binary messages, then remove base64-js dep
+  // TODO: events: close, error, open, saved
+
+  constructor(readonly url: string, options: { connect?: boolean } = {}) {
+    super();
+
+    if (options.connect ?? true) this.connect();
+  }
+
+  // Doc: may call multiple times, e.g., reconnecting.
+  // Okay to call if already connected.
+  // E.g. net.on("Disconnect", () => setTimeout(net.connect(), 2000))
+  // will (repeatedly) try to reconnect after a disconnection.
+  connect() {
+    if (this.connected) return;
+
+    const ws = new WebSocket(this.url);
+    this.ws = ws;
+    ws.addEventListener("open", () => {
+      if (ws !== this.ws) return;
+
+      // (Re-) subscribe to all rooms.
+      if (this.docByRoom.size !== 0) {
+        const message: Subscribe = {
+          type: "Subscribe",
+          roomNames: [...this.docByRoom.keys()],
+        };
+        ws.send(JSON.stringify(message));
+      }
+
+      // Emit event.
+      this.emit("Connect", {});
     });
-    this.ws.send(register);
+    ws.addEventListener("message", (e) => this.wsReceive(e.data));
+    ws.addEventListener("close", (e) => this.wsDisconnect(ws, "close", e));
+    ws.addEventListener("error", (e) => this.wsDisconnect(ws, "error", e));
+  }
+
+  private wsDisconnect(
+    caller: WebSocket,
+    cause: "close" | "error",
+    e: CloseEvent | Event
+  ) {
+    if (caller !== this.ws) return;
+
+    this.ws = null;
+
+    this.emit("Disconnect", { cause, wsEvent: e });
+  }
+
+  // Doc: Can call this and later reconnect.
+  disconnect() {
+    this.ws?.close();
+
+    // Note that changing this.ws right away will cause wsDisconnect to
+    // ignore the WebSocket close event, which is dispatched async.
+    // We instead emit our own Disconnect event.
+    this.ws = null;
+
+    this.emit("Disconnect", { cause: "disconnect", wsEvent: null });
+  }
+
+  // Whether we have an active WS connection (connect was called, and we
+  // haven't had disconnect() or WS close/error). Note that the WS connection
+  // might not be ready (OPEN) yet.
+  get connected(): boolean {
+    return this.ws !== null;
   }
 
   /**
-   * this.ws "message" event handler.
-   */
-  private wsReceive(e: MessageEvent) {
-    if (!this._receiveConnected) {
-      this.receiveQueue.push(e);
-      return;
-    }
-
-    // Opt: use Uint8Array directly instead
-    // (requires changing options + server)
-    // See https://stackoverflow.com/questions/15040126/receiving-websocket-arraybuffer-data-in-the-browser-receiving-string-instead
-    let parsed = JSON.parse(e.data) as { group: string; message: string };
-    // TODO: is this check necessary?
-    if (parsed.group === this.group) {
-      // It's for us
-      this.doc.receive(toByteArray(parsed.message));
-    }
-  }
-
-  /**
-   * this.doc "Send" event handler.
-   */
-  private docSend(e: SendEvent): void {
-    if (!this._sendConnected) {
-      this.sendQueue.push(e);
-      return;
-    }
-
-    let encoded = fromByteArray(e.message);
-    let toSend = JSON.stringify({ group: this.group, message: encoded });
-    // Opt: use Uint8Array directly instead
-    // (requires changing options + server)
-    // See https://stackoverflow.com/questions/15040126/receiving-websocket-arraybuffer-data-in-the-browser-receiving-string-instead
-    this.ws.send(toSend);
-  }
-
-  // ---Testing utitily: disconnection methods---
-
-  /**
-   * Set this to false to (temporarily) queue messages sent
-   * by the local CRuntime instead of sending them to the server.
+   * Sends the given message if the connection is open.
    *
-   * Intended as a testing utility (lets you artificially
-   * create concurrency).
-   *
-   * Note that this does not affect the ReconnectingWebSocket's
-   * connection state; it just causes us to queue sent messages.
+   * We do not guarantee eventual receipt - if the server is not open,
+   * or if sending fails, the message will not reach the server.
+   * So make sure to re-do message's effect on open.
    */
-  set sendConnected(sendConnected: boolean) {
-    this._sendConnected = sendConnected;
-    if (sendConnected) {
-      this.sendQueue.forEach(this.docSend.bind(this));
-      this.sendQueue = [];
+  private sendInternal(message: WSMessage) {
+    if (this.ws != null && this.ws.readyState == WebSocket.OPEN) {
+      const encoded = JSON.stringify(message);
+      this.ws.send(encoded);
     }
   }
 
-  get sendConnected(): boolean {
-    return this._sendConnected;
-  }
-
-  /**
-   * Set this to false to (temporarily) queue messages received
-   * from the server instead of delivering them to the local
-   * CRuntime.
-   *
-   * Intended as a testing utility (lets you artificially
-   * create concurrency).
-   *
-   * Note that this does not affect the ReconnectingWebSocket's
-   * connection state; it just causes us to queue received messages.
-   */
-  set receiveConnected(receiveConnected: boolean) {
-    this._receiveConnected = receiveConnected;
-    if (receiveConnected) {
-      this.receiveQueue.forEach(this.wsReceive.bind(this));
-      this.receiveQueue = [];
+  subscribe(doc: AbstractDoc | CRuntime, roomName: string) {
+    if (this.subs.has(doc)) {
+      throw new Error("doc is already subscribed to a room");
     }
+
+    if (this.docByRoom.has(roomName)) {
+      throw new Error("Unsupported: multiple docs in same room");
+    }
+
+    let roomInfo: RoomInfo;
+    const off = doc.on("Transaction", (e) => {
+      if (e.caller === this) return;
+
+      // The transaction is either a new local message or
+      // a message/savedState delivered by a different provider;
+      // forward it to the server.
+      // TODO: incremental savedState instead.
+      this.sendInternal({
+        type: "Send",
+        roomName,
+        update: fromByteArray(e.update),
+        updateType: e.meta.updateType,
+        localCounter: ++roomInfo.localCounter,
+      });
+    });
+    roomInfo = { roomName, off, localCounter: 0 };
+
+    this.subs.set(doc, roomInfo);
+    this.docByRoom.set(roomName, doc);
+    this.sendInternal({ type: "Subscribe", roomNames: [roomName] });
   }
 
-  get receiveConnected(): boolean {
-    return this._receiveConnected;
+  unsubscribe(doc: AbstractDoc | CRuntime) {
+    const sub = this.subs.get(doc);
+    if (sub === undefined) return;
+
+    const { roomName, off } = sub;
+    off();
+    this.docByRoom.delete(roomName);
+    this.sendInternal({ type: "Unsubscribe", roomName });
+  }
+
+  private wsReceive(encoded: string) {
+    const message = JSON.parse(encoded) as WSMessage;
+    switch (message.type) {
+      case "Welcome": {
+        const doc = this.docByRoom.get(message.roomName);
+        if (doc === undefined) return;
+        const roomInfo = nonNull(this.subs.get(doc));
+
+        // Make us up-to-date with the server:
+        // 1. Load the welcome state.
+        if (message.savedState !== null) {
+          const savedState = toByteArray(message.savedState);
+          doc.load(savedState, this);
+        }
+        // 2. Load the further messages.
+        for (const update of message.furtherUpdates) {
+          const bytes = toByteArray(update.update);
+          if (update.updateType === "message") doc.receive(bytes, this);
+          else doc.load(bytes, this);
+        }
+
+        this.emit("Load", { doc, roomName: message.roomName });
+
+        // Make the server up-to-date with us.
+        // TODO: use an incremental save instead;
+        // skip entirely if we've got nothing new.
+        const ourState = doc.save();
+        this.sendInternal({
+          type: "Send",
+          roomName: message.roomName,
+          update: fromByteArray(ourState),
+          updateType: "savedState",
+          localCounter: ++roomInfo.localCounter,
+        });
+        break;
+      }
+      case "Receive": {
+        const doc = this.docByRoom.get(message.roomName);
+        if (doc === undefined) return;
+
+        const update = toByteArray(message.update);
+        // Note: we might get this update before the room Welcome.
+        // That is fine; if the update depends on existing state,
+        // doc will buffer it.
+        // TODO: buffering will break applyUpdate (won't detect that its ours and
+        // will bounce it back to the server). So maybe we really do need an
+        // origin/caller arg.
+        doc.receive(update, this);
+        break;
+      }
+      case "Ack": {
+        const doc = this.docByRoom.get(message.roomName);
+        if (doc === undefined) return;
+        const roomInfo = nonNull(this.subs.get(doc));
+
+        if (message.localCounter === roomInfo.localCounter) {
+          // The ack'd update is the last one we sent to the server.
+          // So doc's state is now completely saved.
+          this.emit("Save", { doc, roomName: message.roomName });
+        }
+
+        if (message.saveRequest !== undefined) {
+          // The server requests that we send our current saved state.
+          // It will use this as a "checkpoint", replacing its message log
+          // (up to the point that we've saved).
+          const ourState = doc.save();
+          this.sendInternal({
+            type: "SaveResponse",
+            roomName: message.roomName,
+            savedState: fromByteArray(ourState),
+            saveRequest: message.saveRequest,
+          });
+        }
+        break;
+      }
+      default:
+        throw new Error("Unexpected WebSocketNetwork message: " + encoded);
+    }
   }
 }
