@@ -1,0 +1,52 @@
+message Subscribe {
+  repeated string docIDs = 1;
+}
+
+message Unsubscribe {
+  required string docID = 1;
+}
+
+message Welcome {
+  required string docID = 1;
+  optional bytes savedState = 2;
+  repeated bytes updates = 3;
+  /* Aligned with updates. */
+  repeated uint32 updateTypes = 4 [packed=true];
+}
+
+message Send {
+  required string docID = 1;
+  required bytes update = 2;
+  required uint32 updateType = 3;
+  required uint32 localCounter = 4;
+}
+
+message Receive {
+  required string docID = 1;
+  required bytes update = 2;
+  required uint32 updateType = 3;
+}
+
+message Ack {
+  required string docID = 1;
+  required uint32 localCounter = 2;
+  optional string saveRequest = 3;
+}
+
+message SaveResponse {
+  required string docID = 1;
+  required bytes savedState = 2;
+  required string saveRequest = 3;
+}
+
+message WSMessage {
+  oneof type {
+    Subscribe subscribe = 1;
+    Unsubscribe unsubscribe = 2;
+    Welcome welcome = 3;
+    Send send = 4;
+    Receive receive = 5;
+    Ack ack = 6;
+    SaveResponse saveResponse = 7;
+  }
+}

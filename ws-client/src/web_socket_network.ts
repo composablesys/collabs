@@ -1,7 +1,13 @@
 import { AbstractDoc, CRuntime, EventEmitter } from "@collabs/collabs";
-import { nonNull } from "@collabs/core";
-import { fromByteArray, toByteArray } from "base64-js";
-import { Subscribe, WSMessage } from "./message_types";
+import { nonNull, protobufHas } from "@collabs/core";
+import {
+  Ack,
+  IWSMessage,
+  Receive,
+  WSMessage,
+  Welcome,
+} from "../generated/proto_compiled";
+import { UpdateType, stringToEnum } from "./update_type";
 
 type Doc = AbstractDoc | CRuntime;
 
@@ -14,18 +20,18 @@ export interface WebSocketNetworkEventsRecord {
   /**
    * Emitted after all of doc's local changes are confirmed saved to the server.
    */
-  Save: { doc: AbstractDoc | CRuntime; roomName: string };
+  Save: { doc: AbstractDoc | CRuntime; docID: string };
   /**
    * Emitted after doc loads the server's current state.
    *
    * This may be emitted multiple times for a doc - in particular, after
    * reconnecting.
    */
-  Load: { doc: AbstractDoc | CRuntime; roomName: string };
+  Load: { doc: AbstractDoc | CRuntime; docID: string };
 }
 
 interface RoomInfo {
-  readonly roomName: string;
+  readonly docID: string;
   readonly off: () => void;
   localCounter: number;
 }
@@ -34,11 +40,8 @@ export class WebSocketNetwork extends EventEmitter<WebSocketNetworkEventsRecord>
   private ws: WebSocket | null = null;
 
   private readonly subs = new Map<Doc, RoomInfo>();
-  /** Inverse map roomName -> Doc. */
-  private readonly docByRoom = new Map<string, Doc>();
-
-  // TODO: binary messages, then remove base64-js dep
-  // TODO: events: close, error, open, saved
+  /** Inverse map docID -> Doc. */
+  private readonly docsByID = new Map<string, Doc>();
 
   constructor(readonly url: string, options: { connect?: boolean } = {}) {
     super();
@@ -53,24 +56,28 @@ export class WebSocketNetwork extends EventEmitter<WebSocketNetworkEventsRecord>
   connect() {
     if (this.connected) return;
 
+    // TODO: configure for binary messages
     const ws = new WebSocket(this.url);
+    ws.binaryType = "arraybuffer";
     this.ws = ws;
     ws.addEventListener("open", () => {
       if (ws !== this.ws) return;
 
-      // (Re-) subscribe to all rooms.
-      if (this.docByRoom.size !== 0) {
-        const message: Subscribe = {
-          type: "Subscribe",
-          roomNames: [...this.docByRoom.keys()],
-        };
-        ws.send(JSON.stringify(message));
+      // (Re-) subscribe to all docIDs.
+      if (this.docsByID.size !== 0) {
+        this.sendInternal({
+          subscribe: {
+            docIDs: [...this.docsByID.keys()],
+          },
+        });
       }
 
       // Emit event.
       this.emit("Connect", {});
     });
-    ws.addEventListener("message", (e) => this.wsReceive(e.data));
+    ws.addEventListener("message", (e) =>
+      this.wsReceive(e.data as ArrayBuffer)
+    );
     ws.addEventListener("close", (e) => this.wsDisconnect(ws, "close", e));
     ws.addEventListener("error", (e) => this.wsDisconnect(ws, "error", e));
   }
@@ -113,20 +120,19 @@ export class WebSocketNetwork extends EventEmitter<WebSocketNetworkEventsRecord>
    * or if sending fails, the message will not reach the server.
    * So make sure to re-do message's effect on open.
    */
-  private sendInternal(message: WSMessage) {
+  private sendInternal(message: IWSMessage) {
     if (this.ws != null && this.ws.readyState == WebSocket.OPEN) {
-      const encoded = JSON.stringify(message);
-      this.ws.send(encoded);
+      this.ws.send(WSMessage.encode(message).finish());
     }
   }
 
-  subscribe(doc: AbstractDoc | CRuntime, roomName: string) {
+  subscribe(doc: AbstractDoc | CRuntime, docID: string) {
     if (this.subs.has(doc)) {
-      throw new Error("doc is already subscribed to a room");
+      throw new Error("doc is already subscribed to a docID");
     }
 
-    if (this.docByRoom.has(roomName)) {
-      throw new Error("Unsupported: multiple docs in same room");
+    if (this.docsByID.has(docID)) {
+      throw new Error("Unsupported: multiple docs with same docID");
     }
 
     let roomInfo: RoomInfo;
@@ -138,107 +144,110 @@ export class WebSocketNetwork extends EventEmitter<WebSocketNetworkEventsRecord>
       // forward it to the server.
       // TODO: incremental savedState instead.
       this.sendInternal({
-        type: "Send",
-        roomName,
-        update: fromByteArray(e.update),
-        updateType: e.meta.updateType,
-        localCounter: ++roomInfo.localCounter,
+        send: {
+          docID,
+          update: e.update,
+          updateType: stringToEnum(e.meta.updateType),
+          localCounter: ++roomInfo.localCounter,
+        },
       });
     });
-    roomInfo = { roomName, off, localCounter: 0 };
+    roomInfo = { docID, off, localCounter: 0 };
 
     this.subs.set(doc, roomInfo);
-    this.docByRoom.set(roomName, doc);
-    this.sendInternal({ type: "Subscribe", roomNames: [roomName] });
+    this.docsByID.set(docID, doc);
+    this.sendInternal({ subscribe: { docIDs: [docID] } });
   }
 
   unsubscribe(doc: AbstractDoc | CRuntime) {
     const sub = this.subs.get(doc);
     if (sub === undefined) return;
 
-    const { roomName, off } = sub;
+    const { docID, off } = sub;
     off();
-    this.docByRoom.delete(roomName);
-    this.sendInternal({ type: "Unsubscribe", roomName });
+    this.docsByID.delete(docID);
+    this.sendInternal({ unsubscribe: { docID } });
   }
 
-  private wsReceive(encoded: string) {
-    const message = JSON.parse(encoded) as WSMessage;
+  private wsReceive(encoded: ArrayBuffer) {
+    const message = WSMessage.decode(new Uint8Array(encoded));
     switch (message.type) {
-      case "Welcome": {
-        const doc = this.docByRoom.get(message.roomName);
+      case "welcome": {
+        const welcome = message.welcome as Welcome;
+        const doc = this.docsByID.get(welcome.docID);
         if (doc === undefined) return;
         const roomInfo = nonNull(this.subs.get(doc));
 
         // Make us up-to-date with the server:
         // 1. Load the welcome state.
-        if (message.savedState !== null) {
-          const savedState = toByteArray(message.savedState);
-          doc.load(savedState, this);
+        if (protobufHas(welcome, "savedState")) {
+          doc.load(welcome.savedState, this);
         }
-        // 2. Load the further messages.
-        for (const update of message.furtherUpdates) {
-          const bytes = toByteArray(update.update);
-          if (update.updateType === "message") doc.receive(bytes, this);
-          else doc.load(bytes, this);
+        // 2. Load the further updates.
+        for (let i = 0; i < welcome.updates.length; i++) {
+          const update = welcome.updates[i];
+          const updateType = welcome.updateTypes[i];
+          if (updateType === UpdateType.Message) doc.receive(update, this);
+          else doc.load(update, this);
         }
 
-        this.emit("Load", { doc, roomName: message.roomName });
+        this.emit("Load", { doc, docID: welcome.docID });
 
         // Make the server up-to-date with us.
         // TODO: use an incremental save instead;
         // skip entirely if we've got nothing new.
         const ourState = doc.save();
         this.sendInternal({
-          type: "Send",
-          roomName: message.roomName,
-          update: fromByteArray(ourState),
-          updateType: "savedState",
-          localCounter: ++roomInfo.localCounter,
+          send: {
+            docID: welcome.docID,
+            update: ourState,
+            updateType: UpdateType.SavedState,
+            localCounter: ++roomInfo.localCounter,
+          },
         });
         break;
       }
-      case "Receive": {
-        const doc = this.docByRoom.get(message.roomName);
+      case "receive": {
+        const receive = message.receive as Receive;
+        const doc = this.docsByID.get(receive.docID);
         if (doc === undefined) return;
 
-        const update = toByteArray(message.update);
         // Note: we might get this update before the room Welcome.
         // That is fine; if the update depends on existing state,
         // doc will buffer it.
-        // TODO: buffering will break applyUpdate (won't detect that its ours and
-        // will bounce it back to the server). So maybe we really do need an
-        // origin/caller arg.
-        doc.receive(update, this);
+        doc.receive(receive.update, this);
         break;
       }
-      case "Ack": {
-        const doc = this.docByRoom.get(message.roomName);
+      case "ack": {
+        const ack = message.ack as Ack;
+        const doc = this.docsByID.get(ack.docID);
         if (doc === undefined) return;
         const roomInfo = nonNull(this.subs.get(doc));
 
-        if (message.localCounter === roomInfo.localCounter) {
+        if (ack.localCounter === roomInfo.localCounter) {
           // The ack'd update is the last one we sent to the server.
           // So doc's state is now completely saved.
-          this.emit("Save", { doc, roomName: message.roomName });
+          this.emit("Save", { doc, docID: ack.docID });
         }
 
-        if (message.saveRequest !== undefined) {
+        if (protobufHas(ack, "saveRequest")) {
           // The server requests that we send our current saved state.
           // It will use this as a "checkpoint", replacing its message log
           // (up to the point that we've saved).
-          const ourState = doc.save();
           this.sendInternal({
-            type: "SaveResponse",
-            roomName: message.roomName,
-            savedState: fromByteArray(ourState),
-            saveRequest: message.saveRequest,
+            saveResponse: {
+              docID: ack.docID,
+              savedState: doc.save(),
+              saveRequest: ack.saveRequest,
+            },
           });
         }
         break;
       }
       default:
-        throw new Error("Unexpected WebSocketNetwork message: " + encoded);
+        throw new Error(
+          "Unexpected WebSocketNetwork message type: " + message.type
+        );
     }
   }
 }
