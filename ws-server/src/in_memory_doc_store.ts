@@ -6,6 +6,7 @@ interface StoredDoc {
   updates: Uint8Array[];
   updateTypes: UpdateType[];
   savedStateCount: number;
+  lastSaveRequestTime: number | null;
 }
 
 export class InMemoryDocStore implements ServerDocStore {
@@ -20,6 +21,7 @@ export class InMemoryDocStore implements ServerDocStore {
         updates: [],
         updateTypes: [],
         savedStateCount: 0,
+        lastSaveRequestTime: null,
       };
       this.docs.set(docID, info);
     }
@@ -43,18 +45,34 @@ export class InMemoryDocStore implements ServerDocStore {
     docID: string,
     update: Uint8Array,
     updateType: UpdateType
-  ): Promise<[count: number, logLength: number]> {
+  ): Promise<string | null> {
     const info = this.getInfo(docID);
     info.updates.push(update);
     info.updateTypes.push(updateType);
-    return [info.savedStateCount + info.updates.length, info.updates.length];
+
+    // Do save request if:
+    // - There are at least 100 pending updates in the log.
+    // - It has been at least 5 seconds since the last save request,
+    // including potential failed or long-latency requests.
+    if (info.updates.length >= 100) {
+      if (
+        info.lastSaveRequestTime === null ||
+        info.lastSaveRequestTime + 5000 <= Date.now()
+      ) {
+        return `${info.savedStateCount}`;
+      }
+    }
+    return null;
   }
 
   async save(
     docID: string,
     savedState: Uint8Array,
-    count: number
+    saveRequest: string
   ): Promise<void> {
+    const count = Number.parseInt(saveRequest);
+    if (isNaN(count)) throw new Error(`Invalid saveRequest: ${saveRequest}`);
+
     const info = this.getInfo(docID);
     if (info.savedStateCount >= count) return;
     if (count > info.savedStateCount + info.updates.length) {

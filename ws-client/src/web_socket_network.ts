@@ -56,7 +56,6 @@ export class WebSocketNetwork extends EventEmitter<WebSocketNetworkEventsRecord>
   connect() {
     if (this.connected) return;
 
-    // TODO: configure for binary messages
     const ws = new WebSocket(this.url);
     ws.binaryType = "arraybuffer";
     this.ws = ws;
