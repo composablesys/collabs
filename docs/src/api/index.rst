@@ -7,7 +7,7 @@ API
    :caption: Contents:
 
    collabs/index
-   container/index
+   storage/index
    matrix-widget/index
    ws-client/index
    ws-server/index
