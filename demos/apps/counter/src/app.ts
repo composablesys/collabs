@@ -1,15 +1,11 @@
-import { CCounter } from "@collabs/collabs";
-import { CContainer } from "@collabs/container";
+import { CCounter, CRuntime } from "@collabs/collabs";
+import { WebSocketNetwork } from "@collabs/ws-client";
 
 (async function () {
-  // Create a CContainer, the entry point for a Collabs container.
-  const container = new CContainer();
+  const doc = new CRuntime();
 
   // Register Collabs.
-  const counter = container.registerCollab(
-    "counter",
-    (init) => new CCounter(init)
-  );
+  const counter = doc.registerCollab("counter", (init) => new CCounter(init));
 
   // Refresh the display when the Collabs state changes, possibly
   // due to a message from another replica.
@@ -17,7 +13,7 @@ import { CContainer } from "@collabs/container";
   function refreshDisplay() {
     display.innerHTML = counter.value.toString();
   }
-  container.on("Change", refreshDisplay);
+  doc.on("Change", refreshDisplay);
 
   // Change counter's value on button clicks.
   // Note that we don't need to refresh the display here, since Change
@@ -26,9 +22,28 @@ import { CContainer } from "@collabs/container";
     counter.add(1);
   };
 
-  // Wait for the container to load the previous saved state, if any.
-  await container.load();
+  // Connect to the server over WebSocket.
+  // For demo purposes, we wait to call connect() until below;
+  // you can instead just remove the { connect: false } option.
+  const wsURL = location.origin.replace(/^http/, "ws");
+  const wsNetwork = new WebSocketNetwork(wsURL, { connect: false });
+  wsNetwork.on("Load", (e) => {
+    console.log(`Loaded doc "${e.docID}" from the server.`);
+  });
+  wsNetwork.subscribe(doc, "counter");
 
-  // Signal to the container host that we're ready for use.
-  container.ready();
+  // In a real app, you would also connect to on-device storage, e.g.,
+  // using IndexedDBDocStore from @collabs/storage.
+  // We don't do that here because our demo server frequently resets the
+  // doc's state.
+
+  // "Connected" checkbox, to let the user demo concurrency.
+  const connected = document.getElementById("connected") as HTMLInputElement;
+  connected.checked = localStorage.getItem("connected") !== "false";
+  if (connected.checked) wsNetwork.connect();
+  connected.addEventListener("click", () => {
+    localStorage.setItem("connected", connected.checked + "");
+    if (connected.checked) wsNetwork.connect();
+    else wsNetwork.disconnect();
+  });
 })();
