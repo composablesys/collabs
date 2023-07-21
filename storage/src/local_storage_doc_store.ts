@@ -38,6 +38,7 @@ function escapeDots(str: string): string {
 type Doc = AbstractDoc | CRuntime;
 
 interface DocInfo {
+  docID: string;
   ourPrefix: string;
   updateCounter: number;
   saveCounter: number;
@@ -54,6 +55,7 @@ export class LocalStorageDocStore {
   readonly keyPrefix: string;
 
   private subs = new Map<Doc, DocInfo>();
+  private docsByID = new Map<string, Doc>();
 
   constructor(
     options: {
@@ -67,6 +69,14 @@ export class LocalStorageDocStore {
   // it will corrupt the doc. Need to design your doc's receive/load
   // to tolerate those errors instead.
   subscribe(doc: AbstractDoc | CRuntime, docID: string) {
+    if (this.subs.has(doc)) {
+      throw new Error("doc is already subscribed to a docID");
+    }
+
+    if (this.docsByID.has(docID)) {
+      throw new Error("Unsupported: multiple docs with same docID");
+    }
+
     // docPrefix: "@collabs/storage.<docID>"
     const docPrefix = this.keyPrefix + "." + escapeDots(docID);
     // ourPrefix: "@collabs/storage.<docID>.<replicaID>"
@@ -79,6 +89,7 @@ export class LocalStorageDocStore {
     // concurrent update.
 
     // 1. Load existing state into the doc.
+    // TODO: do async, to match other storage providers?
     const savedStates: Uint8Array[] = [];
     const updates: Uint8Array[] = [];
     const loadedKeys: string[] = [];
@@ -116,6 +127,7 @@ export class LocalStorageDocStore {
     // (& previous savedState) with a new savedState.
     const off = doc.on("Transaction", this.onTransaction);
     const info: DocInfo = {
+      docID,
       ourPrefix,
       saveCounter: 0,
       updateCounter: 0,
@@ -126,6 +138,7 @@ export class LocalStorageDocStore {
 
     // 3. Store subscription info.
     this.subs.set(doc, info);
+    this.docsByID.set(docID, doc);
 
     // 4. Store doc's current state and delete the loadedKeys that it incorporates.
     // Do this in a separate task to avoid blocking for too long.
@@ -147,6 +160,7 @@ export class LocalStorageDocStore {
 
     info.off();
     this.subs.delete(doc);
+    this.docsByID.delete(info.docID);
   }
 
   private onTransaction = (e: TransactionEvent, doc: Doc) => {
