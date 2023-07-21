@@ -30,6 +30,21 @@ import { WebSocketNetwork } from "@collabs/ws-client";
   wsNetwork.on("Load", (e) => {
     console.log(`Loaded doc "${e.docID}" from the server.`);
   });
+  wsNetwork.on("Save", (e) => {
+    console.log(`Saved all local updates to doc "${e.docID}" to the server`);
+  });
+  wsNetwork.on("Connect", () => console.log("Connected to the server."));
+  wsNetwork.on("Disconnect", (e) => {
+    // After a disconnection, try to reconnect every 2 seconds, unless
+    // we deliberately called wsNetwork.disconnect() (cause "disconnect").
+    if (e.cause === "disconnect") return;
+    console.error("WebSocket disconnected due to", e.cause, e.wsEvent);
+    setTimeout(() => {
+      console.log("Reconnecting...");
+      wsNetwork.connect();
+    }, 2000);
+  });
+
   wsNetwork.subscribe(doc, "counter");
 
   // In a real app, you would also connect to on-device storage, e.g.,

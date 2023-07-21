@@ -212,9 +212,11 @@ export class WebSocketNetwork extends EventEmitter<WebSocketNetworkEventsRecord>
         if (doc === undefined) return;
 
         // Note: we might get this update before the room Welcome.
-        // That is fine; if the update depends on existing state,
+        // That is fine; if the update causally depends on existing state,
         // doc will buffer it.
-        doc.receive(receive.update, this);
+        if (receive.updateType === UpdateType.Message)
+          doc.receive(receive.update, this);
+        else doc.load(receive.update, this);
         break;
       }
       case "ack": {

@@ -28,7 +28,7 @@ export class WebSocketNetworkServer {
   constructor(
     readonly wss: WebSocketServer,
     readonly docStore: ServerDocStore = new InMemoryDocStore(),
-    options: { heartbeatInterval?: number }
+    options: { heartbeatInterval?: number } = {}
   ) {
     this.heartbeatInterval =
       options.heartbeatInterval ?? defaultHeartbeatInterval;
@@ -105,6 +105,7 @@ export class WebSocketNetworkServer {
       let room = this.rooms.get(docID);
       if (room === undefined) {
         room = { clients: new Set(), lastSaveRequestTime: null };
+        this.rooms.set(docID, room);
       }
       room.clients.add(ws);
       wsRooms.add(docID);
