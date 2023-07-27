@@ -25,7 +25,6 @@
     "demos/apps/plaintext",
     "demos/apps/rich-text",
     "demos/apps/whiteboard",
-    "demos/apps/selector",
     "demos/apps/server",
     "benchmarks",
     "docs"
@@ -57,7 +56,6 @@
       "demos/apps/plaintext",
       "demos/apps/rich-text",
       "demos/apps/whiteboard",
-      "demos/apps/selector",
       "demos/apps/server"
     ]
   },

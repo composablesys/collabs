@@ -29,7 +29,7 @@
     "webpack-cli": "^4.8.0"
   },
   "scripts": {
-    "start": "ts-node -p tsconfig.server.json bin/server.ts",
+    "start": "ts-node -P tsconfig.server.json bin/server.ts",
     "dev": "cross-env TS_NODE_PROJECT='tsconfig.webpack-config.json' webpack",
     "build": "cross-env TS_NODE_PROJECT='tsconfig.webpack-config.json' webpack --mode production --devtool source-map",
     "test": "npm-run-all test:*",

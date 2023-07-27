@@ -31,8 +31,7 @@ void css;
 // --- App code ---
 
 //set file path constant, if required
-export const path = "";
-// export const path="horse-color-genetics_files/";
+export const path = "horse-color-genetics_files/";
 // export const path="http://horse.jenniferhoffman.net/";
 
 let hpath = path;
@@ -1880,11 +1879,11 @@ export function preloader() {
 
   loadText.innerHTML = "Loading";
 
-  collabsSetup().then(() => {
-    myLoadBar.parentNode.style.visibility = "hidden";
-    loadText.style.visibility = "hidden";
-    gameWindow.className = "";
-  });
+  collabsSetup();
+
+  myLoadBar.parentNode.style.visibility = "hidden";
+  loadText.style.visibility = "hidden";
+  gameWindow.className = "";
 }
 
 // Collabs stuff
@@ -1918,75 +1917,78 @@ const IRREGULAR_DEFAULTS = {
 // Maps alleleName's to their controlling CVar.
 let alleles = {};
 
-const doc = new CRuntime();
+function collabsSetup() {
+  const doc = new CRuntime();
 
-for (const gene of GENES) {
-  for (const num of [1, 2]) {
-    const alleleName = gene + num;
-    const defaultValue = IRREGULAR_DEFAULTS[alleleName] ?? "_" + gene;
-    alleles[alleleName] = doc.registerCollab(
-      alleleName,
-      (init) => new CVar(init, defaultValue)
-    );
-    alleles[alleleName].on("Set", () => {
-      // Reflect the change in the GUI.
+  for (const gene of GENES) {
+    for (const num of [1, 2]) {
+      const alleleName = gene + num;
+      const defaultValue = IRREGULAR_DEFAULTS[alleleName] ?? "_" + gene;
+      alleles[alleleName] = doc.registerCollab(
+        alleleName,
+        (init) => new CVar(init, defaultValue)
+      );
+      alleles[alleleName].on("Set", () => {
+        // Reflect the change in the GUI.
+        document.images[alleleName].src =
+          path + alleles[alleleName].value + ".png";
+      });
+      // Display initial state (evaluateGenetics() assumes this is
+      // set).
       document.images[alleleName].src =
         path + alleles[alleleName].value + ".png";
-    });
-    // Display initial state (evaluateGenetics() assumes this is
-    // set).
-    document.images[alleleName].src = path + alleles[alleleName].value + ".png";
+    }
   }
-}
 
-doc.on("Change", evaluateGenetics);
+  doc.on("Change", evaluateGenetics);
 
-// --- Network/storage setup ---
+  // --- Network/storage setup ---
 
-const docID = "counter";
+  const docID = "counter";
 
-// Connect to the server over WebSocket.
-const wsURL = location.origin.replace(/^http/, "ws");
-const wsNetwork = new WebSocketNetwork(wsURL, { connect: false });
-wsNetwork.on("Load", (e) => {
-  console.log(`Loaded doc "${e.docID}" from the server.`);
-});
-wsNetwork.on("Save", (e) => {
-  console.log(`Saved all local updates to doc "${e.docID}" to the server`);
-});
-wsNetwork.on("Connect", () => console.log("Connected to the server."));
-wsNetwork.on("Disconnect", (e) => {
-  // After a disconnection, try to reconnect every 2 seconds, unless
-  // we deliberately called wsNetwork.disconnect().
-  if (e.cause === "disconnect") return;
-  console.error("WebSocket disconnected due to", e.cause, e.wsEvent);
-  setTimeout(() => {
-    console.log("Reconnecting...");
+  // Connect to the server over WebSocket.
+  const wsURL = location.origin.replace(/^http/, "ws");
+  const wsNetwork = new WebSocketNetwork(wsURL, { connect: false });
+  wsNetwork.on("Load", (e) => {
+    console.log(`Loaded doc "${e.docID}" from the server.`);
+  });
+  wsNetwork.on("Save", (e) => {
+    console.log(`Saved all local updates to doc "${e.docID}" to the server`);
+  });
+  wsNetwork.on("Connect", () => console.log("Connected to the server."));
+  wsNetwork.on("Disconnect", (e) => {
+    // After a disconnection, try to reconnect every 2 seconds, unless
+    // we deliberately called wsNetwork.disconnect().
+    if (e.cause === "disconnect") return;
+    console.error("WebSocket disconnected due to", e.cause, e.wsEvent);
+    setTimeout(() => {
+      console.log("Reconnecting...");
+      wsNetwork.connect();
+    }, 2000);
+  });
+  wsNetwork.subscribe(doc, docID);
+
+  // Change to true to store a copy of the doc locally in IndexedDB.
+  // We disable this for our demos because the server frequently resets
+  // the doc's state. Disabling is also useful during development.
+  if (false) {
+    // TODO: change to IndexedDB.
+    const docStore = new LocalStorageDocStore();
+    docStore.subscribe(doc, docID);
+  }
+
+  // --- "Connected" checkbox for testing concurrency ---
+
+  const connected = document.getElementById("connected");
+  connected.checked = localStorage.getItem("connected") !== "false";
+  if (connected.checked) {
+    // Instead of calling connect() here, you can just remove WebSocketNetwork's
+    // { connect: false } option above.
     wsNetwork.connect();
-  }, 2000);
-});
-wsNetwork.subscribe(doc, docID);
-
-// Change to true to store a copy of the doc locally in IndexedDB.
-// We disable this for our demos because the server frequently resets
-// the doc's state. Disabling is also useful during development.
-if (false) {
-  // TODO: change to IndexedDB.
-  const docStore = new LocalStorageDocStore();
-  docStore.subscribe(doc, docID);
+  }
+  connected.addEventListener("click", () => {
+    localStorage.setItem("connected", connected.checked + "");
+    if (connected.checked) wsNetwork.connect();
+    else wsNetwork.disconnect();
+  });
 }
-
-// --- "Connected" checkbox for testing concurrency ---
-
-const connected = document.getElementById("connected");
-connected.checked = localStorage.getItem("connected") !== "false";
-if (connected.checked) {
-  // Instead of calling connect() here, you can just remove WebSocketNetwork's
-  // { connect: false } option above.
-  wsNetwork.connect();
-}
-connected.addEventListener("click", () => {
-  localStorage.setItem("connected", connected.checked + "");
-  if (connected.checked) wsNetwork.connect();
-  else wsNetwork.disconnect();
-});

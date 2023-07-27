@@ -50,7 +50,18 @@ const config: webpack.Configuration = {
     new CopyPlugin({
       patterns: [
         { from: "src/about.html", to: "[name][ext]" },
-        { from: "src/horse-color-genetics/*.png", to: "[name][ext]" },
+        {
+          from: "src/horse-color-genetics_files/*.png",
+          to: "horse-color-genetics_files/[name][ext]",
+        },
+        {
+          from: "src/horse-color-genetics_files/*.gif",
+          to: "horse-color-genetics_files/[name][ext]",
+        },
+        {
+          from: "src/horse-color-genetics_files/*.jpg",
+          to: "horse-color-genetics_files/[name][ext]",
+        },
       ],
     }),
   ],

@@ -23,6 +23,7 @@
     "prettier": "^2.2.1",
     "rimraf": "^2.7.1",
     "source-map-loader": "^3.0.0",
+    "style-loader": "^3.3.3",
     "ts-loader": "^9.2.5",
     "ts-node": "^10.1.0",
     "typescript": "^4.3.5",
@@ -30,7 +31,7 @@
     "webpack-cli": "^4.8.0"
   },
   "scripts": {
-    "start": "ts-node -p tsconfig.server.json bin/server.ts",
+    "start": "ts-node -P tsconfig.server.json bin/server.ts",
     "dev": "cross-env TS_NODE_PROJECT='tsconfig.webpack-config.json' webpack",
     "build": "cross-env TS_NODE_PROJECT='tsconfig.webpack-config.json' webpack --mode production --devtool source-map",
     "test": "npm-run-all test:*",

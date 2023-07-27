@@ -16,6 +16,7 @@
   "scripts": {
     "start": "ts-node src/server/server.ts",
     "build": "",
+    "dev": "",
     "test": "npm-run-all test:*",
     "test:server-tsc": "tsc",
     "test:format": "prettier --check .",

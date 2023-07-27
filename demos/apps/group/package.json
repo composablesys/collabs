@@ -33,7 +33,7 @@
     "webpack-cli": "^4.8.0"
   },
   "scripts": {
-    "start": "ts-node -p tsconfig.server.json bin/server.ts",
+    "start": "ts-node -P tsconfig.server.json bin/server.ts",
     "dev": "npm-run-all dev:*",
     "dev:protobuf": "npm run build:protobuf",
     "dev:webpack": "cross-env TS_NODE_PROJECT='tsconfig.webpack-config.json' webpack",
