@@ -10,5 +10,6 @@
     "esModuleInterop": true,
     /* Use tsc (npm run build) to typecheck only. */
     "noEmit": true
-  }
+  },
+  "include": ["bin"]
 }

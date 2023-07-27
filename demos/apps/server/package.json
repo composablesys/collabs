@@ -1,44 +1,26 @@
 {
   "license": "Apache-2.0",
   "dependencies": {
-    "@collabs/collabs": "0.12.0",
-    "@collabs/container": "0.12.0",
-    "@collabs/ws-client": "0.12.0",
-    "@collabs/matrix-widget": "0.12.0",
     "@collabs/ws-server": "0.12.0",
-    "commander": "^8.2.0",
     "express": "^4.17.1"
   },
   "devDependencies": {
+    "@types/express": "^4.17.17",
+    "@types/node": "^15.6.1",
     "npm-run-all": "^4.1.5",
-    "webpack": "^5.50.0",
-    "webpack-cli": "^4.8.0",
-    "@types/webpack": "^5.28.0",
-    "@types/webpack-env": "^1.16.2",
     "cross-env": "^7.0.3",
     "ts-node": "^10.1.0",
-    "@types/node": "^15.6.1",
     "typescript": "^4.3.5",
-    "ts-loader": "^9.2.5",
-    "source-map-loader": "^3.0.0",
-    "copy-webpack-plugin": "^9.0.1",
-    "@types/copy-webpack-plugin": "^8.0.1",
-    "html-webpack-plugin": "^5.3.2",
-    "prettier": "^2.2.1",
-    "rimraf": "^2.7.1"
+    "prettier": "^2.2.1"
   },
   "scripts": {
-    "start": "node build/server/server.js",
-    "dev": "npm-run-all dev:*",
-    "dev:site": "cross-env TS_NODE_PROJECT='tsconfig-for-webpack-config.json' webpack",
-    "dev:server": "npm run build:server",
-    "build": "npm-run-all build:*",
-    "build:site": "cross-env TS_NODE_PROJECT='tsconfig-for-webpack-config.json' webpack --mode production --devtool source-map",
-    "build:server": "tsc --build tsconfig-server.json",
+    "start": "ts-node src/server/server.ts",
+    "build": "",
     "test": "npm-run-all test:*",
+    "test:server-tsc": "tsc",
     "test:format": "prettier --check .",
     "fix": "npm-run-all fix:*",
     "fix:format": "prettier --write .",
-    "clean": "rimraf build"
+    "clean": ""
   }
 }

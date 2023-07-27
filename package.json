@@ -42,14 +42,12 @@
     ],
     "noTest": [
       "template-app",
-      "docs",
-      "demos/apps/counter"
+      "docs"
     ],
     "noFix": [
       "template-app",
       "template-custom-type",
-      "docs",
-      "demos/apps/counter"
+      "docs"
     ],
     "demoApps": [
       "demos/apps/counter",
