@@ -9,7 +9,7 @@ const config: webpack.Configuration = {
   // mode and devtool are overridden by `npm run build` for production mode.
   mode: "development",
   devtool: "eval-source-map",
-  entry: "./src/app.ts",
+  entry: "./src/main.ts",
   module: {
     rules: [
       {
