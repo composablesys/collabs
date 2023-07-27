@@ -2,8 +2,9 @@ import { CCounter, CRuntime } from "@collabs/collabs";
 import { LocalStorageDocStore } from "@collabs/storage";
 import { WebSocketNetwork } from "@collabs/ws-client";
 
+// --- App code ---
+
 const doc = new CRuntime();
-const docID = "counter";
 
 // Register Collabs.
 const counter = doc.registerCollab("counter", (init) => new CCounter(init));
@@ -23,9 +24,11 @@ document.getElementById("increment")!.onclick = () => {
   counter.add(1);
 };
 
+// --- Network/storage setup ---
+
+const docID = "counter";
+
 // Connect to the server over WebSocket.
-// For demo purposes, we wait to call connect() until below;
-// you can instead just remove the { connect: false } option.
 const wsURL = location.origin.replace(/^http/, "ws");
 const wsNetwork = new WebSocketNetwork(wsURL, { connect: false });
 wsNetwork.on("Load", (e) => {
@@ -37,7 +40,7 @@ wsNetwork.on("Save", (e) => {
 wsNetwork.on("Connect", () => console.log("Connected to the server."));
 wsNetwork.on("Disconnect", (e) => {
   // After a disconnection, try to reconnect every 2 seconds, unless
-  // we deliberately called wsNetwork.disconnect() (cause "disconnect").
+  // we deliberately called wsNetwork.disconnect().
   if (e.cause === "disconnect") return;
   console.error("WebSocket disconnected due to", e.cause, e.wsEvent);
   setTimeout(() => {
@@ -45,23 +48,26 @@ wsNetwork.on("Disconnect", (e) => {
     wsNetwork.connect();
   }, 2000);
 });
-
 wsNetwork.subscribe(doc, docID);
 
 // Change to true to store a copy of the doc locally in IndexedDB.
 // We disable this for our demos because the server frequently resets
 // the doc's state. Disabling is also useful during development.
-const storeLocally = false;
-if (storeLocally) {
+if (false) {
   // TODO: change to IndexedDB.
   const docStore = new LocalStorageDocStore();
   docStore.subscribe(doc, docID);
 }
 
-// "Connected" checkbox, to let the user demo concurrency.
+// --- "Connected" checkbox for testing concurrency ---
+
 const connected = document.getElementById("connected") as HTMLInputElement;
 connected.checked = localStorage.getItem("connected") !== "false";
-if (connected.checked) wsNetwork.connect();
+if (connected.checked) {
+  // Instead of calling connect() here, you can just remove WebSocketNetwork's
+  // { connect: false } option above.
+  wsNetwork.connect();
+}
 connected.addEventListener("click", () => {
   localStorage.setItem("connected", connected.checked + "");
   if (connected.checked) wsNetwork.connect();

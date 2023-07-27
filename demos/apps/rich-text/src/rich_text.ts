@@ -5,12 +5,15 @@ import {
   Cursor,
   Cursors,
 } from "@collabs/collabs";
-import { CContainer } from "@collabs/container";
+import { LocalStorageDocStore } from "@collabs/storage";
+import { WebSocketNetwork } from "@collabs/ws-client";
 import Quill, { DeltaStatic, Delta as DeltaType } from "quill";
 import QuillCursors from "quill-cursors";
 
 // Include CSS
 import "quill/dist/quill.snow.css";
+
+// --- App code ---
 
 const Delta: typeof DeltaType = Quill.import("delta");
 Quill.register("modules/cursors", QuillCursors);
@@ -45,248 +48,264 @@ function makeInitialSave(): Uint8Array {
   return runtime.save();
 }
 
-(async function () {
-  const container = new CContainer();
+const doc = new CRuntime();
 
-  const text = container.registerCollab(
-    "text",
-    (init) => new CRichText(init, { noGrowAtEnd })
-  );
-  const presence = container.registerCollab(
-    "presence",
-    (init) => new CPresence<PresenceState>(init)
-  );
-  // "Set the initial state"
-  // (a single "\n", required by Quill) by
-  // loading it from a separate doc.
-  container.runtime.load(makeInitialSave());
+const text = doc.registerCollab(
+  "text",
+  (init) => new CRichText(init, { noGrowAtEnd })
+);
+const presence = doc.registerCollab(
+  "presence",
+  (init) => new CPresence<PresenceState>(init)
+);
+// "Set the initial state"
+// (a single "\n", matching Quill's initial state) by
+// loading it from a separate doc.
+doc.load(makeInitialSave());
 
-  const quill = new Quill("#editor", {
-    theme: "snow",
-    // Modules list from quilljs example, based on
-    // https://github.com/KillerCodeMonkey/ngx-quill/issues/295#issuecomment-443268064
-    modules: {
-      cursors: true,
-      toolbar: [
-        [{ font: [] }, { size: [] }],
-        ["bold", "italic", "underline", "strike"],
-        [{ color: [] }, { background: [] }],
-        [{ script: "super" }, { script: "sub" }],
-        [{ header: "1" }, { header: "2" }, "blockquote", "code-block"],
-        [
-          { list: "ordered" },
-          { list: "bullet" },
-          { indent: "-1" },
-          { indent: "+1" },
-        ],
-        // Omit embeds (images & videos); they require extra effort since
-        // CRichText doesn't allow "object" elements.
-        // Omit "syntax: true" because I can't figure out how
-        // to trick Webpack into importing highlight.js for
-        // side-effects. Same with "formula" and katex.
-        // Omit "direction" because I am not sure whether it is paragraph-level
-        // or not (need to know for noGrowAtEnd).
-        ["link"],
-        ["clean"],
+const quill = new Quill("#editor", {
+  theme: "snow",
+  // Modules list from quilljs example, based on
+  // https://github.com/KillerCodeMonkey/ngx-quill/issues/295#issuecomment-443268064
+  modules: {
+    cursors: true,
+    toolbar: [
+      [{ font: [] }, { size: [] }],
+      ["bold", "italic", "underline", "strike"],
+      [{ color: [] }, { background: [] }],
+      [{ script: "super" }, { script: "sub" }],
+      [{ header: "1" }, { header: "2" }, "blockquote", "code-block"],
+      [
+        { list: "ordered" },
+        { list: "bullet" },
+        { indent: "-1" },
+        { indent: "+1" },
       ],
-    },
-  });
+      // Omit embeds (images & videos); they require extra effort since
+      // CRichText doesn't allow "object" elements.
+      // Omit "syntax: true" because I can't figure out how
+      // to trick Webpack into importing highlight.js for
+      // side-effects. Same with "formula" and katex.
+      // Omit "direction" because I am not sure whether it is paragraph-level
+      // or not (need to know for noGrowAtEnd).
+      ["link"],
+      ["clean"],
+    ],
+  },
+});
 
-  await container.load();
+// Reflect Collab operations in Quill.
+// Note that for local operations, Quill has already updated
+// its own representation, so we should skip doing so again.
 
-  // Call this before adding event listeners, as
-  // an optimization.
-  // That way, we can immediately give Quill the complete loaded
-  // state (including further messages), instead of syncing
-  // it to Quill using a bunch of events.
-  container.receiveFurtherUpdates();
+let ourChange = false;
+function updateContents(delta: DeltaStatic) {
+  ourChange = true;
+  quill.updateContents(delta);
+  ourChange = false;
+}
 
-  // Display loaded state by syncing it to Quill.
-  let ourChange = false;
-  function updateContents(delta: DeltaStatic) {
-    ourChange = true;
-    quill.updateContents(delta);
-    ourChange = false;
-  }
-  const initDelta = new Delta();
-  for (const { values, format } of text.formatted()) {
-    initDelta.insert(values, format);
-  }
-  updateContents(initDelta);
-  // Delete Quill's starting character (a single "\n", now
-  // pushed to the end), since it's not in clientText.
-  updateContents(new Delta().retain(text.length).delete(1));
+text.on("Insert", (e) => {
+  if (e.meta.isLocalOp) return;
 
-  // Reflect Collab operations in Quill.
-  // Note that for local operations, Quill has already updated
-  // its own representation, so we should skip doing so again.
+  updateContents(new Delta().retain(e.index).insert(e.values, e.format));
+});
 
-  text.on("Insert", (e) => {
-    if (e.meta.isLocalOp) return;
+text.on("Delete", (e) => {
+  if (e.meta.isLocalOp) return;
 
-    updateContents(new Delta().retain(e.index).insert(e.values, e.format));
-  });
+  updateContents(new Delta().retain(e.index).delete(e.values.length));
+});
 
-  text.on("Delete", (e) => {
-    if (e.meta.isLocalOp) return;
+text.on("Format", (e) => {
+  if (e.meta.isLocalOp) return;
 
-    updateContents(new Delta().retain(e.index).delete(e.values.length));
-  });
+  updateContents(
+    new Delta().retain(e.startIndex).retain(e.endIndex - e.startIndex, {
+      // Convert CRichText's undefineds to Quill's nulls (both indicate a
+      // not-present key).
+      [e.key]: e.value ?? null,
+    })
+  );
+});
 
-  text.on("Format", (e) => {
-    if (e.meta.isLocalOp) return;
+// Convert user inputs to Collab operations.
 
-    updateContents(
-      new Delta().retain(e.startIndex).retain(e.endIndex - e.startIndex, {
-        // Convert CRichText's undefineds to Quill's nulls (both indicate a
-        // not-present key).
-        [e.key]: e.value ?? null,
-      })
-    );
-  });
-
-  // Convert user inputs to Collab operations.
-
-  /**
-   * Convert delta.ops into an array of modified DeltaOperations
-   * having the form { index: first char index, ...DeltaOperation},
-   * leaving out ops that do nothing.
-   */
-  function getRelevantDeltaOperations(delta: DeltaStatic): {
-    index: number;
-    insert?: string | object;
-    delete?: number;
-    attributes?: Record<string, any>;
-    retain?: number;
-  }[] {
-    if (delta.ops === undefined) return [];
-    const relevantOps = [];
-    let index = 0;
-    for (const op of delta.ops) {
-      if (op.retain === undefined || op.attributes) {
-        relevantOps.push({ index, ...op });
-      }
-      // Adjust index for the next op.
-      if (op.insert !== undefined) {
-        if (typeof op.insert === "string") index += op.insert.length;
-        else index += 1; // Embed
-      } else if (op.retain !== undefined) index += op.retain;
-      // Deletes don't add to the index because we'll do the
-      // next operation after them, hence the text will already
-      // be shifted left.
+/**
+ * Convert delta.ops into an array of modified DeltaOperations
+ * having the form { index: first char index, ...DeltaOperation},
+ * leaving out ops that do nothing.
+ */
+function getRelevantDeltaOperations(delta: DeltaStatic): {
+  index: number;
+  insert?: string | object;
+  delete?: number;
+  attributes?: Record<string, any>;
+  retain?: number;
+}[] {
+  if (delta.ops === undefined) return [];
+  const relevantOps = [];
+  let index = 0;
+  for (const op of delta.ops) {
+    if (op.retain === undefined || op.attributes) {
+      relevantOps.push({ index, ...op });
     }
-    return relevantOps;
+    // Adjust index for the next op.
+    if (op.insert !== undefined) {
+      if (typeof op.insert === "string") index += op.insert.length;
+      else index += 1; // Embed
+    } else if (op.retain !== undefined) index += op.retain;
+    // Deletes don't add to the index because we'll do the
+    // next operation after them, hence the text will already
+    // be shifted left.
   }
+  return relevantOps;
+}
 
-  quill.on("text-change", (delta) => {
-    // In theory we can listen for events with source "user",
-    // to ignore changes caused by Collab events instead of
-    // user input.  However, changes that remove formatting
-    // using the "remove formatting" button, or by toggling
-    // a link off, instead get emitted with source "api".
-    // This appears to be fixed only on a not-yet-released v2
-    // branch: https://github.com/quilljs/quill/issues/739
-    // For now, we manually keep track of whether changes are due
-    // to us or not.
-    // if (source !== "user") return;
-    if (ourChange) return;
+quill.on("text-change", (delta) => {
+  // In theory we can listen for events with source "user",
+  // to ignore changes caused by Collab events instead of
+  // user input.  However, changes that remove formatting
+  // using the "remove formatting" button, or by toggling
+  // a link off, instead get emitted with source "api".
+  // This appears to be fixed only on a not-yet-released v2
+  // branch: https://github.com/quilljs/quill/issues/739
+  // For now, we manually keep track of whether changes are due
+  // to us or not.
+  // if (source !== "user") return;
+  if (ourChange) return;
 
-    for (const op of getRelevantDeltaOperations(delta)) {
-      // Insertion
-      if (op.insert) {
-        if (typeof op.insert === "string") {
-          text.insert(op.index, op.insert, op.attributes ?? {});
-        } else {
-          // Embed of object
-          throw new Error("Embeds not supported");
-        }
-      }
-      // Deletion
-      else if (op.delete) {
-        text.delete(op.index, op.delete);
-      }
-      // Formatting
-      else if (op.attributes && op.retain) {
-        for (const [key, value] of Object.entries(op.attributes)) {
-          // Map null to undefined, for deleted keys.
-          text.format(op.index, op.index + op.retain, key, value ?? undefined);
-        }
-      }
-    }
-  });
-
-  // Presence (shared cursors).
-  const name =
-    nameParts[Math.floor(Math.random() * nameParts.length)] +
-    " " +
-    (1 + Math.floor(Math.random() * 9));
-  const color = `hsl(${Math.floor(Math.random() * 360)},50%,50%)`;
-  presence.setOurs({ name, color, selection: null });
-
-  const quillCursors = quill.getModule("cursors") as QuillCursors;
-  function moveCursor(replicaID: string): void {
-    if (replicaID === container.runtime.replicaID) return;
-    const value = presence.get(replicaID);
-    if (value === undefined) return;
-    else if (value.selection === null) quillCursors.removeCursor(replicaID);
-    else {
-      const anchorIndex = Cursors.toIndex(value.selection.anchor, text);
-      const headIndex = Cursors.toIndex(value.selection.head, text);
-      quillCursors.moveCursor(replicaID, {
-        index: anchorIndex,
-        length: headIndex - anchorIndex,
-      });
-    }
-  }
-  presence.on("Set", (e) => {
-    if (e.key === container.runtime.replicaID) return;
-    if (e.value.selection === null) quillCursors.removeCursor(e.key);
-    else {
-      quillCursors.createCursor(e.key, e.value.name, e.value.color);
-      moveCursor(e.key);
-    }
-  });
-  presence.on("Delete", (e) => quillCursors.removeCursor(e.key));
-  quill.on("editor-change", () => {
-    // Send our cursor state.
-    // Only do this when the user does something (not in reaction to
-    // remote Collab events).
-    if (!ourChange) {
-      const selection = quill.getSelection();
-      if (selection === null) {
-        presence.updateOurs("selection", null);
+  for (const op of getRelevantDeltaOperations(delta)) {
+    // Insertion
+    if (op.insert) {
+      if (typeof op.insert === "string") {
+        text.insert(op.index, op.insert, op.attributes ?? {});
       } else {
-        const anchor = Cursors.fromIndex(selection.index, text);
-        const head = Cursors.fromIndex(
-          selection.index + selection.length,
-          text
-        );
-        presence.updateOurs("selection", { anchor, head });
+        // Embed of object
+        throw new Error("Embeds not supported");
       }
     }
+    // Deletion
+    else if (op.delete) {
+      text.delete(op.index, op.delete);
+    }
+    // Formatting
+    else if (op.attributes && op.retain) {
+      for (const [key, value] of Object.entries(op.attributes)) {
+        // Map null to undefined, for deleted keys.
+        text.format(op.index, op.index + op.retain, key, value ?? undefined);
+      }
+    }
+  }
+});
 
-    // Move everyone else's cursors locally.
-    // TODO: is this necessary? Will Quill OT it for us?
-    for (const replicaID of presence.keys()) moveCursor(replicaID);
-  });
+// Presence (shared cursors).
+const name =
+  nameParts[Math.floor(Math.random() * nameParts.length)] +
+  " " +
+  (1 + Math.floor(Math.random() * 9));
+const color = `hsl(${Math.floor(Math.random() * 360)},50%,50%)`;
+presence.setOurs({ name, color, selection: null });
 
-  // Display loaded presence state.
-  for (const [replicaID, state] of presence) {
-    if (state.selection !== null) {
-      quillCursors.createCursor(replicaID, state.name, state.color);
-      moveCursor(replicaID);
+const quillCursors = quill.getModule("cursors") as QuillCursors;
+function moveCursor(replicaID: string): void {
+  if (replicaID === doc.replicaID) return;
+  const value = presence.get(replicaID);
+  if (value === undefined) return;
+  else if (value.selection === null) quillCursors.removeCursor(replicaID);
+  else {
+    const anchorIndex = Cursors.toIndex(value.selection.anchor, text);
+    const headIndex = Cursors.toIndex(value.selection.head, text);
+    quillCursors.moveCursor(replicaID, {
+      index: anchorIndex,
+      length: headIndex - anchorIndex,
+    });
+  }
+}
+presence.on("Set", (e) => {
+  if (e.key === doc.replicaID) return;
+  if (e.value.selection === null) quillCursors.removeCursor(e.key);
+  else {
+    quillCursors.createCursor(e.key, e.value.name, e.value.color);
+    moveCursor(e.key);
+  }
+});
+presence.on("Delete", (e) => quillCursors.removeCursor(e.key));
+quill.on("editor-change", () => {
+  // Send our cursor state.
+  // Only do this when the user does something (not in reaction to
+  // remote Collab events).
+  if (!ourChange) {
+    const selection = quill.getSelection();
+    if (selection === null) {
+      presence.updateOurs("selection", null);
+    } else {
+      const anchor = Cursors.fromIndex(selection.index, text);
+      const head = Cursors.fromIndex(selection.index + selection.length, text);
+      presence.updateOurs("selection", { anchor, head });
     }
   }
 
-  // Presence connect & disconnect.
-  // Since the demo server delivers old messages shortly after starting, wait
-  // a second for those to pass before connecting. Otherwise the messages
-  // (which look new) make old users appear present.
-  setTimeout(() => presence.connect(), 1000);
-  // Note: apparently beforeunload disables some opts in Firefox; consider removing.
-  // https://web.dev/bfcache/#only-add-beforeunload-listeners-conditionally
-  window.addEventListener("beforeunload", () => presence.disconnect());
+  // Move everyone else's cursors locally.
+  // TODO: is this necessary? Will Quill OT it for us?
+  for (const replicaID of presence.keys()) moveCursor(replicaID);
+});
 
-  // Ready.
-  container.ready();
-})();
+// Presence connect & disconnect.
+// Since the demo server delivers old messages shortly after starting, wait
+// a second for those to pass before connecting. Otherwise the messages
+// (which look new) make old users appear present.
+setTimeout(() => presence.connect(), 1000);
+// Note: apparently beforeunload disables some opts in Firefox; consider removing.
+// https://web.dev/bfcache/#only-add-beforeunload-listeners-conditionally
+window.addEventListener("beforeunload", () => presence.disconnect());
+
+// --- Network/storage setup ---
+
+const docID = "rich-text";
+
+// Connect to the server over WebSocket.
+const wsURL = location.origin.replace(/^http/, "ws");
+const wsNetwork = new WebSocketNetwork(wsURL, { connect: false });
+wsNetwork.on("Load", (e) => {
+  console.log(`Loaded doc "${e.docID}" from the server.`);
+});
+wsNetwork.on("Save", (e) => {
+  console.log(`Saved all local updates to doc "${e.docID}" to the server`);
+});
+wsNetwork.on("Connect", () => console.log("Connected to the server."));
+wsNetwork.on("Disconnect", (e) => {
+  // After a disconnection, try to reconnect every 2 seconds, unless
+  // we deliberately called wsNetwork.disconnect().
+  if (e.cause === "disconnect") return;
+  console.error("WebSocket disconnected due to", e.cause, e.wsEvent);
+  setTimeout(() => {
+    console.log("Reconnecting...");
+    wsNetwork.connect();
+  }, 2000);
+});
+wsNetwork.subscribe(doc, docID);
+
+// Change to true to store a copy of the doc locally in IndexedDB.
+// We disable this for our demos because the server frequently resets
+// the doc's state. Disabling is also useful during development.
+if (false) {
+  // TODO: change to IndexedDB.
+  const docStore = new LocalStorageDocStore();
+  docStore.subscribe(doc, docID);
+}
+
+// --- "Connected" checkbox for testing concurrency ---
+
+const connected = document.getElementById("connected") as HTMLInputElement;
+connected.checked = localStorage.getItem("connected") !== "false";
+if (connected.checked) {
+  // Instead of calling connect() here, you can just remove WebSocketNetwork's
+  // { connect: false } option above.
+  wsNetwork.connect();
+}
+connected.addEventListener("click", () => {
+  localStorage.setItem("connected", connected.checked + "");
+  if (connected.checked) wsNetwork.connect();
+  else wsNetwork.disconnect();
+});

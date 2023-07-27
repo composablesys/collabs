@@ -21,11 +21,14 @@
 	- randomhorse()
 */
 
-import { CVar } from "@collabs/collabs";
-import { CContainer } from "@collabs/container";
+import { CRuntime, CVar } from "@collabs/collabs";
+import { LocalStorageDocStore } from "@collabs/storage";
+import { WebSocketNetwork } from "@collabs/ws-client";
 // CSS
 import css from "./horsegenetics.css";
 void css;
+
+// --- App code ---
 
 //set file path constant, if required
 export const path = "";
@@ -109,10 +112,10 @@ export function hideTip() {
 export function togglecolorinfo() {
   if (document.getElementById("colorinfo").style.display == "block") {
     document.getElementById("colorinfo").style.display = "none";
-    document.images["arrow"].src = imageSrc(path + "arrow_down.png");
+    document.images["arrow"].src = path + "arrow_down.png";
   } else {
     document.getElementById("colorinfo").style.display = "block";
-    document.images["arrow"].src = imageSrc(path + "arrow_up.png");
+    document.images["arrow"].src = path + "arrow_up.png";
   }
 }
 //////////////////////////////////////////////////////////////////////////
@@ -537,15 +540,13 @@ export function evaluateGenetics() {
 
     //roan?
     if (varnish == 1 && (leopard || blanket)) {
-      self.document.images["roan"].src = imageSrc(
-        hpath + "roan_appaloosa" + spotSize + ".png"
-      );
-      self.document.images["rabicano"].src = imageSrc(
-        hpath + "rabicano_appaloosa" + spotSize + ".png"
-      );
+      self.document.images["roan"].src =
+        hpath + "roan_appaloosa" + spotSize + ".png";
+      self.document.images["rabicano"].src =
+        hpath + "rabicano_appaloosa" + spotSize + ".png";
     } else {
-      self.document.images["roan"].src = imageSrc(hpath + "roan.png");
-      self.document.images["rabicano"].src = imageSrc(hpath + "rabicano.png");
+      self.document.images["roan"].src = hpath + "roan.png";
+      self.document.images["rabicano"].src = hpath + "rabicano.png";
     }
     roan =
       alleles["rn1"].value === "rn" || alleles["rn2"].value === "rn" ? 1 : 0;
@@ -706,15 +707,13 @@ export function updateDisplay(
       ? "block"
       : "none";
     document.getElementById("overo").style.display = isOvero ? "block" : "none";
-    document.getElementById("splashedwhite").src = imageSrc(
-      hpath + "splash" + isSplashed + ".png"
-    );
+    document.getElementById("splashedwhite").src =
+      hpath + "splash" + isSplashed + ".png";
     document.getElementById("splashedwhite").style.display = isSplashed
       ? "block"
       : "none";
-    document.getElementById("sabino").src = imageSrc(
-      hpath + "sabino" + isSabino + ".png"
-    );
+    document.getElementById("sabino").src =
+      hpath + "sabino" + isSabino + ".png";
     document.getElementById("sabino").style.display = isSabino
       ? "block"
       : "none";
@@ -731,7 +730,7 @@ export function updateDisplay(
         if (isVarnish < 2) appTemp += "_" + spotSize;
       }
 
-      self.document.images["appaloosa"].src = imageSrc(appTemp + ".png");
+      self.document.images["appaloosa"].src = appTemp + ".png";
     }
     document.getElementById("appaloosa").style.display = isVarnish
       ? "block"
@@ -809,10 +808,10 @@ export function updateDisplay(
       tempSrc = hpath + newColor + ".png";
   }
 
-  tempImage.src = imageSrc(tempSrc);
+  tempImage.src = tempSrc;
   //if (tempImage.complete && typeof(tempImage.naturalWidth) != 'undefined' && tempImage.naturalWidth == 0)
   //console.debug('Cound not find base coat to display for: '+newColor);
-  self.document.images["basecoat"].src = imageSrc(tempSrc);
+  self.document.images["basecoat"].src = tempSrc;
 }
 //////////////////////////////////////////////////////////////////////////
 
@@ -1888,7 +1887,7 @@ export function preloader() {
   });
 }
 
-// Collab stuff
+// Collabs stuff
 
 const GENES = [
   "e",
@@ -1919,40 +1918,75 @@ const IRREGULAR_DEFAULTS = {
 // Maps alleleName's to their controlling CVar.
 let alleles = {};
 
-// Async so we can await load.
-async function collabsSetup() {
-  const container = new CContainer();
+const doc = new CRuntime();
 
-  for (const gene of GENES) {
-    for (const num of [1, 2]) {
-      const alleleName = gene + num;
-      const defaultValue = IRREGULAR_DEFAULTS[alleleName] ?? "_" + gene;
-      alleles[alleleName] = container.registerCollab(
-        alleleName,
-        (init) => new CVar(init, defaultValue)
-      );
-      alleles[alleleName].on("Set", () => {
-        // Reflect the change in the GUI.
-        document.images[alleleName].src = imageSrc(
-          path + alleles[alleleName].value + ".png"
-        );
-      });
-      // Display initial state (evaluateGenetics() assumes this is
-      // set).
-      document.images[alleleName].src = imageSrc(
-        path + alleles[alleleName].value + ".png"
-      );
-    }
+for (const gene of GENES) {
+  for (const num of [1, 2]) {
+    const alleleName = gene + num;
+    const defaultValue = IRREGULAR_DEFAULTS[alleleName] ?? "_" + gene;
+    alleles[alleleName] = doc.registerCollab(
+      alleleName,
+      (init) => new CVar(init, defaultValue)
+    );
+    alleles[alleleName].on("Set", () => {
+      // Reflect the change in the GUI.
+      document.images[alleleName].src =
+        path + alleles[alleleName].value + ".png";
+    });
+    // Display initial state (evaluateGenetics() assumes this is
+    // set).
+    document.images[alleleName].src = path + alleles[alleleName].value + ".png";
   }
-
-  container.on("Change", evaluateGenetics);
-
-  await container.load();
-
-  // Ready.
-  container.ready();
 }
 
-function imageSrc(filename) {
-  return require("./" + filename);
+doc.on("Change", evaluateGenetics);
+
+// --- Network/storage setup ---
+
+const docID = "counter";
+
+// Connect to the server over WebSocket.
+const wsURL = location.origin.replace(/^http/, "ws");
+const wsNetwork = new WebSocketNetwork(wsURL, { connect: false });
+wsNetwork.on("Load", (e) => {
+  console.log(`Loaded doc "${e.docID}" from the server.`);
+});
+wsNetwork.on("Save", (e) => {
+  console.log(`Saved all local updates to doc "${e.docID}" to the server`);
+});
+wsNetwork.on("Connect", () => console.log("Connected to the server."));
+wsNetwork.on("Disconnect", (e) => {
+  // After a disconnection, try to reconnect every 2 seconds, unless
+  // we deliberately called wsNetwork.disconnect().
+  if (e.cause === "disconnect") return;
+  console.error("WebSocket disconnected due to", e.cause, e.wsEvent);
+  setTimeout(() => {
+    console.log("Reconnecting...");
+    wsNetwork.connect();
+  }, 2000);
+});
+wsNetwork.subscribe(doc, docID);
+
+// Change to true to store a copy of the doc locally in IndexedDB.
+// We disable this for our demos because the server frequently resets
+// the doc's state. Disabling is also useful during development.
+if (false) {
+  // TODO: change to IndexedDB.
+  const docStore = new LocalStorageDocStore();
+  docStore.subscribe(doc, docID);
 }
+
+// --- "Connected" checkbox for testing concurrency ---
+
+const connected = document.getElementById("connected");
+connected.checked = localStorage.getItem("connected") !== "false";
+if (connected.checked) {
+  // Instead of calling connect() here, you can just remove WebSocketNetwork's
+  // { connect: false } option above.
+  wsNetwork.connect();
+}
+connected.addEventListener("click", () => {
+  localStorage.setItem("connected", connected.checked + "");
+  if (connected.checked) wsNetwork.connect();
+  else wsNetwork.disconnect();
+});

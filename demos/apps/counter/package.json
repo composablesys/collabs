@@ -8,6 +8,7 @@
     "ws": "^8.13.0"
   },
   "devDependencies": {
+    "@types/copy-webpack-plugin": "^8.0.1",
     "@types/node": "^15.6.1",
     "@types/webpack": "^5.28.0",
     "@types/webpack-env": "^1.16.2",

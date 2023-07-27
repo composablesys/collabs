@@ -28,19 +28,7 @@ const config: webpack.Configuration = {
         enforce: "pre",
         use: ["source-map-loader"],
       },
-      // If you include assets in your HTML file, uncomment
-      // the next rule and add html-loader as a devDependency,
-      // so that Webpack knows to include those assets.
-      // {
-      //   test: /\.(html)$/,
-      //   use: ["html-loader"],
-      // },
-      // Add loaders for other assets as needed, e.g., the
-      // next rule loads images.
-      // {
-      //   test: /\.(png|svg|jpg|jpeg|gif)$/i,
-      //   type: "asset/resource",
-      // },
+      // Other loaders here...
     ],
   },
   resolve: {

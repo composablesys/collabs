@@ -2,12 +2,16 @@ import {
   CBoolean,
   CObject,
   CollabID,
+  CRuntime,
   CSet,
   CVar,
   InitToken,
 } from "@collabs/collabs";
-import { CContainer } from "@collabs/container";
+import { LocalStorageDocStore } from "@collabs/storage";
+import { WebSocketNetwork } from "@collabs/ws-client";
 import seedrandom from "seedrandom";
+
+// --- App code ---
 
 // Minesweeper Collab
 
@@ -219,7 +223,7 @@ class CMinesweeper extends CObject {
     return allEmptyRevealed ? GameStatus.WON : GameStatus.IN_PROGRESS;
   }
 
-  // <------- UTILITIES ------->
+  // Utilities
 
   /**
    * Given a coordinate, it finds all of its neighbors.
@@ -249,220 +253,262 @@ class CMinesweeper extends CObject {
   }
 }
 
-(async function () {
-  const board = document.getElementById("board");
-  const winText = document.getElementById("winText")!;
+const board = document.getElementById("board");
+const winText = document.getElementById("winText")!;
 
-  /* Creating the grid */
-  // TODO: make refresh not destroy board each time?
-  // TODO: if game over, say win/lose and display whole board
-  function refreshDisplay() {
-    // @ts-ignore
-    board.innerHTML = "";
-    let state =
-      currentState.value === "settings"
-        ? currentSettings.value
-        : gameFactory.fromID(currentGame.value!)!;
+/* Creating the grid */
+// TODO: convert to React
+function refreshDisplay() {
+  // @ts-ignore
+  board.innerHTML = "";
+  let state =
+    currentState.value === "settings"
+      ? currentSettings.value
+      : gameFactory.fromID(currentGame.value!)!;
 
-    for (let y = 0; y < state.height; y++) {
-      let row = document.createElement("tr");
+  for (let y = 0; y < state.height; y++) {
+    let row = document.createElement("tr");
 
-      for (let x = 0; x < state.width; x++) {
-        let box = document.createElement("th");
-        box.setAttribute("row", y.toString());
-        box.setAttribute("col", x.toString());
-        box.className = "cell";
-        box.id = "row_" + y.toString() + "_" + x.toString();
-        if (currentState.value === "game") {
-          let game = state as CMinesweeper;
-          let tile = game.tiles[x][y];
-          box.addEventListener("click", (event) => {
-            if (event.button === 0) game.leftClick(x, y);
-          });
-          box.addEventListener("contextmenu", function (e) {
-            e.preventDefault();
-            game.rightClick(x, y);
-          });
-          let letterCode = game.tiles[x][y].letterCode;
-          if (letterCode === "0") letterCode = " ";
-          box.appendChild(document.createTextNode(letterCode));
-          // Set the text and background colors
-          switch (tile.status) {
-            case TileStatus.BLANK:
-            case TileStatus.FLAG:
-            case TileStatus.QUESTION_FLAG:
-              box.style.color = "black";
-              box.style.backgroundColor = "gray";
-              break;
-            case TileStatus.REVEALED_EMPTY:
-              box.style.color = "black";
-              switch (tile.number) {
-                case 0:
-                  box.style.backgroundColor = "Gainsboro";
-                  break;
-                case 1:
-                  box.style.backgroundColor = "#b3e5fc";
-                  break;
-                case 2:
-                  box.style.backgroundColor = "#c8e6c9";
-                  break;
-                case 3:
-                  box.style.backgroundColor = "#f8bbd0";
-                  break;
-                case 4:
-                  box.style.backgroundColor = "#e1bee7";
-                  break;
-                case 5:
-                  box.style.backgroundColor = "#bcaaa4";
-                  break;
-                case 6:
-                  box.style.backgroundColor = "#ffccbc";
-                  break;
-                case 7:
-                  box.style.backgroundColor = "#fff9c4";
-                  break;
-                case 8:
-                  box.style.backgroundColor = "#ffcdd2";
-                  break;
-              }
-              break;
-            case TileStatus.REVEALED_MINE:
-              box.style.color = "red";
-              box.style.backgroundColor = "Gainsboro";
-          }
-        } else {
-          // It's GameSettings
-          let settings = state as GameSettings;
-          box.addEventListener("click", (event) => {
-            if (event.button === 0) {
-              const oldGames = currentGame.conflicts();
-              // Start the game, with this tile safe
-              const newGame = gameFactory.add(
-                settings.width,
-                settings.height,
-                settings.fractionMines,
-                x,
-                y,
-                Math.random() + ""
-              );
-              currentGame.value = gameFactory.idOf(newGame);
-              currentState.value = "game";
-              // Easy to forget: clean up old games.
-              for (const oldGame of oldGames) {
-                if (oldGame !== null) {
-                  const game = gameFactory.fromID(oldGame);
-                  if (game) gameFactory.delete(game);
-                }
-              }
-              newGame.leftClick(x, y);
+    for (let x = 0; x < state.width; x++) {
+      let box = document.createElement("th");
+      box.setAttribute("row", y.toString());
+      box.setAttribute("col", x.toString());
+      box.className = "cell";
+      box.id = "row_" + y.toString() + "_" + x.toString();
+      if (currentState.value === "game") {
+        let game = state as CMinesweeper;
+        let tile = game.tiles[x][y];
+        box.addEventListener("click", (event) => {
+          if (event.button === 0) game.leftClick(x, y);
+        });
+        box.addEventListener("contextmenu", function (e) {
+          e.preventDefault();
+          game.rightClick(x, y);
+        });
+        let letterCode = game.tiles[x][y].letterCode;
+        if (letterCode === "0") letterCode = " ";
+        box.appendChild(document.createTextNode(letterCode));
+        // Set the text and background colors
+        switch (tile.status) {
+          case TileStatus.BLANK:
+          case TileStatus.FLAG:
+          case TileStatus.QUESTION_FLAG:
+            box.style.color = "black";
+            box.style.backgroundColor = "gray";
+            break;
+          case TileStatus.REVEALED_EMPTY:
+            box.style.color = "black";
+            switch (tile.number) {
+              case 0:
+                box.style.backgroundColor = "Gainsboro";
+                break;
+              case 1:
+                box.style.backgroundColor = "#b3e5fc";
+                break;
+              case 2:
+                box.style.backgroundColor = "#c8e6c9";
+                break;
+              case 3:
+                box.style.backgroundColor = "#f8bbd0";
+                break;
+              case 4:
+                box.style.backgroundColor = "#e1bee7";
+                break;
+              case 5:
+                box.style.backgroundColor = "#bcaaa4";
+                break;
+              case 6:
+                box.style.backgroundColor = "#ffccbc";
+                break;
+              case 7:
+                box.style.backgroundColor = "#fff9c4";
+                break;
+              case 8:
+                box.style.backgroundColor = "#ffcdd2";
+                break;
             }
-          });
-          box.appendChild(document.createTextNode(" "));
-          box.style.backgroundColor = "gray";
+            break;
+          case TileStatus.REVEALED_MINE:
+            box.style.color = "red";
+            box.style.backgroundColor = "Gainsboro";
         }
-        row.appendChild(box);
+      } else {
+        // It's GameSettings
+        let settings = state as GameSettings;
+        box.addEventListener("click", (event) => {
+          if (event.button === 0) {
+            const oldGames = currentGame.conflicts();
+            // Start the game, with this tile safe
+            const newGame = gameFactory.add(
+              settings.width,
+              settings.height,
+              settings.fractionMines,
+              x,
+              y,
+              Math.random() + ""
+            );
+            currentGame.value = gameFactory.idOf(newGame);
+            currentState.value = "game";
+            // Easy to forget: clean up old games.
+            for (const oldGame of oldGames) {
+              if (oldGame !== null) {
+                const game = gameFactory.fromID(oldGame);
+                if (game) gameFactory.delete(game);
+              }
+            }
+            newGame.leftClick(x, y);
+          }
+        });
+        box.appendChild(document.createTextNode(" "));
+        box.style.backgroundColor = "gray";
       }
-
-      // @ts-ignore
-      board.appendChild(row);
+      row.appendChild(box);
     }
 
-    if (state instanceof CMinesweeper) {
-      let game = state as CMinesweeper;
-      switch (game.winStatus()) {
-        case GameStatus.WON:
-          winText.innerHTML = "You won!";
-          break;
-        case GameStatus.LOST:
-          winText.innerHTML = "You lost.";
-          break;
-        case GameStatus.IN_PROGRESS:
-          winText.innerHTML = "";
-      }
-    } else {
-      winText.innerHTML = "";
+    // @ts-ignore
+    board.appendChild(row);
+  }
+
+  if (state instanceof CMinesweeper) {
+    let game = state as CMinesweeper;
+    switch (game.winStatus()) {
+      case GameStatus.WON:
+        winText.innerHTML = "You won!";
+        break;
+      case GameStatus.LOST:
+        winText.innerHTML = "You lost.";
+        break;
+      case GameStatus.IN_PROGRESS:
+        winText.innerHTML = "";
     }
+  } else {
+    winText.innerHTML = "";
   }
+}
 
-  let valid = true;
-  function invalidate() {
-    if (valid) {
-      valid = false;
-      setTimeout(() => {
-        refreshDisplay();
-        valid = true;
-      }, 0);
-    }
+let valid = true;
+function invalidate() {
+  if (valid) {
+    valid = false;
+    setTimeout(() => {
+      refreshDisplay();
+      valid = true;
+    }, 0);
   }
+}
 
-  const widthInput = document.getElementById("width") as HTMLInputElement;
-  const heightInput = document.getElementById("height") as HTMLInputElement;
-  const percentMinesInput = document.getElementById(
-    "percentMines"
-  ) as HTMLInputElement;
+const widthInput = document.getElementById("width") as HTMLInputElement;
+const heightInput = document.getElementById("height") as HTMLInputElement;
+const percentMinesInput = document.getElementById(
+  "percentMines"
+) as HTMLInputElement;
 
-  function settingsFromInput(): GameSettings {
-    return {
-      width: widthInput.valueAsNumber,
-      height: heightInput.valueAsNumber,
-      fractionMines: percentMinesInput.valueAsNumber / 100,
-    };
-  }
-
-  const container = new CContainer();
-
-  const gameFactory = container.registerCollab(
-    "gameFactory",
-    (init) =>
-      new CSet(
-        init,
-        (
-          valueInit: InitToken,
-          width: number,
-          height: number,
-          fractionMines: number,
-          startX: number,
-          startY: number,
-          seed: string
-        ) =>
-          new CMinesweeper(
-            valueInit,
-            width,
-            height,
-            fractionMines,
-            startX,
-            startY,
-            seed
-          )
-      )
-  );
-  const currentGame = container.registerCollab(
-    "currentGame",
-    (init) => new CVar<CollabID<CMinesweeper> | null>(init, null)
-  );
-  const currentSettings = container.registerCollab(
-    "currentSettings",
-    (init) => new CVar(init, settingsFromInput())
-  );
-  const currentState = container.registerCollab(
-    "currentState",
-    (init) => new CVar<"game" | "settings">(init, "settings")
-  );
-
-  container.on("Change", invalidate);
-
-  // Respond to user input.
-  document.getElementById("newGame")!.onclick = function () {
-    currentSettings.value = settingsFromInput();
-    currentState.value = "settings";
+function settingsFromInput(): GameSettings {
+  return {
+    width: widthInput.valueAsNumber,
+    height: heightInput.valueAsNumber,
+    fractionMines: percentMinesInput.valueAsNumber / 100,
   };
-  // Other event listeners are added directly in refreshDisplay.
+}
 
-  await container.load();
+const doc = new CRuntime();
 
-  // Render the initial state.
-  invalidate();
+const gameFactory = doc.registerCollab(
+  "gameFactory",
+  (init) =>
+    new CSet(
+      init,
+      (
+        valueInit: InitToken,
+        width: number,
+        height: number,
+        fractionMines: number,
+        startX: number,
+        startY: number,
+        seed: string
+      ) =>
+        new CMinesweeper(
+          valueInit,
+          width,
+          height,
+          fractionMines,
+          startX,
+          startY,
+          seed
+        )
+    )
+);
+const currentGame = doc.registerCollab(
+  "currentGame",
+  (init) => new CVar<CollabID<CMinesweeper> | null>(init, null)
+);
+const currentSettings = doc.registerCollab(
+  "currentSettings",
+  (init) => new CVar(init, settingsFromInput())
+);
+const currentState = doc.registerCollab(
+  "currentState",
+  (init) => new CVar<"game" | "settings">(init, "settings")
+);
 
-  // Ready.
-  container.ready();
-})();
+doc.on("Change", invalidate);
+
+// Respond to user input.
+document.getElementById("newGame")!.onclick = function () {
+  currentSettings.value = settingsFromInput();
+  currentState.value = "settings";
+};
+// Other event listeners are added directly in refreshDisplay.
+
+// Render the initial state.
+invalidate();
+
+// --- Network/storage setup ---
+
+const docID = "minesweeper";
+
+// Connect to the server over WebSocket.
+const wsURL = location.origin.replace(/^http/, "ws");
+const wsNetwork = new WebSocketNetwork(wsURL, { connect: false });
+wsNetwork.on("Load", (e) => {
+  console.log(`Loaded doc "${e.docID}" from the server.`);
+});
+wsNetwork.on("Save", (e) => {
+  console.log(`Saved all local updates to doc "${e.docID}" to the server`);
+});
+wsNetwork.on("Connect", () => console.log("Connected to the server."));
+wsNetwork.on("Disconnect", (e) => {
+  // After a disconnection, try to reconnect every 2 seconds, unless
+  // we deliberately called wsNetwork.disconnect().
+  if (e.cause === "disconnect") return;
+  console.error("WebSocket disconnected due to", e.cause, e.wsEvent);
+  setTimeout(() => {
+    console.log("Reconnecting...");
+    wsNetwork.connect();
+  }, 2000);
+});
+wsNetwork.subscribe(doc, docID);
+
+// Change to true to store a copy of the doc locally in IndexedDB.
+// We disable this for our demos because the server frequently resets
+// the doc's state. Disabling is also useful during development.
+if (false) {
+  // TODO: change to IndexedDB.
+  const docStore = new LocalStorageDocStore();
+  docStore.subscribe(doc, docID);
+}
+
+// --- "Connected" checkbox for testing concurrency ---
+
+const connected = document.getElementById("connected") as HTMLInputElement;
+connected.checked = localStorage.getItem("connected") !== "false";
+if (connected.checked) {
+  // Instead of calling connect() here, you can just remove WebSocketNetwork's
+  // { connect: false } option above.
+  wsNetwork.connect();
+}
+connected.addEventListener("click", () => {
+  localStorage.setItem("connected", connected.checked + "");
+  if (connected.checked) wsNetwork.connect();
+  else wsNetwork.disconnect();
+});

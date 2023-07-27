@@ -9,7 +9,10 @@ const config: webpack.Configuration = {
   // mode and devtool are overridden by `npm run build` for production mode.
   mode: "development",
   devtool: "eval-source-map",
-  entry: "./src/app.ts",
+  entry: {
+    horsegenetics2: "./src/horse-color-genetics_files/horsegenetics2.js",
+    grabUrl: "./src/horse-color-genetics_files/grabUrl.js",
+  },
   module: {
     rules: [
       {
@@ -22,6 +25,10 @@ const config: webpack.Configuration = {
         enforce: "pre",
         use: ["source-map-loader"],
       },
+      {
+        test: /\.css$/,
+        use: ["style-loader", "css-loader"],
+      },
     ],
   },
   resolve: {
@@ -29,6 +36,8 @@ const config: webpack.Configuration = {
   },
   output: {
     filename: "[name].bundle.js",
+    // Make functions available to scripts in the source HTML file.
+    library: { type: "window" },
     path: path.resolve(__dirname, "dist"),
     clean: true,
   },
@@ -39,7 +48,10 @@ const config: webpack.Configuration = {
     }),
     // Copy assets to the dist folder.
     new CopyPlugin({
-      patterns: [{ from: "src/about.html", to: "[name][ext]" }],
+      patterns: [
+        { from: "src/about.html", to: "[name][ext]" },
+        { from: "src/horse-color-genetics/*.png", to: "[name][ext]" },
+      ],
     }),
   ],
 };

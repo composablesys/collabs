@@ -1,0 +1,8 @@
+// tsconfig for ts-node scripts (webpack.config.ts, bin/server.ts).
+{
+  "compilerOptions": {
+    "module": "commonjs",
+    "target": "ES6",
+    "esModuleInterop": true
+  }
+}

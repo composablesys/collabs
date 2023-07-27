@@ -1,0 +1,49 @@
+<!DOCTYPE html>
+
+<html lang="en">
+  <head>
+    <meta charset="utf-8" />
+
+    <style>
+      body {
+        max-width: 800px;
+      }
+    </style>
+
+    <title>About: Collabs Shapes (Semidirect Product) Demo</title>
+  </head>
+
+  <body>
+    <h2 id="name">Collabs Shapes (Semidirect Product) Demo</h2>
+
+    <p>
+      A demo of the
+      <a
+        href="https://docs.google.com/presentation/d/1AzUBBmq9IAf39ZvtSU5UtI-hlugsDsX7kuGKaaOZExQ/edit?usp=sharing"
+        >semidirect product of CRDTs</a
+      >
+      for manipulating shapes. To the extent possible, group operations affect
+      not just the shapes, but also concurrent operations on those shapes. E.g.,
+      if you rotate the group, while concurrently, someone else translates
+      (drags) one shape, then the result will be as if the whole group was
+      rotated <i>after</i> the translation - thus the shapes maintain their
+      relative positions.
+    </p>
+
+    <p>Author: Ria Pradeep.</p>
+
+    <p>License: Apache-2.0.</p>
+
+    <p>
+      <a
+        href="https://github.com/composablesys/collabs/tree/master/demos/apps/group"
+        >Source code</a
+      >
+    </p>
+
+    <p>
+      <a href="./">Back to demo</a> &bull; <a href="/">Demos home</a> &bull;
+      <a href="https://collabs.readthedocs.io/en/latest/">Collabs docs</a>
+    </p>
+  </body>
+</html>

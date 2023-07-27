@@ -1,6 +1,6 @@
-# Shapes Demo (Multiple Semidirect Product)
+# Shapes Demo (Semidirect Product)
 
-A demo of the multiple semidirect product for manipulating shapes, as a [Collabs container](https://github.com/composablesys/collabs/blob/master/collabs/docs/containers.md).
+A demo of the [semidirect product of CRDTs](https://docs.google.com/presentation/d/1AzUBBmq9IAf39ZvtSU5UtI-hlugsDsX7kuGKaaOZExQ/edit?usp=sharing) for manipulating shapes, as a [Collabs container](https://github.com/composablesys/collabs/blob/master/collabs/docs/containers.md).
 
 Author: Ria Pradeep.
 
