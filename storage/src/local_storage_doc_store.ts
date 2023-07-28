@@ -1,4 +1,4 @@
-import { AbstractDoc, CRuntime } from "@collabs/collabs";
+import { AbstractDoc, CRuntime, EventEmitter } from "@collabs/collabs";
 import { TransactionEvent } from "@collabs/crdts";
 import { fromByteArray, toByteArray } from "base64-js";
 
@@ -35,6 +35,43 @@ function escapeDots(str: string): string {
   return str.replace(/\\/g, "\\\\").replace(/\./g, "\\d");
 }
 
+/**
+ * Inverse of escapeDots.
+ */
+function unescapeDots(str: string): string | null {
+  // "\d" -> ".", "\\" -> "\"
+  let ans = "";
+  for (let i = 0; i < str.length; i++) {
+    if (str[i] === "\\") {
+      switch (str[i + 1]) {
+        case "\\":
+          ans += "\\";
+          i++;
+          break;
+        case "d":
+          ans += ".";
+          i++;
+          break;
+        default:
+          // Bad string.
+          return null;
+      }
+    } else ans += str[i];
+  }
+  return ans;
+}
+
+export interface DocStoreEventsRecord {
+  /**
+   * Emitted after all of doc's local changes are confirmed saved to the server.
+   */
+  Save: { doc: AbstractDoc | CRuntime; docID: string };
+  /**
+   * Emitted after doc loads the store's current state.
+   */
+  Load: { doc: AbstractDoc | CRuntime; docID: string };
+}
+
 type Doc = AbstractDoc | CRuntime;
 
 interface DocInfo {
@@ -42,7 +79,6 @@ interface DocInfo {
   ourPrefix: string;
   updateCounter: number;
   saveCounter: number;
-  // TODO: doc: format as update log + "checkpoints" (savedStates).
   /** The index-plus-1 of the last update incorporated into the last savedState. */
   lastSaveUpdates: number;
   lastSaveTime: number;
@@ -50,9 +86,10 @@ interface DocInfo {
 }
 
 // Doc limits: LocalStorage limits; failures (event for it);
-// O(n) subscribe loop; temp 2x storage in checkpoints (single doc only).
-export class LocalStorageDocStore {
-  readonly keyPrefix: string;
+// O(n) subscribe/op loops; temp 2x storage in checkpoints (single doc only).
+// Internal docs: format as update log + "checkpoints" (savedStates).
+export class LocalStorageDocStore extends EventEmitter<DocStoreEventsRecord> {
+  readonly keyPrefixDot: string;
 
   private subs = new Map<Doc, DocInfo>();
   private docsByID = new Map<string, Doc>();
@@ -62,7 +99,19 @@ export class LocalStorageDocStore {
       keyPrefix?: string;
     } = {}
   ) {
-    this.keyPrefix = options.keyPrefix ?? "@collabs/storage";
+    super();
+
+    this.keyPrefixDot = (options.keyPrefix ?? "@collabs/storage") + ".";
+  }
+
+  // docPrefix: "@collabs/storage.<docID>"
+  private getDocPrefix(docID: string): string {
+    return this.keyPrefixDot + escapeDots(docID);
+  }
+
+  // ourPrefix: "@collabs/storage.<docID>.<replicaID>"
+  private getOurPrefix(docID: string, doc: Doc) {
+    return this.getDocPrefix(docID) + "." + escapeDots(doc.replicaID);
   }
 
   // Note: if this errors due to bad format / version update,
@@ -77,10 +126,8 @@ export class LocalStorageDocStore {
       throw new Error("Unsupported: multiple docs with same docID");
     }
 
-    // docPrefix: "@collabs/storage.<docID>"
-    const docPrefix = this.keyPrefix + "." + escapeDots(docID);
-    // ourPrefix: "@collabs/storage.<docID>.<replicaID>"
-    const ourPrefix = docPrefix + "." + escapeDots(doc.replicaID);
+    const docPrefixDot = this.getDocPrefix(docID) + ".";
+    const ourPrefix = this.getOurPrefix(docID, doc);
 
     // Saved states are stored under "<ourPrefix>.savedState<counter>";
     // updates are stored under "<ourPrefix>.update<counter>".
@@ -88,41 +135,7 @@ export class LocalStorageDocStore {
     // from a different tab: you don't have to worry about overwriting a
     // concurrent update.
 
-    // 1. Load existing state into the doc.
-    // TODO: do async, to match other storage providers?
-    const savedStates: Uint8Array[] = [];
-    const updates: Uint8Array[] = [];
-    const loadedKeys: string[] = [];
-    for (let i = 0; i < window.localStorage.length; i++) {
-      const key = window.localStorage.key(i);
-      if (key !== null && key.startsWith(docPrefix)) {
-        let lastDot = key.lastIndexOf(".");
-        const suffix = key.slice(lastDot + 1);
-        if (suffix.startsWith("savedState")) {
-          const savedState = getBytes(key);
-          if (savedState !== null) {
-            savedStates.push(savedState);
-            loadedKeys.push(key);
-          }
-        } else if (suffix.startsWith("update")) {
-          const update = getBytes(key);
-          if (update !== null) {
-            updates.push(update);
-            loadedKeys.push(key);
-          }
-        }
-      }
-    }
-
-    // Load saved states first, to avoid temp causal buffering of updates.
-    for (const savedState of savedStates) {
-      doc.load(savedState, this);
-    }
-    for (const update of updates) {
-      doc.receive(update, this);
-    }
-
-    // 2. Immediately store future updates to the doc, local & remote.
+    // 1. Immediately store future updates to the doc, local & remote.
     // Occasional these trigger a "checkpoint" where we replace the updates
     // (& previous savedState) with a new savedState.
     const off = doc.on("Transaction", this.onTransaction);
@@ -136,20 +149,58 @@ export class LocalStorageDocStore {
       off,
     };
 
-    // 3. Store subscription info.
+    // 2. Store subscription info.
     this.subs.set(doc, info);
     this.docsByID.set(docID, doc);
 
-    // 4. Store doc's current state and delete the loadedKeys that it incorporates.
-    // Do this in a separate task to avoid blocking for too long.
+    // 3. Load existing state into the doc.
+    // Do it async to match other doc stores.
     setTimeout(() => {
-      // Skip saving if we happen to do so before the timeout.
-      if (info.saveCounter === 0) this.checkpoint(doc, info);
-      for (const key of loadedKeys) localStorage.removeItem(key);
+      const savedStates: Uint8Array[] = [];
+      const updates: Uint8Array[] = [];
+      const loadedKeys: string[] = [];
+      for (let i = 0; i < window.localStorage.length; i++) {
+        const key = window.localStorage.key(i);
+        if (key !== null && key.startsWith(docPrefixDot)) {
+          let lastDot = key.lastIndexOf(".");
+          const suffix = key.slice(lastDot + 1);
+          if (suffix.startsWith("savedState")) {
+            const savedState = getBytes(key);
+            if (savedState !== null) {
+              savedStates.push(savedState);
+              loadedKeys.push(key);
+            }
+          } else if (suffix.startsWith("update")) {
+            const update = getBytes(key);
+            if (update !== null) {
+              updates.push(update);
+              loadedKeys.push(key);
+            }
+          }
+        }
+      }
+
+      // Load saved states first, to avoid temp causal buffering of updates.
+      for (const savedState of savedStates) {
+        doc.load(savedState, this);
+      }
+      for (const update of updates) {
+        doc.receive(update, this);
+      }
+
+      // Emit a Load event even if nothing was loaded, to signal that loading
+      // is done regardless.
+      this.emit("Load", { doc, docID });
+
+      // 4. Store doc's current state and delete the loadedKeys that it incorporates.
+      // Do this in a separate task to avoid blocking for too long.
+      setTimeout(() => {
+        // Skip saving if we happen to do so before the timeout.
+        if (info.saveCounter === 0) this.checkpoint(doc, info);
+        for (const key of loadedKeys) localStorage.removeItem(key);
+      });
     });
   }
-
-  // TODO: events.
 
   unsubscribe(doc: AbstractDoc | CRuntime) {
     const info = this.subs.get(doc);
@@ -179,6 +230,7 @@ export class LocalStorageDocStore {
         // Append the update.
         setBytes(info.ourPrefix + ".update" + info.updateCounter, e.update);
         info.updateCounter++;
+        this.emit("Save", { doc, docID: info.docID });
       }
     } else {
       // Since savedState updates are usually rare and large, do a
@@ -209,5 +261,55 @@ export class LocalStorageDocStore {
     info.saveCounter++;
     info.lastSaveUpdates = info.updateCounter;
     info.lastSaveTime = Date.now();
+
+    this.emit("Save", { doc, docID: info.docID });
+  }
+
+  delete(docID: string): void {
+    // localStorage doesn't like concurrent iter/delete, so wait
+    // to delete until the end.
+    const toDelete: string[] = [];
+
+    const docPrefixDot = this.getDocPrefix(docID) + ".";
+    for (let i = 0; i < window.localStorage.length; i++) {
+      const key = window.localStorage.key(i);
+      if (key !== null && key.startsWith(docPrefixDot)) {
+        toDelete.push(key);
+      }
+    }
+
+    for (const key of toDelete) window.localStorage.removeItem(key);
+  }
+
+  clear(): void {
+    // localStorage doesn't like concurrent iter/delete, so wait
+    // to delete until the end.
+    const toDelete: string[] = [];
+
+    for (let i = 0; i < window.localStorage.length; i++) {
+      const key = window.localStorage.key(i);
+      if (key !== null && key.startsWith(this.keyPrefixDot)) {
+        toDelete.push(key);
+      }
+    }
+
+    for (const key of toDelete) window.localStorage.removeItem(key);
+  }
+
+  // All present docIDs.
+  docIDs(): Set<string> {
+    const docIDs = new Set<string>();
+    for (let i = 0; i < window.localStorage.length; i++) {
+      const key = window.localStorage.key(i);
+      if (key !== null && key.startsWith(this.keyPrefixDot)) {
+        const suffix = key.slice(this.keyPrefixDot.length);
+        const nextDot = suffix.indexOf(".");
+        if (nextDot === -1) continue;
+        const escapedDocID = suffix.slice(0, nextDot);
+        const docID = unescapeDots(escapedDocID);
+        if (docID !== null) docIDs.add(docID);
+      }
+    }
+    return docIDs;
   }
 }

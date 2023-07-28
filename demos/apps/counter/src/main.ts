@@ -54,9 +54,12 @@ wsNetwork.subscribe(doc, docID);
 // We disable this for our demos because the server frequently resets
 // the doc's state. Disabling is also useful during development.
 if (false) {
-  // TODO: change to IndexedDB.
+  // TODO: change to IndexedDB; copy to all demos.
   const docStore = new LocalStorageDocStore();
   docStore.subscribe(doc, docID);
+  docStore.on("Load", (e) => {
+    console.log(`Loaded doc "${e.docID}" from IndexedDB.`);
+  });
 }
 
 // --- "Connected" checkbox for testing concurrency ---
