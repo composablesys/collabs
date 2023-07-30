@@ -12,6 +12,14 @@ interface WaypointInfo<T> {
    */
   total: number;
   /**
+   * The number of "seen" positions for `waypoint`.
+   *
+   * Specifically, this is 1 + the max valueIndex across all positions of the
+   * form `[waypoint, valueIndex]` that have been passed to [[set]]
+   * or [[setCreated]].
+   */
+  seen: number;
+  /**
    * The values (or not) at the waypoint's positions,
    * in order from left to right, represented as
    * an array of "items": T[] for present values,
@@ -19,8 +27,7 @@ interface WaypointInfo<T> {
    *
    * The items always alternate types. If the last
    * item would be a number (deleted), it is omitted,
-   * so their lengths may sum to less than the waypoint's
-   * valueCount.
+   * so their lengths may sum to less than [[seen]].
    */
   items: (T[] | number)[];
 }
@@ -70,7 +77,7 @@ type ValuesOrChild<T> =
  */
 export class LocalList<T> implements ICursorList {
   /**
-   * Only includes nontrivial entries (total > 0).
+   * Includes all seen entries, even if they currently have total = 0.
    */
   private valuesByWaypoint = new Map<Waypoint, WaypointInfo<T>>();
   private _inInitialState = true;
@@ -120,6 +127,7 @@ export class LocalList<T> implements ICursorList {
       const newItems = valueIndex === 0 ? [[value]] : [valueIndex, [value]];
       this.valuesByWaypoint.set(waypoint, {
         total: 0,
+        seen: valueIndex + 1,
         items: newItems,
       });
       this.updateTotals(waypoint, 1);
@@ -166,6 +174,7 @@ export class LocalList<T> implements ICursorList {
 
           items.splice(startIndex, deleteCount, ...newItems);
           this.updateTotals(waypoint, 1);
+          // Don't update info.seen: already seen.
           return;
         } else remaining -= curItem;
       }
@@ -183,6 +192,7 @@ export class LocalList<T> implements ICursorList {
         (items[items.length - 1] as T[]).push(value);
       }
     }
+    info.seen = Math.max(info.seen, valueIndex + 1);
     this.updateTotals(waypoint, 1);
   }
 
@@ -192,17 +202,17 @@ export class LocalList<T> implements ICursorList {
    * If you (or a remote replica) just created `values.count`
    * positions using [[CPositionSource.createPosition]], you may call
    * this method with the first created position and the values to
-   * set at the created positions. This will be faster than
+   * set at the created positions. This may be faster than
    * calling [[set]] on each (position, value) individually.
-   *
-   * You must *not* call this method
-   * if you have already called [[set]] with any of those positions,
-   * or with positions from a later call to [[CPositionSource.createPositions]].
    *
    * @param firstPos The position for values[0].
    * @param values The values to set.
+   * @throws If firstPos has been seen before, i.e., it or a later
+   * position has been set.
    */
   setCreated(firstPos: Position, values: T[]): void {
+    if (values.length === 0) return;
+
     this._inInitialState = false;
 
     const [waypoint, valueIndex] = this.source.decode(firstPos);
@@ -211,12 +221,17 @@ export class LocalList<T> implements ICursorList {
       // Waypoint has no values currently; set them to
       // [valueIndex, values].
       // Except, omit 0s.
+      values = values.slice();
       const newItems = valueIndex === 0 ? [values] : [valueIndex, values];
       this.valuesByWaypoint.set(waypoint, {
         total: 0,
+        seen: valueIndex + values.length,
         items: newItems,
       });
     } else {
+      if (info.seen < valueIndex) {
+        throw new Error("setCreated called on seen positions");
+      }
       // Get number of existing positions in info (which omits the
       // final deleted items).
       let existing = 0;
@@ -225,17 +240,18 @@ export class LocalList<T> implements ICursorList {
       }
       if (existing < valueIndex) {
         // Fill in deleted positions before values.
-        info.items.push(valueIndex - existing, values);
+        info.items.push(valueIndex - existing, values.slice());
       } else if (existing === valueIndex) {
         if (info.items.length === 0) {
-          info.items.push(values);
+          info.items.push(values.slice());
         } else {
           // Merge with previous (present) item.
           (info.items[info.items.length - 1] as T[]).push(...values);
         }
       } else {
-        throw new Error("setCreated called on already-used positions");
+        throw new Error("setCreated called on seen positions");
       }
+      info.seen = Math.max(info.seen, valueIndex + values.length);
     }
     this.updateTotals(waypoint, values.length);
   }
@@ -308,8 +324,7 @@ export class LocalList<T> implements ICursorList {
 
   /**
    * Changes total by delta for waypoint and all of its ancestors.
-   * Creates/deletes WaypointValues as needed to maintain
-   * (present iff total = 0) invariant.
+   * Creates WaypointValues as needed.
    *
    * delta must not be 0.
    *
@@ -329,15 +344,12 @@ export class LocalList<T> implements ICursorList {
         this.valuesByWaypoint.set(current, {
           // Nonzero by assumption.
           total: delta,
+          seen: 0,
           // Omit last deleted item (= only item).
           items: [],
         });
       } else {
         info.total += delta;
-        if (info.total === 0) {
-          // Delete WaypointValues.
-          this.valuesByWaypoint.delete(current);
-        }
       }
     }
   }
@@ -665,7 +677,7 @@ export class LocalList<T> implements ICursorList {
    *
    * together with enough info to infer their starting valueIndex's.
    *
-   * @throws If `this.total(waypoint) === 0`
+   * @throws If valuesByWaypoint does not have an entry for waypoint.
    */
   private *valuesAndChildren(
     waypoint: Waypoint
@@ -789,6 +801,30 @@ export class LocalList<T> implements ICursorList {
   }
 
   /**
+   * Returns the number of "seen" positions for `waypoint`.
+   *
+   * This is useful in some optimized list CRDTs.
+   *
+   * Specifically, the return value is 1 + the max valueIndex across
+   * all positions of the form `[waypoint, valueIndex]` that have
+   * been passed to [[set]] or [[setCreated]].
+   */
+  getSeen(waypoint: Waypoint): number {
+    return this.valuesByWaypoint.get(waypoint)?.seen ?? 0;
+  }
+
+  /**
+   * Returns an iterable of all nonzero return values from [[getSeen]].
+   *
+   * This is useful in some optimized list CRDTs.
+   */
+  *seenEntries(): IterableIterator<[waypoint: Waypoint, seen: number]> {
+    for (const [waypoint, info] of this.valuesByWaypoint) {
+      if (info.seen !== 0) yield [waypoint, info.seen];
+    }
+  }
+
+  /**
    * Whether this list is in its initial state, i.e.,
    * it has never been mutated.
    */
@@ -818,6 +854,7 @@ export class LocalList<T> implements ICursorList {
     const replicaIDIndices: number[] = [];
     const counters: number[] = [];
     const totals: number[] = [];
+    const seens: number[] = [];
     const itemsLengths: number[] = [];
     const itemSizes: number[] = [];
     const values: T[] = [];
@@ -834,6 +871,7 @@ export class LocalList<T> implements ICursorList {
 
       counters.push(waypoint.counter);
       totals.push(info.total);
+      seens.push(info.seen);
       itemsLengths.push(info.items.length);
       for (const item of info.items) {
         if (typeof item === "number") {
@@ -891,6 +929,7 @@ export class LocalList<T> implements ICursorList {
       const waypoint = this.source.getWaypoint(replicaID, decoded.counters[i]);
       const info: WaypointInfo<T> = {
         total: decoded.totals[i],
+        seen: decoded.seens[i],
         items: new Array<T[] | number>(decoded.itemsLengths[i]),
       };
       for (let j = 0; j < decoded.itemsLengths[i]; j++) {
