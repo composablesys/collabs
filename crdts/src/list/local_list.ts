@@ -1,10 +1,6 @@
 import { ICursorList, Position, Serializer, nonNull } from "@collabs/core";
 import { LocalListSave } from "../../generated/proto_compiled";
-import {
-  CPositionSource,
-  PositionSourceCreateEvent,
-  Waypoint,
-} from "./c_position_source";
+import { CPositionSource, Waypoint } from "./c_position_source";
 
 /**
  * Info about a waypoint's values within a LocalList.
@@ -191,25 +187,31 @@ export class LocalList<T> implements ICursorList {
   }
 
   /**
-   * Optimized variant of [[set]] for newly-created
-   * positions, intended to be called in `e`'s event handler.
-   * This method sets the positions referenced by `e` to `values`.
+   * Optimized variant of [[set]] for newly-created positions.
    *
-   * @throws If `values.length !== e.count`
+   * If you (or a remote replica) just created `values.count`
+   * positions using [[CPositionSource.createPosition]], you may call
+   * this method with the first created position and the values to
+   * set at the created positions. This will be faster than
+   * calling [[set]] on each (position, value) individually.
+   *
+   * You must *not* call this method
+   * if you have already called [[set]] with any of those positions,
+   * or with positions from a later call to [[CPositionSource.createPositions]].
+   *
+   * @param firstPos The position for values[0].
+   * @param values The values to set.
    */
-  setCreated(e: PositionSourceCreateEvent, values: T[]): void {
-    if (values.length !== e.count) {
-      throw new Error("values do not match count");
-    }
+  setCreated(firstPos: Position, values: T[]): void {
     this._inInitialState = false;
 
-    const waypoint = e.waypoint;
+    const [waypoint, valueIndex] = this.source.decode(firstPos);
     const info = this.valuesByWaypoint.get(waypoint);
     if (info === undefined) {
       // Waypoint has no values currently; set them to
       // [valueIndex, values].
       // Except, omit 0s.
-      const newItems = e.valueIndex === 0 ? [values] : [e.valueIndex, values];
+      const newItems = valueIndex === 0 ? [values] : [valueIndex, values];
       this.valuesByWaypoint.set(waypoint, {
         total: 0,
         items: newItems,
@@ -221,10 +223,10 @@ export class LocalList<T> implements ICursorList {
       for (const item of info.items) {
         existing += typeof item === "number" ? item : item.length;
       }
-      if (existing < e.valueIndex) {
+      if (existing < valueIndex) {
         // Fill in deleted positions before values.
-        info.items.push(e.valueIndex - existing, values);
-      } else if (existing === e.valueIndex) {
+        info.items.push(valueIndex - existing, values);
+      } else if (existing === valueIndex) {
         if (info.items.length === 0) {
           info.items.push(values);
         } else {
@@ -365,9 +367,6 @@ export class LocalList<T> implements ICursorList {
   }
 
   /**
-   * Okay if valueIndex is waypoint.valueCount - will return
-   * [undefined, false, number of values within waypoint].
-   *
    * @returns [value at position, whether position is present,
    * number of present values within waypoint
    * (not descendants) strictly prior to position]
@@ -397,10 +396,26 @@ export class LocalList<T> implements ICursorList {
         }
       }
     }
-    // If we get here, then the valueIndex is after all present values
-    // (either within the omitted final number, or the special case
-    // valueIndex === waypoint.valueCount).
+    // If we get here, then the valueIndex is after all present values.
     return [undefined, false, waypointValuesBefore];
+  }
+
+  /**
+   * The nubmer of present values within waypoint (not descendants).
+   */
+  private valueCount(waypoint: Waypoint): number {
+    const info = this.valuesByWaypoint.get(waypoint);
+    if (info === undefined) {
+      // No values within waypoint.
+      return 0;
+    }
+    let waypointValues = 0;
+    for (const item of info.items) {
+      if (typeof item !== "number") {
+        waypointValues += item.length;
+      }
+    }
+    return waypointValues;
   }
 
   /**
@@ -447,12 +462,15 @@ export class LocalList<T> implements ICursorList {
       current = current.parentWaypoint
     ) {
       // Sibling values that come before current.
-      valuesBefore += this.locate(
-        current.parentWaypoint,
-        current.isRight
-          ? current.parentWaypoint.valueCount
-          : current.parentValueIndex
-      )[2];
+      if (current.isRight) {
+        // All sibling values come before current.
+        valuesBefore += this.valueCount(current.parentWaypoint);
+      } else {
+        valuesBefore += this.locate(
+          current.parentWaypoint,
+          current.parentValueIndex
+        )[2];
+      }
       // Sibling waypoints that come before current.
       for (const child of current.parentWaypoint.children) {
         if (child === current) break;
