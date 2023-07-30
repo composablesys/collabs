@@ -1,6 +1,4 @@
 import {
-  CollabEvent,
-  CollabEventsRecord,
   CPrimitive,
   InitToken,
   nonNull,
@@ -15,22 +13,6 @@ import {
 } from "../../generated/proto_compiled";
 
 const RADIX = 36;
-
-export interface PositionSourceCreateEvent extends CollabEvent {
-  // TODO: can we guarantee that these are in tree/causal order
-  // (each waypoint after its parent)? If not, warn about it.
-  readonly waypoints: Waypoint[];
-}
-
-/**
- * Events record for [[CPositionSource]].
- */
-export interface PositionSourceEventsRecord extends CollabEventsRecord {
-  /**
-   * Emitted when new [[Waypoint]]s are created.
-   */
-  Create: PositionSourceCreateEvent;
-}
 
 /**
  * A waypoint in the tree of positions. See
@@ -131,7 +113,7 @@ export class Waypoint {
  * when first created. Later, (left-side) waypoint children may
  * appear between them.
  */
-export class CPositionSource extends CPrimitive<PositionSourceEventsRecord> {
+export class CPositionSource extends CPrimitive {
   /**
    * Map key is waypoint.senderID, index in the array is waypoint.counter.
    */
@@ -437,8 +419,6 @@ export class CPositionSource extends CPrimitive<PositionSourceEventsRecord> {
     // Store the waypoint.
     senderWaypoints.push(waypoint);
     this.addToChildren(waypoint);
-
-    this.emit("Create", { waypoints: [waypoint], meta });
   }
 
   /**
@@ -612,20 +592,6 @@ export class CPositionSource extends CPrimitive<PositionSourceEventsRecord> {
     return this.isSiblingLess(aCurrent, bCurrent) ? -1 : 1;
   }
 
-  /**
-   * Returns an iterable for waypoints in this CPositionSource, in arbitrary
-   * order.
-   *
-   * Waypoints created while the iterator is running may or may not be
-   * included.
-   */
-  *waypoints(): IterableIterator<Waypoint> {
-    yield this.rootWaypoint;
-    for (const senderWaypoints of this.waypointsByID.values()) {
-      yield* senderWaypoints;
-    }
-  }
-
   protected savePrimitive(): Uint8Array {
     const replicaIDs: string[] = [];
     const replicaCounts: number[] = [];
@@ -677,66 +643,76 @@ export class CPositionSource extends CPrimitive<PositionSourceEventsRecord> {
 
   protected loadPrimitive(
     savedState: Uint8Array | null,
-    meta: UpdateMeta
+    _meta: UpdateMeta
   ): void {
     if (savedState === null) return;
 
     const decoded = PositionSourceSave.decode(savedState);
 
-    // New waypoints, in the same order as decoded.parentWaypoints.
-    const waypoints: Waypoint[] = [];
-    // Indices into decoded.parentWaypoints, which is one less than
-    // the index into waypoints.
-    const newWaypointIndices: number[] = [];
+    // Create new waypoints, merging the saved state into ours.
 
-    let replicaIDIndex = 0;
-    let replicaCounter = 0;
-    for (let i = 0; i < decoded.parentWaypoints.length; i++) {
-      if (replicaCounter === decoded.replicaCounts[replicaIDIndex]) {
-        replicaIDIndex++;
-        replicaCounter = 0;
+    // For replicaID's in order, the first new counter value.
+    const counterStarts: number[] = [];
+    // All of the savedState's waypoints in the order that decoded.parentWaypoints
+    // indexes into: root, then same order as parentWaypoints.
+    const statesWaypoints: Waypoint[] = [this.rootWaypoint];
+
+    // replicaID's first index into decoded.parentWaypoints.
+    let replicaStartIndex = 0;
+    for (let i = 0; i < decoded.replicaIDs.length; i++) {
+      const replicaID = decoded.replicaIDs[i];
+      const replicaCount = decoded.replicaCounts[i];
+
+      let byID = this.waypointsByID.get(replicaID);
+      if (byID === undefined) {
+        byID = [];
+        this.waypointsByID.set(replicaID, byID);
       }
-      const replicaID = decoded.replicaIDs[replicaIDIndex];
-      const existing = this.waypointsByID.get(replicaID)?.[replicaCounter];
-      if (existing === undefined) {
-        // New waypoint.
-        const [parentValueIndex, isRight] = this.valueAndSideDecode(
-          decoded.parentValueIndexAndSides[i]
-        );
-        const waypoint = new Waypoint(
+      // Counter values [byID.length, replicaCount) are new.
+      counterStarts.push(byID.length);
+      for (let j = byID.length; j < replicaCount; j++) {
+        // Index into decoded.parentWaypoints.
+        const index = replicaStartIndex + j;
+        const newWaypoint = new Waypoint(
           replicaID,
-          replicaCounter,
-          // Temporarily null in case it will be created later.
-          // This is not externally visible because we wait to emit
-          // events.
+          j,
+          // Temporarily null in case the parent doesn't exist yet.
+          // This is not externally visible.
           null,
-          parentValueIndex,
-          isRight
+          ...this.valueAndSideDecode(decoded.parentValueIndexAndSides[index]),
+          decoded.depths[index]
         );
-        waypoints.push(waypoint);
-        newWaypointIndices.push(i);
-        // Store the waypoint.
-        let senderWaypoints = this.waypointsByID.get(replicaID);
-        if (senderWaypoints === undefined) {
-          senderWaypoints = [];
-          this.waypointsByID.set(replicaID, senderWaypoints);
-        }
-        senderWaypoints.push(waypoint);
+        byID.push(newWaypoint);
       }
 
-      replicaCounter++;
+      // Counter values [0, replicaCount) are known to savedState.
+      for (let j = 0; j < replicaCount; j++) statesWaypoints.push(byID[j]);
+
+      replicaStartIndex += replicaCount;
     }
 
-    // 3. Now that all waypoints are created, for each new waypoint,
+    // Now that all waypoints are created, for each new waypoint,
     // fill in its parentWaypoint and add it to parentWaypoint.childWaypoints.
-    for (const i of newWaypointIndices) {
-      const newWaypoint = waypoints[i + 1];
-      // @ts-expect-error Override readonly parentWaypoint.
-      newWaypoint.parentWaypoint = waypoints[decoded.parentWaypoints[i]];
-      this.addToChildren(newWaypoint);
-    }
 
-    // Emit event.
-    this.emit("Create", { waypoints, meta });
+    replicaStartIndex = 0;
+    for (let i = 0; i < decoded.replicaIDs.length; i++) {
+      const replicaID = decoded.replicaIDs[i];
+      const replicaCount = decoded.replicaCounts[i];
+      const counterStart = counterStarts[i];
+
+      const byID = nonNull(this.waypointsByID.get(replicaID));
+      // Counter values [counterStart, replicaCount) are new.
+      for (let j = counterStart; j < replicaCount; j++) {
+        // Index into decoded.parentWaypoints.
+        const index = replicaStartIndex + j;
+        const newWaypoint = byID[j];
+        // @ts-expect-error Override readonly parentWaypoint.
+        newWaypoint.parentWaypoint =
+          statesWaypoints[decoded.parentWaypoints[index]];
+        this.addToChildren(newWaypoint);
+      }
+
+      replicaStartIndex += replicaCount;
+    }
   }
 }
