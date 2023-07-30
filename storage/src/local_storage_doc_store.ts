@@ -61,17 +61,6 @@ function unescapeDots(str: string): string | null {
   return ans;
 }
 
-export interface DocStoreEventsRecord {
-  /**
-   * Emitted after all of doc's local changes are confirmed saved to the server.
-   */
-  Save: { doc: AbstractDoc | CRuntime; docID: string };
-  /**
-   * Emitted after doc loads the store's current state.
-   */
-  Load: { doc: AbstractDoc | CRuntime; docID: string };
-}
-
 type Doc = AbstractDoc | CRuntime;
 
 interface DocInfo {
@@ -85,11 +74,25 @@ interface DocInfo {
   readonly off: () => void;
 }
 
+export interface LocalStorageDocStoreEventsRecord {
+  /**
+   * Emitted after all of doc's local changes are confirmed saved to the server.
+   */
+  Save: { doc: AbstractDoc | CRuntime; docID: string };
+  /**
+   * Emitted after doc loads the store's current state.
+   */
+  Load: { doc: AbstractDoc | CRuntime; docID: string };
+  Error: { err: unknown };
+}
+
 // Doc limits: LocalStorage limits; failures (event for it);
 // O(n) subscribe/op loops; temp 2x storage in checkpoints (single doc only).
 // Internal docs: format as update log + "checkpoints" (savedStates).
-export class LocalStorageDocStore extends EventEmitter<DocStoreEventsRecord> {
-  readonly keyPrefixDot: string;
+export class LocalStorageDocStore extends EventEmitter<LocalStorageDocStoreEventsRecord> {
+  readonly keyPrefix: string;
+  private readonly keyPrefixDot: string;
+  private readonly suppressErrors: boolean;
 
   private subs = new Map<Doc, DocInfo>();
   private docsByID = new Map<string, Doc>();
@@ -97,16 +100,21 @@ export class LocalStorageDocStore extends EventEmitter<DocStoreEventsRecord> {
   constructor(
     options: {
       keyPrefix?: string;
+      // Doc: if true, won't let OOM errors propagate. Only do this if
+      // you have an Error event handler.
+      suppressErrors?: boolean;
     } = {}
   ) {
     super();
 
-    this.keyPrefixDot = (options.keyPrefix ?? "@collabs/storage") + ".";
+    this.keyPrefix = options.keyPrefix ?? "@collabs/storage";
+    this.keyPrefixDot = this.keyPrefix = ".";
+    this.suppressErrors = options.suppressErrors ?? false;
   }
 
   // docPrefix: "@collabs/storage.<docID>"
   private getDocPrefix(docID: string): string {
-    return this.keyPrefixDot + escapeDots(docID);
+    return this.keyPrefix + "." + escapeDots(docID);
   }
 
   // ourPrefix: "@collabs/storage.<docID>.<replicaID>"
@@ -117,7 +125,7 @@ export class LocalStorageDocStore extends EventEmitter<DocStoreEventsRecord> {
   // Note: if this errors due to bad format / version update,
   // it will corrupt the doc. Need to design your doc's receive/load
   // to tolerate those errors instead.
-  subscribe(doc: AbstractDoc | CRuntime, docID: string) {
+  subscribe(doc: AbstractDoc | CRuntime, docID: string): void {
     if (this.subs.has(doc)) {
       throw new Error("doc is already subscribed to a docID");
     }
@@ -138,6 +146,7 @@ export class LocalStorageDocStore extends EventEmitter<DocStoreEventsRecord> {
     // 1. Immediately store future updates to the doc, local & remote.
     // Occasional these trigger a "checkpoint" where we replace the updates
     // (& previous savedState) with a new savedState.
+    // TODO: what if subscribe is interleaved with unsubscribe?
     const off = doc.on("Transaction", this.onTransaction);
     const info: DocInfo = {
       docID,
@@ -154,7 +163,8 @@ export class LocalStorageDocStore extends EventEmitter<DocStoreEventsRecord> {
     this.docsByID.set(docID, doc);
 
     // 3. Load existing state into the doc.
-    // Do it async to match other doc stores.
+    // Do it in a separate task to match other doc stores
+    // (e.g., in case you add Transaction listeners after calling subscribe).
     setTimeout(() => {
       const savedStates: Uint8Array[] = [];
       const updates: Uint8Array[] = [];
@@ -184,6 +194,7 @@ export class LocalStorageDocStore extends EventEmitter<DocStoreEventsRecord> {
       for (const savedState of savedStates) {
         doc.load(savedState, this);
       }
+      // TODO: sort updates by number within each user, so they start mostly causally ordered.
       for (const update of updates) {
         doc.receive(update, this);
       }
@@ -193,21 +204,20 @@ export class LocalStorageDocStore extends EventEmitter<DocStoreEventsRecord> {
       this.emit("Load", { doc, docID });
 
       // 4. Store doc's current state and delete the loadedKeys that it incorporates.
-      // Do this in a separate task to avoid blocking for too long.
+      // Do it in a separate task to avoid blocking for too long.
       setTimeout(() => {
         // Skip saving if we happen to do so before the timeout.
+        // TODO: refactor to avoid this check (no checkpoints before first save);
+        // don't register tr listener until after loading.
         if (info.saveCounter === 0) this.checkpoint(doc, info);
         for (const key of loadedKeys) localStorage.removeItem(key);
       });
-    });
+    }, 0);
   }
 
   unsubscribe(doc: AbstractDoc | CRuntime) {
     const info = this.subs.get(doc);
     if (info === undefined) return;
-
-    // Final checkpoint to clean up the update log.
-    this.checkpoint(doc, info);
 
     info.off();
     this.subs.delete(doc);
@@ -228,7 +238,13 @@ export class LocalStorageDocStore extends EventEmitter<DocStoreEventsRecord> {
         setTimeout(() => this.checkpoint(doc, info), 0);
       } else {
         // Append the update.
-        setBytes(info.ourPrefix + ".update" + info.updateCounter, e.update);
+        try {
+          setBytes(info.ourPrefix + ".update" + info.updateCounter, e.update);
+        } catch (err) {
+          this.emit("Error", { err });
+          if (!this.suppressErrors) throw err;
+          return;
+        }
         info.updateCounter++;
         this.emit("Save", { doc, docID: info.docID });
       }
@@ -243,7 +259,13 @@ export class LocalStorageDocStore extends EventEmitter<DocStoreEventsRecord> {
   };
 
   private checkpoint(doc: Doc, info: DocInfo) {
-    setBytes(info.ourPrefix + ".savedState" + info.saveCounter, doc.save());
+    try {
+      setBytes(info.ourPrefix + ".savedState" + info.saveCounter, doc.save());
+    } catch (err) {
+      this.emit("Error", { err });
+      if (!this.suppressErrors) throw err;
+      return;
+    }
 
     // Delete dominated updates and the last checkpoint.
     // Note: setting the savedState before deleting the old one effectively
@@ -265,7 +287,8 @@ export class LocalStorageDocStore extends EventEmitter<DocStoreEventsRecord> {
     this.emit("Save", { doc, docID: info.docID });
   }
 
-  delete(docID: string): void {
+  // Async to match other DocStores.
+  async delete(docID: string): Promise<void> {
     // localStorage doesn't like concurrent iter/delete, so wait
     // to delete until the end.
     const toDelete: string[] = [];
@@ -281,7 +304,7 @@ export class LocalStorageDocStore extends EventEmitter<DocStoreEventsRecord> {
     for (const key of toDelete) window.localStorage.removeItem(key);
   }
 
-  clear(): void {
+  async clear(): Promise<void> {
     // localStorage doesn't like concurrent iter/delete, so wait
     // to delete until the end.
     const toDelete: string[] = [];
@@ -297,7 +320,7 @@ export class LocalStorageDocStore extends EventEmitter<DocStoreEventsRecord> {
   }
 
   // All present docIDs.
-  docIDs(): Set<string> {
+  async docIDs(): Promise<Set<string>> {
     const docIDs = new Set<string>();
     for (let i = 0; i < window.localStorage.length; i++) {
       const key = window.localStorage.key(i);
