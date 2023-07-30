@@ -16,84 +16,10 @@ import {
 
 const RADIX = 36;
 
-/**
- * Event emitted when a [[CPositionSource.create]] message is received.
- *
- * This event is *not* emitted during loading;
- * [[PositionSourceLoadEvent]] is emitted instead.
- */
 export interface PositionSourceCreateEvent extends CollabEvent {
-  /**
-   * The created positions, in list order.
-   *
-   * Internally, they are ([[waypoint]], [[valueIndex]] + i)
-   * for i in range [0, [[count]]).
-   */
-  readonly positions: Position[];
-  /**
-   * The positions' waypoint.
-   */
-  readonly waypoint: Waypoint;
-  /**
-   * The first position's valueIndex. Further positions are in
-   * a sequence with increasing valueIndex.
-   */
-  readonly valueIndex: number;
-  /**
-   * The number of created positions.
-   */
-  readonly count: number;
-  /**
-   * The optional `info` argument to [[CPositionSource.create]].
-   */
-  readonly info?: Uint8Array;
-}
-
-/**
- * Event emitted by a [[CPositionSource]] at the end of [[CPositionSource.load]].
- */
-export class PositionSourceLoadEvent implements CollabEvent {
-  /**
-   * Diff between [[Waypoint.valueCount]] values in the local state
-   * (prior to loading) and the remoted state (the `savedState`
-   * passed to `load`).
-   */
-  readonly waypointDiffs: Map<Waypoint, { local: number; remote: number }>;
-
-  /**
-   * Internal (CPositionSource) use only.
-   */
-  constructor(
-    private readonly source: CPositionSource,
-    waypointDiffs: Map<Waypoint, { local: number; remote: number }>,
-    readonly meta: UpdateMeta
-  ) {
-    this.waypointDiffs = waypointDiffs;
-  }
-
-  /**
-   * Returns whether was position is new relative to the local
-   * state, i.e., it was not present locally before
-   * `load` was called.
-   */
-  isNewLocally(position: Position): boolean {
-    const [waypoint, valueIndex] = this.source.decode(position);
-    const diff = this.waypointDiffs.get(waypoint);
-    if (diff === undefined) return false;
-    // >=, because == valueCount is not a valid valueIndex.
-    return valueIndex >= diff.local;
-  }
-
-  /**
-   * Returns whether position is new relative to the remote
-   * state, i.e., it was not present in `savedState`.
-   */
-  isNewRemotely(position: Position): boolean {
-    const [waypoint, valueIndex] = this.source.decode(position);
-    const diff = this.waypointDiffs.get(waypoint);
-    if (diff === undefined) return false;
-    return valueIndex >= diff.remote;
-  }
+  // TODO: can we guarantee that these are in tree/causal order
+  // (each waypoint after its parent)? If not, warn about it.
+  readonly waypoints: Waypoint[];
 }
 
 /**
@@ -101,13 +27,9 @@ export class PositionSourceLoadEvent implements CollabEvent {
  */
 export interface PositionSourceEventsRecord extends CollabEventsRecord {
   /**
-   * Emitted when a [[CPositionSource.create]] message is received.
+   * Emitted when new [[Waypoint]]s are created.
    */
   Create: PositionSourceCreateEvent;
-  /**
-   * Emitted at the end of [[CPositionSource.load]].
-   */
-  Load: PositionSourceLoadEvent;
 }
 
 /**
@@ -145,12 +67,11 @@ export class Waypoint {
      */
     readonly isRight: boolean,
     /**
-     * The number of values (present or not) at this waypoint,
-     * i.e., the number of valid valueIndex's. Always positive.
+     * This waypoint's depth in the tree.
      *
-     * Only [[CPositionSource]] may mutate this value.
+     * 0 for the root waypoint.
      */
-    public valueCount: number
+    readonly depth: number
   ) {}
 
   /**
@@ -225,134 +146,158 @@ export class CPositionSource extends CPrimitive<PositionSourceEventsRecord> {
   readonly rootWaypoint: Waypoint;
 
   /**
+   * Tracks waypoints created by this specific object (i.e., the current
+   * replica & session), keyed by createPosition's caller arg.
+   * A given caller can only extend its own waypoints.
+   *
+   * Each waypoint maps to the next valueIndex to create for that waypoint.
+   *
+   * This state is ephemeral (not saved), since a future loader will
+   * be in a different session.
+   */
+  private ourWaypoints = new WeakMap<object, Map<Waypoint, number>>();
+
+  /**
    * Constructs a CPositionSource.
    */
   constructor(init: InitToken) {
     super(init);
 
-    this.rootWaypoint = new Waypoint("", 0, null, 0, true, 1);
+    this.rootWaypoint = new Waypoint("", 0, null, 0, true, 0);
     this.waypointsByID.set("", [this.rootWaypoint]);
   }
 
-  // Vars used to return the newly-created position in createPositions().
-  private inCreatePositions = false;
-  private createPositionsRet?: Position[] = undefined;
-
   /**
-   * Creates `count` new positions just after prevPosition,
-   * i.e., between prevPosition and the next position in the
-   * list order. The positions are created collaboratively
+   * Creates `count` new positions between prevPosition and nextPosition.
+   * The positions are created collaboratively
    * (replicated on all devices).
    *
+   * TODO: but might not trigger an op immediately (if waypoint, hence
+   * all its positions, already exist).
+   *
+   * TODO: caller: for enforcing that only a caller extends its own
+   * waypoints (important for CValueList).
+   *
    * @param prevPosition The previous position, or null to
-   * create `position` at the beginning of the list.
+   * create positions at the beginning of the list.
+   * @param prevPosition The next position, or null to
+   * create positions at the end of the list.
    * @returns The created positions, in list order.
    * Internally, they use the same waypoint with contiguously
    * increasing valueIndex.
+   * @throws If count <= 0.
    */
   createPositions(
-    /** null to create at beginning. */
     prevPosition: Position | null,
+    nextPosition: Position | null,
     count: number,
-    info?: Uint8Array
+    caller: object
   ): Position[] {
+    if (
+      prevPosition !== null &&
+      nextPosition !== null &&
+      this.compare(prevPosition, nextPosition) >= 0
+    ) {
+      throw new Error("prevPosition >= nextPosition");
+    }
+    if (count <= 0) throw new Error(`count is <= 0: ${count}`);
+
     const [prevWaypoint, prevValueIndex] =
       prevPosition === null
         ? [this.rootWaypoint, 0]
         : this.decode(prevPosition);
 
-    let parentWaypoint: Waypoint;
-    let parentValueIndex: number;
-    let isRight: boolean;
-    if (prevWaypoint.valueCount === prevValueIndex + 1) {
-      // prev is the last value in prevWaypoint.
-      // Check if it already has a right child (necessarily
-      // the first right-child waypoint).
-      const firstRight = this.firstRightWaypoint(prevWaypoint);
-      if (firstRight?.parentValueIndex === prevValueIndex) {
-        // firstRight is the first right child of prev.
-        // Our new position is a left child of its
-        // leftmost descendant.
-        parentWaypoint = this.leftmostDescendant0(firstRight);
-        parentValueIndex = 0;
-        isRight = false;
-      } else {
-        // prev has no right children.
-        // Our new position is a right child of prev.
-        parentWaypoint = prevWaypoint;
-        parentValueIndex = prevValueIndex;
-        isRight = true;
-      }
-    } else {
-      // (prevWaypoint, prevValueIndex + 1) is a right child of prev.
-      // Since valueIndex children always sort before waypoint
-      // children, it's the first right child.
-      // Our new position is a left child of its
-      // leftmost descendant.
-      [parentWaypoint, parentValueIndex] = this.leftmostDescendant(
-        prevWaypoint,
-        prevValueIndex + 1
-      );
-      isRight = false;
-    }
-
-    let message: IPositionSourceCreateMessage;
-    if (
-      isRight &&
-      parentWaypoint.senderID === this.runtime.replicaID &&
-      parentValueIndex === parentWaypoint.valueCount - 1
-    ) {
-      // Append values to parentWaypoint instead of creating a new one.
-      message = {
-        extend: { counter: parentWaypoint.counter },
-      };
-    } else {
-      message = {
-        waypoint: {
-          parentWaypointSenderID:
-            parentWaypoint.senderID === this.runtime.replicaID
-              ? undefined
-              : parentWaypoint.senderID,
-          parentWaypointCounterAndSide: this.valueAndSideEncode(
-            parentWaypoint.counter,
-            isRight
-          ),
+    // If nextPosition is a (right) descendant of prevPosition,
+    // create a new left descendant of nextPosition.
+    if (nextPosition !== null) {
+      const [nextWaypoint, nextValueIndex] = this.decode(nextPosition);
+      if (
+        this.isDescendant(
+          nextWaypoint,
+          nextValueIndex,
+          prevWaypoint,
+          prevValueIndex
+        )
+      ) {
+        // Create a new left descendant of nextPosition.
+        // We don't create always create a left child of nextPosition because
+        // there could be left child tombstones already.
+        // Instead, create a new left child of its leftmost descendant.
+        const [parentWaypoint, parentValueIndex] = this.leftmostDescendant(
+          nextWaypoint,
+          nextValueIndex
+        );
+        return this.createChildren(
+          parentWaypoint,
           parentValueIndex,
-        },
-      };
+          false,
+          count,
+          caller
+        );
+      }
     }
-    message.count = count === 1 ? undefined : count;
-    message.info = info;
 
-    this.inCreatePositions = true;
-    this.sendPrimitive(PositionSourceCreateMessage.encode(message).finish());
-    this.inCreatePositions = false;
+    // Else we can go anywhere in prevPosition's right subtree.
 
-    const ret = nonNull(this.createPositionsRet);
-    this.createPositionsRet = undefined;
-    return ret;
-  }
+    // First see if we can extend prevWaypoint.
+    const callerWaypoints = this.ourWaypoints.get(caller);
+    if (callerWaypoints !== undefined) {
+      const extendValueIndex = callerWaypoints.get(prevWaypoint);
+      if (extendValueIndex !== undefined) {
+        // Success: can extend.
+        callerWaypoints.set(prevWaypoint, extendValueIndex + count);
+        return this.encodeAll(prevWaypoint, extendValueIndex, count);
+      }
+    }
 
-  private valueAndSideEncode(value: number, isRight: boolean): number {
-    return isRight ? value : ~value;
-  }
-
-  private valueAndSideDecode(
-    valueAndSide: number
-  ): [value: number, isRight: boolean] {
-    const isRight = valueAndSide >= 0;
-    const value = isRight ? valueAndSide : ~valueAndSide;
-    return [value, isRight];
+    // Next, see if we can create a new right child of prevPosition.
+    // However, we won't do this if there is already a (tombstone) right child
+    // of prevPosition.
+    const existingRight = this.firstRightChild(prevWaypoint, prevValueIndex);
+    if (existingRight === null) {
+      // Create a new right child of prevPosition.
+      // This is better than creating a left child of
+      // [prevWaypoint, prevValueIndex + 1] because it will be ordered after
+      // concurrently-created extensions of prevWaypoint (same-author priority).
+      return this.createChildren(
+        prevWaypoint,
+        prevValueIndex,
+        true,
+        count,
+        caller
+      );
+    } else {
+      // Treat (child, 0) like nextPosition. Since it's a descendant of
+      // prevPosition, we create a new left descendant of child.
+      const parentWaypoint = this.leftmostDescendant0(existingRight);
+      return this.createChildren(parentWaypoint, 0, false, count, caller);
+    }
   }
 
   /**
-   * Returns the first right-side waypoint child of parent.
+   * Returns whether [aWaypoint, aValueIndex] is a descendant of [bWaypoint, bValueIndex].
+   * This includes valueIndex descendant relationships.
    */
-  private firstRightWaypoint(parent: Waypoint): Waypoint | null {
-    for (const child of parent.children) {
-      if (child.isRight) return child;
+  private isDescendant(
+    aWaypoint: Waypoint,
+    aValueIndex: number,
+    bWaypoint: Waypoint,
+    bValueIndex: number
+  ): boolean {
+    if (aWaypoint === bWaypoint) return aValueIndex >= bValueIndex;
+    if (aWaypoint.depth <= bWaypoint.depth) return false;
+
+    // Walk up the waypoint tree from a until we reach b.depth + 1.
+    let current = aWaypoint;
+    while (current.depth > bWaypoint.depth + 1) {
+      current = nonNull(current.parentWaypoint);
     }
-    return null;
+    // See if current's parent is [bWaypoint, >= bValueIndex].
+    if (current.parentWaypoint === bWaypoint) {
+      if (current.parentValueIndex > bValueIndex) return true;
+      else if (current.parentValueIndex === bValueIndex) return current.isRight;
+      else return false;
+    } else return false;
   }
 
   /**
@@ -396,72 +341,104 @@ export class CPositionSource extends CPrimitive<PositionSourceEventsRecord> {
     return current;
   }
 
+  /**
+   * Returns the waypoint of the first right child of [waypoint, valueIndex],
+   * or null if it has no right children.
+   */
+  private firstRightChild(
+    waypoint: Waypoint,
+    valueIndex: number
+  ): Waypoint | null {
+    for (const child of waypoint.children) {
+      if (child.parentValueIndex === valueIndex && child.isRight) return child;
+    }
+    return null;
+  }
+
+  private createChildren(
+    parentWaypoint: Waypoint,
+    parentValueIndex: number,
+    isRight: boolean,
+    count: number,
+    caller: object
+  ): Position[] {
+    const message: IPositionSourceCreateMessage = {
+      parentWaypointSenderID:
+        parentWaypoint.senderID === this.runtime.replicaID
+          ? undefined
+          : parentWaypoint.senderID,
+      parentWaypointCounterAndSide: this.valueAndSideEncode(
+        parentWaypoint.counter,
+        isRight
+      ),
+      parentValueIndex,
+    };
+    this.sendPrimitive(PositionSourceCreateMessage.encode(message).finish());
+
+    // Our new waypoint is last in our waypointsByID array.
+    const ourArray = nonNull(this.waypointsByID.get(this.runtime.replicaID));
+    const newWaypoint = ourArray[ourArray.length - 1];
+
+    // Record created positions in ourWaypoints.
+    let callerWaypoints = this.ourWaypoints.get(caller);
+    if (callerWaypoints === undefined) {
+      callerWaypoints = new Map();
+      this.ourWaypoints.set(caller, callerWaypoints);
+    }
+    callerWaypoints.set(newWaypoint, count);
+
+    // Return created positions.
+    return this.encodeAll(newWaypoint, 0, count);
+  }
+
+  private valueAndSideEncode(value: number, isRight: boolean): number {
+    return isRight ? value : ~value;
+  }
+
+  private valueAndSideDecode(
+    valueAndSide: number
+  ): [value: number, isRight: boolean] {
+    const isRight = valueAndSide >= 0;
+    const value = isRight ? valueAndSide : ~valueAndSide;
+    return [value, isRight];
+  }
+
   protected receivePrimitive(
     message: string | Uint8Array,
     meta: UpdateMeta
   ): void {
     const decoded = PositionSourceCreateMessage.decode(<Uint8Array>message);
 
-    let waypoint: Waypoint;
-    let valueIndex: number;
-    if (decoded.type === "extend") {
-      // Extend an existing waypoint from the receiver
-      // by decoded.count values.
-      waypoint = this.getWaypoint(
-        meta.senderID,
-        nonNull(decoded.extend).counter
-      );
-      valueIndex = waypoint.valueCount;
-      waypoint.valueCount += decoded.count;
-    } else {
-      // "waypoint" (new Waypoint).
-      // Get parentWaypoint.
-      const decodedWaypoint = nonNull(decoded.waypoint);
-      const parentWaypointSender = protobufHas(
-        decodedWaypoint,
-        "parentWaypointSenderID"
-      )
-        ? nonNull(decodedWaypoint.parentWaypointSenderID)
-        : meta.senderID;
-      const [parentWaypointCounter, isRight] = this.valueAndSideDecode(
-        decodedWaypoint.parentWaypointCounterAndSide
-      );
-      const parentWaypoint = this.getWaypoint(
-        parentWaypointSender,
-        parentWaypointCounter
-      );
+    // Get parentWaypoint.
+    const parentWaypointSender = protobufHas(decoded, "parentWaypointSenderID")
+      ? nonNull(decoded.parentWaypointSenderID)
+      : meta.senderID;
+    const [parentWaypointCounter, isRight] = this.valueAndSideDecode(
+      decoded.parentWaypointCounterAndSide
+    );
+    const parentWaypoint = this.getWaypoint(
+      parentWaypointSender,
+      parentWaypointCounter
+    );
 
-      let senderWaypoints = this.waypointsByID.get(meta.senderID);
-      if (senderWaypoints === undefined) {
-        senderWaypoints = [];
-        this.waypointsByID.set(meta.senderID, senderWaypoints);
-      }
-      waypoint = new Waypoint(
-        meta.senderID,
-        senderWaypoints.length,
-        parentWaypoint,
-        decodedWaypoint.parentValueIndex,
-        isRight,
-        decoded.count
-      );
-      valueIndex = 0;
-      // Store the waypoint.
-      senderWaypoints.push(waypoint);
-      this.addToChildren(waypoint);
+    let senderWaypoints = this.waypointsByID.get(meta.senderID);
+    if (senderWaypoints === undefined) {
+      senderWaypoints = [];
+      this.waypointsByID.set(meta.senderID, senderWaypoints);
     }
+    const waypoint = new Waypoint(
+      meta.senderID,
+      senderWaypoints.length,
+      parentWaypoint,
+      decoded.parentValueIndex,
+      isRight,
+      parentWaypoint.depth + 1
+    );
+    // Store the waypoint.
+    senderWaypoints.push(waypoint);
+    this.addToChildren(waypoint);
 
-    const positions = this.encodeAll(waypoint, valueIndex, decoded.count);
-    if (this.inCreatePositions) {
-      this.createPositionsRet = positions;
-    }
-    this.emit("Create", {
-      waypoint,
-      valueIndex,
-      count: decoded.count,
-      positions,
-      info: protobufHas(decoded, "info") ? decoded.info : undefined,
-      meta,
-    });
+    this.emit("Create", { waypoints: [waypoint], meta });
   }
 
   /**
@@ -569,10 +546,70 @@ export class CPositionSource extends CPrimitive<PositionSourceEventsRecord> {
     if (valueIndex < 0) {
       throw new Error(`Invalid valueIndex < 0: ${valueIndex}`);
     }
-    if (valueIndex >= waypoint.valueCount) {
-      throw new Error("Unknown position (valueIndex out of range)");
-    }
     return [waypoint, valueIndex];
+  }
+
+  compare(a: Position, b: Position): number {
+    if (a === b) return 0;
+    return this.compareUnequal(...this.decode(a), ...this.decode(b));
+  }
+
+  private compareUnequal(
+    aWaypoint: Waypoint,
+    aValueIndex: number,
+    bWaypoint: Waypoint,
+    bValueIndex: number
+  ): number {
+    if (aWaypoint.depth < bWaypoint.depth) {
+      return -this.compareUnequal(
+        bWaypoint,
+        bValueIndex,
+        aWaypoint,
+        aValueIndex
+      );
+    }
+
+    let aCurrent = aWaypoint;
+    if (aWaypoint.depth > bWaypoint.depth) {
+      // Walk a up until reaching bWaypoint.depth + 1.
+      while (aCurrent.depth > bWaypoint.depth + 1) {
+        // Positive depth means parent is non-null. Skip nonNull check for efficiency.
+        // eslint-disable-next-line @typescript-eslint/no-non-null-assertion
+        aCurrent = aCurrent.parentWaypoint!;
+      }
+
+      // Compare current to bWaypoint.
+      if (aCurrent.parentWaypoint === bWaypoint) {
+        // All right children are greater than all bWaypoint positions.
+        if (aCurrent.isRight) return 1;
+        // A left child is less its parent and later positions.
+        else if (aCurrent.parentValueIndex <= bValueIndex) return -1;
+        // A left child is greater than positions before its parent.
+        else return 1;
+      }
+
+      // Else go up to matching depths and fall through.
+      // eslint-disable-next-line @typescript-eslint/no-non-null-assertion
+      aCurrent = aCurrent.parentWaypoint!;
+    } else {
+      // aWaypoint.depth === bWaypoint.depth.
+      if (aWaypoint === bWaypoint) return aValueIndex - bValueIndex;
+      else aCurrent = aWaypoint;
+    }
+
+    let bCurrent = bWaypoint;
+    // Now aCurrent.depth === bCurrent.depth, aCurrent !== bCurrent,
+    // and the comparison only depends on aCurrent vs bCurrent.
+    // Walk both up until they have a common parent.
+    while (aCurrent.parentWaypoint !== bCurrent.parentWaypoint) {
+      // We reach parent = root before parent = null.
+      // Skip nonNull checks for efficiency.
+      // eslint-disable-next-line @typescript-eslint/no-non-null-assertion
+      aCurrent = aCurrent.parentWaypoint!;
+      // eslint-disable-next-line @typescript-eslint/no-non-null-assertion
+      bCurrent = bCurrent.parentWaypoint!;
+    }
+    return this.isSiblingLess(aCurrent, bCurrent) ? -1 : 1;
   }
 
   /**
@@ -606,10 +643,9 @@ export class CPositionSource extends CPrimitive<PositionSourceEventsRecord> {
 
     const parentWaypoints: number[] = [];
     const parentValueIndexAndSides: number[] = [];
-    const valueCounts: number[] = [];
+    const depths: number[] = [];
     for (const waypoints of this.waypointsByID.values()) {
       for (const waypoint of waypoints) {
-        valueCounts.push(waypoint.valueCount);
         if (waypoint !== this.rootWaypoint) {
           const parentWaypoint = nonNull(waypoint.parentWaypoint);
           if (parentWaypoint === this.rootWaypoint) {
@@ -624,6 +660,7 @@ export class CPositionSource extends CPrimitive<PositionSourceEventsRecord> {
           parentValueIndexAndSides.push(
             this.valueAndSideEncode(waypoint.parentValueIndex, waypoint.isRight)
           );
+          depths.push(waypoint.depth);
         }
       }
     }
@@ -633,7 +670,7 @@ export class CPositionSource extends CPrimitive<PositionSourceEventsRecord> {
       replicaCounts,
       parentWaypoints,
       parentValueIndexAndSides,
-      valueCounts,
+      depths,
     });
     return PositionSourceSave.encode(message).finish();
   }
@@ -646,53 +683,11 @@ export class CPositionSource extends CPrimitive<PositionSourceEventsRecord> {
 
     const decoded = PositionSourceSave.decode(savedState);
 
-    // Starts with root, then same order as decoded.parentWaypoints.
-    // OPT: avoid making this whole array?
-    const waypoints: Waypoint[] = [this.rootWaypoint];
+    // New waypoints, in the same order as decoded.parentWaypoints.
+    const waypoints: Waypoint[] = [];
     // Indices into decoded.parentWaypoints, which is one less than
     // the index into waypoints.
     const newWaypointIndices: number[] = [];
-    // For each waypoint with a different valueCount in savedState vs
-    // locally before loading, stores both counts.
-    const waypointDiffs = new Map<
-      Waypoint,
-      { local: number; remote: number }
-    >();
-
-    // 1. Fill in waypointDiffs with waypoints that are present locally but
-    // not remotely.
-    const replicaIDsInv = new Map<string, number>();
-    for (let i = 0; i < decoded.replicaIDs.length; i++) {
-      replicaIDsInv.set(decoded.replicaIDs[i], i);
-    }
-    for (const [replicaID, waypoints] of this.waypointsByID) {
-      if (replicaID === "") continue;
-      const index = replicaIDsInv.get(replicaID);
-      const replicaCount =
-        index === undefined ? 0 : decoded.replicaCounts[index];
-      // All of replicaID's waypoints with index >= replicaCount are present
-      // locally but not remotely.
-      // OPT: avoid this loop, just store the length diff.
-      for (let j = replicaCount; j < waypoints.length; j++) {
-        waypointDiffs.set(waypoints[j], {
-          local: waypoints[j].valueCount,
-          remote: 0,
-        });
-      }
-    }
-
-    // 2. Loop over the loaded waypoints and add them (if new)
-    // or take the max of their valueCount (if old).
-    if (decoded.valueCounts[0] != this.rootWaypoint.valueCount) {
-      waypointDiffs.set(this.rootWaypoint, {
-        local: this.rootWaypoint.valueCount,
-        remote: decoded.valueCounts[0],
-      });
-      this.rootWaypoint.valueCount = Math.max(
-        this.rootWaypoint.valueCount,
-        decoded.valueCounts[0]
-      );
-    }
 
     let replicaIDIndex = 0;
     let replicaCounter = 0;
@@ -702,7 +697,6 @@ export class CPositionSource extends CPrimitive<PositionSourceEventsRecord> {
         replicaCounter = 0;
       }
       const replicaID = decoded.replicaIDs[replicaIDIndex];
-      const valueCount = decoded.valueCounts[i + 1];
       const existing = this.waypointsByID.get(replicaID)?.[replicaCounter];
       if (existing === undefined) {
         // New waypoint.
@@ -717,8 +711,7 @@ export class CPositionSource extends CPrimitive<PositionSourceEventsRecord> {
           // events.
           null,
           parentValueIndex,
-          isRight,
-          valueCount
+          isRight
         );
         waypoints.push(waypoint);
         newWaypointIndices.push(i);
@@ -729,18 +722,6 @@ export class CPositionSource extends CPrimitive<PositionSourceEventsRecord> {
           this.waypointsByID.set(replicaID, senderWaypoints);
         }
         senderWaypoints.push(waypoint);
-
-        waypointDiffs.set(waypoint, { local: 0, remote: valueCount });
-      } else {
-        // Existing waypoint.
-        waypoints.push(existing);
-        if (valueCount != existing.valueCount) {
-          waypointDiffs.set(existing, {
-            local: existing.valueCount,
-            remote: valueCount,
-          });
-          existing.valueCount = Math.max(existing.valueCount, valueCount);
-        }
       }
 
       replicaCounter++;
@@ -756,6 +737,6 @@ export class CPositionSource extends CPrimitive<PositionSourceEventsRecord> {
     }
 
     // Emit event.
-    this.emit("Load", new PositionSourceLoadEvent(this, waypointDiffs, meta));
+    this.emit("Create", { waypoints, meta });
   }
 }

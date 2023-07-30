@@ -1,30 +1,10 @@
-// Used when creating a position that reuses
-// an existing waypoint from the sender.
-message PositionSourceExtendMessage {
-  required uint32 counter = 1;
-  // valueIndex is the current last + 1.
-}
-
-// Used when creating a position that uses
-// a new waypoint.
-message PositionSourceWaypointMessage {
+message PositionSourceCreateMessage {
   // Omitted if it's the same as the position's senderID.
   optional string parentWaypointSenderID = 1;
   // Sign gives side (R child = +1); actual counter is
   // as given if positive, ~ (bitwise NOT) if negative.
   required sint32 parentWaypointCounterAndSide = 2;
   required uint32 parentValueIndex = 3;
-}
-
-message PositionSourceCreateMessage {
-  oneof type {
-    PositionSourceExtendMessage extend = 1;
-    PositionSourceWaypointMessage waypoint = 2;
-  }
-  // The number of positions created, with sequential
-  // valueIndex's.
-  optional uint32 count = 3 [default=1];
-  optional bytes info = 4;
 }
 
 message PositionSourceSave {
@@ -39,6 +19,7 @@ message PositionSourceSave {
   // Sign gives side (R child = +1); actual valueIndex is
   // as given if positive, ~ (bitwise NOT) if negative.
   repeated sint32 parentValueIndexAndSides = 4 [packed=true];
-  // Starts with root, then same order as parentWaypoints.
-  repeated uint32 valueCounts = 5 [packed=true];
+  // Same order as parentWaypoints.
+  // OPT: Calculate depth from parents instead of storing it here.
+  repeated uint32 depths = 5 [packed=true];
 }
