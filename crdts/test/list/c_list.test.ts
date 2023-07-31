@@ -642,7 +642,7 @@ describe("CList", () => {
       // These tests are a subset of the CValueList ordering tests.
       // In theory these aren't exercising anything that CValueList didn't
       // already test, but we want to make sure CList is not using
-      // CPositionSource/LocalList incorrectly.
+      // CTotalOrder/LocalList incorrectly.
 
       it("inserts once", () => {
         const ans = [0];

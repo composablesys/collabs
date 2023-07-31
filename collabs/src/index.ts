@@ -70,6 +70,7 @@ export {
   CRuntime,
   CSet,
   CText,
+  CTotalOrder,
   CValueList,
   CValueMap,
   CValueSet,
@@ -94,4 +95,5 @@ export {
   TextEvent,
   TextEventsRecord,
   VectorClock,
+  Waypoint,
 } from "@collabs/crdts";

@@ -17,7 +17,7 @@ import {
 import { CBoolean } from "../boolean";
 import { CSet } from "../set";
 import { CVar } from "../var";
-import { CPositionSource } from "./c_position_source";
+import { CTotalOrder } from "./c_total_order";
 import { LocalList } from "./local_list";
 
 /**
@@ -202,7 +202,13 @@ export class CList<
   InsertArgs extends unknown[]
 > extends AbstractList_CObject<C, InsertArgs, ListExtendedEventsRecord<C>> {
   private readonly set: CSet<CListEntry<C>, [Position, InsertArgs]>;
-  private readonly positionSource: CPositionSource;
+  /**
+   * The abstract total order underlying this list CRDT.
+   *
+   * Access this to construct separate [[LocalList]] views on top of
+   * the same total order, e.g., a view of all archived values.
+   */
+  readonly totalOrder: CTotalOrder;
 
   private readonly list: LocalList<C>;
 
@@ -228,14 +234,11 @@ export class CList<
     const argsSerializer =
       options.argsSerializer ?? DefaultSerializer.getInstance();
 
-    // Register positionSource first so that it is loaded first.
+    // Register totalOrder first so that it is loaded first.
     // (We could also ensure that by overriding CObject.load.)
     // Otherwise, set's events during load will reference positions that
     // haven't been loaded yet.
-    this.positionSource = this.registerCollab(
-      "0",
-      (init) => new CPositionSource(init)
-    );
+    this.totalOrder = this.registerCollab("0", (init) => new CTotalOrder(init));
     this.set = this.registerCollab(
       "",
       (init) =>
@@ -247,9 +250,9 @@ export class CList<
         })
     );
 
-    this.list = new LocalList(this.positionSource);
+    this.list = new LocalList(this.totalOrder);
 
-    // Maintain positionSource's values as a cache of
+    // Maintain this.list's values as a cache of
     // of the currently set locations, mapping to
     // the corresponding entry.
     // Also dispatch our own events.
@@ -301,7 +304,7 @@ export class CList<
       (valueInit) => this.valueConstructor(valueInit, ...args),
       initialPosition
     );
-    // Maintain positionSource's values as a cache of
+    // Maintain this.list's values as a cache of
     // of the currently set locations, mapping to
     // the corresponding entry.
     // Also dispatch our own events.
@@ -398,9 +401,17 @@ export class CList<
    * @throws If index is not in `[0, this.length]`.
    */
   insert(index: number, ...args: InsertArgs): C {
-    const prevPos = index === 0 ? null : this.list.getPosition(index - 1);
-    const position = this.positionSource.createPositions(prevPos, 1)[0];
-    return this.set.add(position, args).value;
+    const position = this.createPositions(index, 1)[0];
+    const newEntry = this.set.add(position, args);
+    return newEntry.value;
+  }
+
+  private createPositions(index: number, count: number): Position[] {
+    return this.totalOrder.createPositions(
+      index === 0 ? null : this.list.getPosition(index - 1),
+      index === this.length ? null : this.list.getPosition(index),
+      count
+    );
   }
 
   /**
@@ -516,9 +527,7 @@ export class CList<
     if (count === 0) return insertionIndex;
 
     // Positions to insert at.
-    const prevPos =
-      insertionIndex === 0 ? null : this.list.getPosition(insertionIndex - 1);
-    const positions = this.positionSource.createPositions(prevPos, count);
+    const positions = this.createPositions(insertionIndex, count);
     // Values to move.
     const toMove = this.list.slice(index, index + count);
     // Move them.
@@ -599,24 +608,6 @@ export class CList<
    */
   entries(): IterableIterator<[index: number, value: C, position: Position]> {
     return this.list.entries();
-  }
-
-  /**
-   * Returns a new instance of [[LocalList]] that uses this
-   * CList's [[Position]]s, initially empty.
-   *
-   * Changes to the returned LocalList's values
-   * do not affect this CList's values, and vice-versa.
-   * However, the set of allowed positions does increase to
-   * match this CList: you may use a CList position in
-   * the returned LocalList even if that position was created
-   * after the call to `newLocalList`.
-   *
-   * @typeParam U The value type of the returned list.
-   * Defaults to C.
-   */
-  newLocalList<U = C>(): LocalList<U> {
-    return new LocalList(this.positionSource);
   }
 
   indexOf(searchElement: C, fromIndex = 0): number {
