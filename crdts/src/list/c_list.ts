@@ -202,7 +202,13 @@ export class CList<
   InsertArgs extends unknown[]
 > extends AbstractList_CObject<C, InsertArgs, ListExtendedEventsRecord<C>> {
   private readonly set: CSet<CListEntry<C>, [Position, InsertArgs]>;
-  private readonly positionSource: CPositionSource;
+  /**
+   * The abstract total order underlying this list CRDT.
+   *
+   * Access this to construct separate [[LocalList]] views on top of
+   * our total order, e.g., a view of all archived values.
+   */
+  readonly positionSource: CPositionSource;
 
   private readonly list: LocalList<C>;
 
@@ -606,24 +612,6 @@ export class CList<
    */
   entries(): IterableIterator<[index: number, value: C, position: Position]> {
     return this.list.entries();
-  }
-
-  /**
-   * Returns a new instance of [[LocalList]] that uses this
-   * CList's [[Position]]s, initially empty.
-   *
-   * Changes to the returned LocalList's values
-   * do not affect this CList's values, and vice-versa.
-   * However, the set of allowed positions does increase to
-   * match this CList: you may use a CList position in
-   * the returned LocalList even if that position was created
-   * after the call to `newLocalList`.
-   *
-   * @typeParam U The value type of the returned list.
-   * Defaults to C.
-   */
-  newLocalList<U = C>(): LocalList<U> {
-    return new LocalList(this.positionSource);
   }
 
   indexOf(searchElement: C, fromIndex = 0): number {

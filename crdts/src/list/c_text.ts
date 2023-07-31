@@ -7,9 +7,9 @@ import {
   Position,
   StringSerializer,
 } from "@collabs/core";
+import { CPositionSource } from "./c_position_source";
 import { CValueList } from "./c_value_list";
 import { charArraySerializer } from "./char_array_serializer";
-import { LocalList } from "./local_list";
 
 /**
  * Event emitted by [[CText]] when a range of characters (values)
@@ -322,20 +322,12 @@ export class CText extends CObject<TextEventsRecord> implements ICursorList {
   }
 
   /**
-   * Returns a new instance of [[LocalList]] that uses this
-   * CText's [[Position]]s, initially empty.
+   * The abstract total order underlying this list CRDT.
    *
-   * Changes to the returned LocalList's values
-   * do not affect this CText's values, and vice-versa.
-   * However, the set of allowed positions does increase to
-   * match this CText: you may use a CText position in
-   * the returned LocalList even if that position was created
-   * after the call to `newLocalList`.
-   *
-   * @typeParam U The value type of the returned list.
-   * Defaults to string.
+   * Access this to construct separate [[LocalList]] views on top of
+   * our total order.
    */
-  newLocalList<U = string>(): LocalList<U> {
-    return this.list.newLocalList();
+  get positionSource(): CPositionSource {
+    return this.list.positionSource;
   }
 }

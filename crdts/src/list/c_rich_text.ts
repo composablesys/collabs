@@ -249,7 +249,7 @@ export class CRichText<
         )
     );
 
-    this.formatList = this.text.newLocalList();
+    this.formatList = new LocalList(this.text.positionSource);
 
     // Events.
     // this.addSpan also updates this.formatList.

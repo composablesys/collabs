@@ -45,7 +45,13 @@ import { LocalList } from "./local_list";
  * @typeParam T The value type.
  */
 export class CValueList<T> extends AbstractList_CObject<T, [T]> {
-  private readonly positionSource: CPositionSource;
+  /**
+   * The abstract total order underlying this list CRDT.
+   *
+   * Access this to construct separate [[LocalList]] views on top of
+   * our total order.
+   */
+  readonly positionSource: CPositionSource;
 
   // Since we have positionSource as a child, we can't be a CPrimitive,
   // but we'd like to act like one.
@@ -324,24 +330,6 @@ export class CValueList<T> extends AbstractList_CObject<T, [T]> {
 
   entries(): IterableIterator<[index: number, value: T, position: Position]> {
     return this.list.entries();
-  }
-
-  /**
-   * Returns a new instance of [[LocalList]] that uses this
-   * CList's [[Position]]s, initially empty.
-   *
-   * Changes to the returned LocalList's values
-   * do not affect this CValueList's values, and vice-versa.
-   * However, the set of allowed positions does increase to
-   * match this CValueList: you may use a CValueList position in
-   * the returned LocalList even if that position was created
-   * after the call to `newLocalList`.
-   *
-   * @typeParam U The value type of the returned list.
-   * Defaults to T.
-   */
-  newLocalList<U = T>(): LocalList<U> {
-    return new LocalList(this.positionSource);
   }
 
   save(): SavedStateTree {
