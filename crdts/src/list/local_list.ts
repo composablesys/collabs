@@ -142,6 +142,7 @@ export class LocalList<T> implements ICursorList {
         if (remaining < curItem.length) {
           // Already present. Replace the current value.
           curItem[remaining] = value;
+          // Don't update info.seen: already seen.
           return;
         } else remaining -= curItem.length;
       } else {
@@ -813,16 +814,16 @@ export class LocalList<T> implements ICursorList {
     return this.valuesByWaypoint.get(waypoint)?.seen ?? 0;
   }
 
-  /**
-   * Returns an iterable of all nonzero return values from [[getSeen]].
-   *
-   * This is useful in some optimized list CRDTs.
-   */
-  *seenEntries(): IterableIterator<[waypoint: Waypoint, seen: number]> {
-    for (const [waypoint, info] of this.valuesByWaypoint) {
-      if (info.seen !== 0) yield [waypoint, info.seen];
-    }
-  }
+  // /**
+  //  * Returns an iterable of all nonzero return values from [[getSeen]].
+  //  *
+  //  * This is useful in some optimized list CRDTs.
+  //  */
+  // *seenEntries(): IterableIterator<[waypoint: Waypoint, seen: number]> {
+  //   for (const [waypoint, info] of this.valuesByWaypoint) {
+  //     if (info.seen !== 0) yield [waypoint, info.seen];
+  //   }
+  // }
 
   /**
    * Whether this list is in its initial state, i.e.,
@@ -888,6 +889,7 @@ export class LocalList<T> implements ICursorList {
       replicaIDIndices,
       counters,
       totals,
+      seens,
       itemsLengths,
       itemSizes,
       values: valueArraySerializer.serialize(values),

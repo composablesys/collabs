@@ -786,7 +786,11 @@ describe("CRichText", () => {
     describe("formats multiple", () => {
       const text = "one two three";
       beforeEach(() => {
-        aliceText.insert(0, text, {});
+        alice.transact(() => {
+          // Do this in a transaction so we know that it increases
+          // Lamport timestamp by exactly one.
+          aliceText.insert(0, text, {});
+        });
         runtimeGen.releaseAll();
       });
 
