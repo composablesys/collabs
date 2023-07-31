@@ -47,13 +47,7 @@ export class Waypoint {
      * This waypoint's side: a right (true) or left (false) child of
      * the parent position.
      */
-    readonly isRight: boolean,
-    /**
-     * This waypoint's depth in the tree.
-     *
-     * 0 for the root waypoint.
-     */
-    readonly depth: number
+    readonly isRight: boolean
   ) {}
 
   /**
@@ -145,7 +139,7 @@ export class CPositionSource extends CPrimitive {
   constructor(init: InitToken) {
     super(init);
 
-    this.rootWaypoint = new Waypoint("", 0, null, 0, true, 0);
+    this.rootWaypoint = new Waypoint("", 0, null, 0, true);
     this.waypointsByID.set("", [this.rootWaypoint]);
   }
 
@@ -153,6 +147,8 @@ export class CPositionSource extends CPrimitive {
    * Creates `count` new positions between prevPosition and nextPosition.
    * The positions are created collaboratively
    * (replicated on all devices).
+   *
+   * If !(prevPosition < nextPosition), behavior is undefined.
    *
    * TODO: but might not trigger an op immediately (if waypoint, hence
    * all its positions, already exist).
@@ -175,12 +171,8 @@ export class CPositionSource extends CPrimitive {
     count: number,
     caller: object
   ): Position[] {
-    if (
-      prevPosition !== null &&
-      nextPosition !== null &&
-      this.compare(prevPosition, nextPosition) >= 0
-    ) {
-      throw new Error("prevPosition >= nextPosition");
+    if (prevPosition !== null && prevPosition === nextPosition) {
+      throw new Error("prevPosition == nextPosition");
     }
     if (count <= 0) throw new Error(`count is <= 0: ${count}`);
 
@@ -267,19 +259,24 @@ export class CPositionSource extends CPrimitive {
     bValueIndex: number
   ): boolean {
     if (aWaypoint === bWaypoint) return aValueIndex >= bValueIndex;
-    if (aWaypoint.depth <= bWaypoint.depth) return false;
 
-    // Walk up the waypoint tree from a until we reach b.depth + 1.
+    // Walk up the waypoint tree from a until we reach either a child of
+    // bWaypoint or the root.
     let current = aWaypoint;
-    while (current.depth > bWaypoint.depth + 1) {
-      current = nonNull(current.parentWaypoint);
+    while (current.parentWaypoint !== bWaypoint) {
+      if (current.parentWaypoint === null) {
+        // We've reached current == root without encountering bWaypoint;
+        // it's not a descendant.
+        return false;
+      }
+      current = current.parentWaypoint;
     }
+
+    // Now current's parent's waypoint is bWaypoint.
     // See if current's parent is [bWaypoint, >= bValueIndex].
-    if (current.parentWaypoint === bWaypoint) {
-      if (current.parentValueIndex > bValueIndex) return true;
-      else if (current.parentValueIndex === bValueIndex) return current.isRight;
-      else return false;
-    } else return false;
+    if (current.parentValueIndex > bValueIndex) return true;
+    else if (current.parentValueIndex === bValueIndex) return current.isRight;
+    else return false;
   }
 
   /**
@@ -413,8 +410,7 @@ export class CPositionSource extends CPrimitive {
       senderWaypoints.length,
       parentWaypoint,
       decoded.parentValueIndex,
-      isRight,
-      parentWaypoint.depth + 1
+      isRight
     );
     // Store the waypoint.
     senderWaypoints.push(waypoint);
@@ -529,69 +525,6 @@ export class CPositionSource extends CPrimitive {
     return [waypoint, valueIndex];
   }
 
-  compare(a: Position, b: Position): number {
-    if (a === b) return 0;
-    return this.compareUnequal(...this.decode(a), ...this.decode(b));
-  }
-
-  private compareUnequal(
-    aWaypoint: Waypoint,
-    aValueIndex: number,
-    bWaypoint: Waypoint,
-    bValueIndex: number
-  ): number {
-    if (aWaypoint.depth < bWaypoint.depth) {
-      return -this.compareUnequal(
-        bWaypoint,
-        bValueIndex,
-        aWaypoint,
-        aValueIndex
-      );
-    }
-
-    let aCurrent = aWaypoint;
-    if (aWaypoint.depth > bWaypoint.depth) {
-      // Walk a up until reaching bWaypoint.depth + 1.
-      while (aCurrent.depth > bWaypoint.depth + 1) {
-        // Positive depth means parent is non-null. Skip nonNull check for efficiency.
-        // eslint-disable-next-line @typescript-eslint/no-non-null-assertion
-        aCurrent = aCurrent.parentWaypoint!;
-      }
-
-      // Compare current to bWaypoint.
-      if (aCurrent.parentWaypoint === bWaypoint) {
-        // All right children are greater than all bWaypoint positions.
-        if (aCurrent.isRight) return 1;
-        // A left child is less its parent and later positions.
-        else if (aCurrent.parentValueIndex <= bValueIndex) return -1;
-        // A left child is greater than positions before its parent.
-        else return 1;
-      }
-
-      // Else go up to matching depths and fall through.
-      // eslint-disable-next-line @typescript-eslint/no-non-null-assertion
-      aCurrent = aCurrent.parentWaypoint!;
-    } else {
-      // aWaypoint.depth === bWaypoint.depth.
-      if (aWaypoint === bWaypoint) return aValueIndex - bValueIndex;
-      else aCurrent = aWaypoint;
-    }
-
-    let bCurrent = bWaypoint;
-    // Now aCurrent.depth === bCurrent.depth, aCurrent !== bCurrent,
-    // and the comparison only depends on aCurrent vs bCurrent.
-    // Walk both up until they have a common parent.
-    while (aCurrent.parentWaypoint !== bCurrent.parentWaypoint) {
-      // We reach parent = root before parent = null.
-      // Skip nonNull checks for efficiency.
-      // eslint-disable-next-line @typescript-eslint/no-non-null-assertion
-      aCurrent = aCurrent.parentWaypoint!;
-      // eslint-disable-next-line @typescript-eslint/no-non-null-assertion
-      bCurrent = bCurrent.parentWaypoint!;
-    }
-    return this.isSiblingLess(aCurrent, bCurrent) ? -1 : 1;
-  }
-
   protected savePrimitive(): Uint8Array {
     const replicaIDs: string[] = [];
     const replicaCounts: number[] = [];
@@ -609,7 +542,6 @@ export class CPositionSource extends CPrimitive {
 
     const parentWaypoints: number[] = [];
     const parentValueIndexAndSides: number[] = [];
-    const depths: number[] = [];
     for (const waypoints of this.waypointsByID.values()) {
       for (const waypoint of waypoints) {
         if (waypoint !== this.rootWaypoint) {
@@ -626,7 +558,6 @@ export class CPositionSource extends CPrimitive {
           parentValueIndexAndSides.push(
             this.valueAndSideEncode(waypoint.parentValueIndex, waypoint.isRight)
           );
-          depths.push(waypoint.depth);
         }
       }
     }
@@ -636,7 +567,6 @@ export class CPositionSource extends CPrimitive {
       replicaCounts,
       parentWaypoints,
       parentValueIndexAndSides,
-      depths,
     });
     return PositionSourceSave.encode(message).finish();
   }
@@ -679,8 +609,7 @@ export class CPositionSource extends CPrimitive {
           // Temporarily null in case the parent doesn't exist yet.
           // This is not externally visible.
           null,
-          ...this.valueAndSideDecode(decoded.parentValueIndexAndSides[index]),
-          decoded.depths[index]
+          ...this.valueAndSideDecode(decoded.parentValueIndexAndSides[index])
         );
         byID.push(newWaypoint);
       }
