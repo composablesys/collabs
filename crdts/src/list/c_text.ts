@@ -7,7 +7,7 @@ import {
   Position,
   StringSerializer,
 } from "@collabs/core";
-import { CPositionSource } from "./c_position_source";
+import { CTotalOrder } from "./c_total_order";
 import { CValueList } from "./c_value_list";
 import { charArraySerializer } from "./char_array_serializer";
 
@@ -327,7 +327,7 @@ export class CText extends CObject<TextEventsRecord> implements ICursorList {
    * Access this to construct separate [[LocalList]] views on top of
    * our total order.
    */
-  get positionSource(): CPositionSource {
-    return this.list.positionSource;
+  get totalOrder(): CTotalOrder {
+    return this.list.totalOrder;
   }
 }

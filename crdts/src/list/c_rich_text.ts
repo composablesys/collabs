@@ -249,7 +249,7 @@ export class CRichText<
         )
     );
 
-    this.formatList = new LocalList(this.text.positionSource);
+    this.formatList = new LocalList(this.text.totalOrder);
 
     // Events.
     // this.addSpan also updates this.formatList.

@@ -1,4 +1,4 @@
-message PositionSourceCreateMessage {
+message TotalOrderCreateMessage {
   // Omitted if it's the same as the position's senderID.
   optional string parentWaypointSenderID = 1;
   // Sign gives side (R child = +1); actual counter is
@@ -7,7 +7,7 @@ message PositionSourceCreateMessage {
   required uint32 parentValueIndex = 3;
 }
 
-message PositionSourceSave {
+message TotalOrderSave {
   // Excludes root ("").
   repeated string replicaIDs = 1;
   // replicaCounts[i] is number of waypoints with sender replicaIDs[i].

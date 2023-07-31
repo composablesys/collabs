@@ -17,7 +17,7 @@ import {
 import { CBoolean } from "../boolean";
 import { CSet } from "../set";
 import { CVar } from "../var";
-import { CPositionSource } from "./c_position_source";
+import { CTotalOrder } from "./c_total_order";
 import { LocalList } from "./local_list";
 
 /**
@@ -208,7 +208,7 @@ export class CList<
    * Access this to construct separate [[LocalList]] views on top of
    * our total order, e.g., a view of all archived values.
    */
-  readonly positionSource: CPositionSource;
+  readonly totalOrder: CTotalOrder;
 
   private readonly list: LocalList<C>;
 
@@ -234,14 +234,11 @@ export class CList<
     const argsSerializer =
       options.argsSerializer ?? DefaultSerializer.getInstance();
 
-    // Register positionSource first so that it is loaded first.
+    // Register totalOrder first so that it is loaded first.
     // (We could also ensure that by overriding CObject.load.)
     // Otherwise, set's events during load will reference positions that
     // haven't been loaded yet.
-    this.positionSource = this.registerCollab(
-      "0",
-      (init) => new CPositionSource(init)
-    );
+    this.totalOrder = this.registerCollab("0", (init) => new CTotalOrder(init));
     this.set = this.registerCollab(
       "",
       (init) =>
@@ -253,9 +250,9 @@ export class CList<
         })
     );
 
-    this.list = new LocalList(this.positionSource);
+    this.list = new LocalList(this.totalOrder);
 
-    // Maintain positionSource's values as a cache of
+    // Maintain totalOrder's values as a cache of
     // of the currently set locations, mapping to
     // the corresponding entry.
     // Also dispatch our own events.
@@ -307,7 +304,7 @@ export class CList<
       (valueInit) => this.valueConstructor(valueInit, ...args),
       initialPosition
     );
-    // Maintain positionSource's values as a cache of
+    // Maintain totalOrder's values as a cache of
     // of the currently set locations, mapping to
     // the corresponding entry.
     // Also dispatch our own events.
@@ -410,7 +407,7 @@ export class CList<
   }
 
   private createPositions(index: number, count: number): Position[] {
-    return this.positionSource.createPositions(
+    return this.totalOrder.createPositions(
       index === 0 ? null : this.list.getPosition(index - 1),
       index === this.length ? null : this.list.getPosition(index),
       count,

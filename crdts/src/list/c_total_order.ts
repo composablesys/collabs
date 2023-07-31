@@ -7,16 +7,16 @@ import {
   UpdateMeta,
 } from "@collabs/core";
 import {
-  IPositionSourceCreateMessage,
-  PositionSourceCreateMessage,
-  PositionSourceSave,
+  ITotalOrderCreateMessage,
+  TotalOrderCreateMessage,
+  TotalOrderSave,
 } from "../../generated/proto_compiled";
 
 const RADIX = 36;
 
 /**
  * A waypoint in the tree of positions. See
- * [[CPositionSource]] for a description of the tree.
+ * [[CTotalOrder]] for a description of the tree.
  *
  * Each waypoint is identified by its pair ([[senderID]], [[counter]]).
  */
@@ -55,7 +55,7 @@ export class Waypoint {
    * by valueIndex, then right children by reverse valueIndex,
    * with ties broken by senderID.
    *
-   * Only [[CPositionSource]] may mutate this array.
+   * Only [[CTotalOrder]] may mutate this array.
    */
   readonly children: Waypoint[] = [];
 }
@@ -107,7 +107,7 @@ export class Waypoint {
  * when first created. Later, (left-side) waypoint children may
  * appear between them.
  */
-export class CPositionSource extends CPrimitive {
+export class CTotalOrder extends CPrimitive {
   /**
    * Map key is waypoint.senderID, index in the array is waypoint.counter.
    */
@@ -134,7 +134,7 @@ export class CPositionSource extends CPrimitive {
   private ourWaypoints = new WeakMap<object, Map<Waypoint, number>>();
 
   /**
-   * Constructs a CPositionSource.
+   * Constructs a CTotalOrder.
    */
   constructor(init: InitToken) {
     super(init);
@@ -341,7 +341,7 @@ export class CPositionSource extends CPrimitive {
     count: number,
     caller: object
   ): Position[] {
-    const message: IPositionSourceCreateMessage = {
+    const message: ITotalOrderCreateMessage = {
       parentWaypointSenderID:
         parentWaypoint.senderID === this.runtime.replicaID
           ? undefined
@@ -352,7 +352,7 @@ export class CPositionSource extends CPrimitive {
       ),
       parentValueIndex,
     };
-    this.sendPrimitive(PositionSourceCreateMessage.encode(message).finish());
+    this.sendPrimitive(TotalOrderCreateMessage.encode(message).finish());
 
     // Our new waypoint is last in our waypointsByID array.
     const ourArray = nonNull(this.waypointsByID.get(this.runtime.replicaID));
@@ -386,7 +386,7 @@ export class CPositionSource extends CPrimitive {
     message: string | Uint8Array,
     meta: UpdateMeta
   ): void {
-    const decoded = PositionSourceCreateMessage.decode(<Uint8Array>message);
+    const decoded = TotalOrderCreateMessage.decode(<Uint8Array>message);
 
     // Get parentWaypoint.
     const parentWaypointSender = protobufHas(decoded, "parentWaypointSenderID")
@@ -562,13 +562,13 @@ export class CPositionSource extends CPrimitive {
       }
     }
 
-    const message = PositionSourceSave.create({
+    const message = TotalOrderSave.create({
       replicaIDs,
       replicaCounts,
       parentWaypoints,
       parentValueIndexAndSides,
     });
-    return PositionSourceSave.encode(message).finish();
+    return TotalOrderSave.encode(message).finish();
   }
 
   protected loadPrimitive(
@@ -577,7 +577,7 @@ export class CPositionSource extends CPrimitive {
   ): void {
     if (savedState === null) return;
 
-    const decoded = PositionSourceSave.decode(savedState);
+    const decoded = TotalOrderSave.decode(savedState);
 
     // Create new waypoints, merging the saved state into ours.
 

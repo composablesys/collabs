@@ -1,6 +1,6 @@
 import { ICursorList, Position, Serializer, nonNull } from "@collabs/core";
 import { LocalListSave } from "../../generated/proto_compiled";
-import { CPositionSource, Waypoint } from "./c_position_source";
+import { CTotalOrder, Waypoint } from "./c_total_order";
 
 /**
  * Info about a waypoint's values within a LocalList.
@@ -67,7 +67,7 @@ type ValuesOrChild<T> =
  * return the archived LocalList? -->
  *
  * To construct a LocalList that uses an existing list's positions, pass
- * that list's `positionSource` to our constructor.
+ * that list's `totalOrder` to our constructor.
  *
  * It is *not* safe to modify a LocalList while iterating over it. The iterator
  * will attempt to throw an exception if it detects such modification,
@@ -106,7 +106,7 @@ export class LocalList<T> implements ICursorList {
    * @param source The source for positions that may be used with this
    * LocalList.
    */
-  constructor(readonly source: CPositionSource) {}
+  constructor(readonly source: CTotalOrder) {}
 
   /**
    * Sets the value at position.
@@ -197,7 +197,7 @@ export class LocalList<T> implements ICursorList {
    * Optimized variant of [[set]] for newly-created positions.
    *
    * If you (or a remote replica) just created `values.count`
-   * positions using [[CPositionSource.createPosition]], you may call
+   * positions using [[CTotalOrder.createPosition]], you may call
    * this method with the first created position and the values to
    * set at the created positions. This may be faster than
    * calling [[set]] on each (position, value) individually.

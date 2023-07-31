@@ -17,7 +17,7 @@ import {
   ValueListInsertMessage,
   ValueListMessage,
 } from "../../generated/proto_compiled";
-import { CPositionSource } from "./c_position_source";
+import { CTotalOrder } from "./c_total_order";
 import { LocalList } from "./local_list";
 
 /**
@@ -51,9 +51,9 @@ export class CValueList<T> extends AbstractList_CObject<T, [T]> {
    * Access this to construct separate [[LocalList]] views on top of
    * our total order.
    */
-  readonly positionSource: CPositionSource;
+  readonly totalOrder: CTotalOrder;
 
-  // Since we have positionSource as a child, we can't be a CPrimitive,
+  // Since we have totalOrder as a child, we can't be a CPrimitive,
   // but we'd like to act like one.
   // So, we use messenger to send our own messages, and we override
   // save/load to also save/load our own state (this.list).
@@ -88,11 +88,8 @@ export class CValueList<T> extends AbstractList_CObject<T, [T]> {
         ? options.valueArraySerializer
         : ArraySerializer.getInstance(this.valueSerializer);
 
-    this.positionSource = super.registerCollab(
-      "",
-      (init) => new CPositionSource(init)
-    );
-    this.list = new LocalList(this.positionSource);
+    this.totalOrder = super.registerCollab("", (init) => new CTotalOrder(init));
+    this.list = new LocalList(this.totalOrder);
 
     this.messenger = super.registerCollab(
       "1",
@@ -121,12 +118,12 @@ export class CValueList<T> extends AbstractList_CObject<T, [T]> {
           insert.data === "value"
             ? [this.valueSerializer.deserialize(insert.value)]
             : this.valueArraySerializer.deserialize(insert.valueArray);
-        const waypoint = this.positionSource.getWaypoint(
+        const waypoint = this.totalOrder.getWaypoint(
           meta.senderID,
           insert.counter
         );
         // TODO: in principle we know the valueIndex from seenPositions, can omit.
-        const positions = this.positionSource.encodeAll(
+        const positions = this.totalOrder.encodeAll(
           waypoint,
           insert.valueIndex,
           values.length
@@ -189,14 +186,14 @@ export class CValueList<T> extends AbstractList_CObject<T, [T]> {
 
     if (values.length === 0) return undefined;
 
-    const firstNewPos = this.positionSource.createPositions(
+    const firstNewPos = this.totalOrder.createPositions(
       // OPT: Optimize LocalList for these sequential calls.
       index === 0 ? null : this.list.getPosition(index - 1),
       index === this.length ? null : this.list.getPosition(index),
       values.length,
       this
     )[0];
-    const [waypoint, valueIndex] = this.positionSource.decode(firstNewPos);
+    const [waypoint, valueIndex] = this.totalOrder.decode(firstNewPos);
 
     const insertMessage: IValueListInsertMessage = {
       counter: waypoint.counter,
@@ -361,7 +358,7 @@ export class CValueList<T> extends AbstractList_CObject<T, [T]> {
       }
     } else {
       // We need to merge savedState with our existing state.
-      const remote = new LocalList<T>(this.positionSource);
+      const remote = new LocalList<T>(this.totalOrder);
       remote.load(savedState, this.valueArraySerializer);
 
       // 1. Delete values whose positions were seen by the remote list but are not
@@ -372,7 +369,7 @@ export class CValueList<T> extends AbstractList_CObject<T, [T]> {
       // and fewer events.
       const deleteEvents: ListEvent<T>[] = [];
       for (const [index, value, position] of this.list.entries()) {
-        const [waypoint, valueIndex] = this.positionSource.decode(position);
+        const [waypoint, valueIndex] = this.totalOrder.decode(position);
         const remoteSeen = remote.getSeen(waypoint);
         if (valueIndex < remoteSeen && !remote.hasPosition(position)) {
           // Wait to make changes until the end, to avoid modifications during iterators.
@@ -392,7 +389,7 @@ export class CValueList<T> extends AbstractList_CObject<T, [T]> {
       }
 
       // 2. Add values from remote whose positions were not seen by the local
-      // CPositionSource.
+      // CTotalOrder.
       const insertEvents: ListEvent<T>[] = [];
       let insertedSoFar = 0;
       for (const [, value, position] of remote.entries()) {
@@ -400,7 +397,7 @@ export class CValueList<T> extends AbstractList_CObject<T, [T]> {
         // (remotely-deleted) elements; indices that skip over child waypoints.
         // Also, double-check that CRichText's Insert event handler still works
         // (it assumes no existing positions in the middle of an Insert event's values).
-        const [waypoint, valueIndex] = this.positionSource.decode(position);
+        const [waypoint, valueIndex] = this.totalOrder.decode(position);
         const localSeen = this.list.getSeen(waypoint);
         if (valueIndex >= localSeen) {
           insertEvents.push({
