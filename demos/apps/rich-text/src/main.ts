@@ -5,7 +5,7 @@ import {
   Cursor,
   Cursors,
 } from "@collabs/collabs";
-import { LocalStorageDocStore } from "@collabs/storage";
+import { LocalStorageDocStore } from "@collabs/local-storage";
 import { WebSocketNetwork } from "@collabs/ws-client";
 import Quill, { DeltaStatic, Delta as DeltaType } from "quill";
 import QuillCursors from "quill-cursors";

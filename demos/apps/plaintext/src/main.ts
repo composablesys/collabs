@@ -1,5 +1,5 @@
 import { CRuntime, CText, Cursors } from "@collabs/collabs";
-import { LocalStorageDocStore } from "@collabs/storage";
+import { LocalStorageDocStore } from "@collabs/local-storage";
 import { WebSocketNetwork } from "@collabs/ws-client";
 
 // --- App code ---

@@ -10,7 +10,8 @@
     "core",
     "crdts",
     "collabs",
-    "storage",
+    "local-storage",
+    "indexeddb",
     "ws-client",
     "ws-server",
     "matrix-widget",
@@ -35,6 +36,7 @@
       "crdts",
       "collabs",
       "storage",
+      "indexeddb",
       "ws-client",
       "ws-server",
       "matrix-widget"
