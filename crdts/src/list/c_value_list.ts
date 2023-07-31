@@ -8,11 +8,16 @@ import {
   Position,
   SavedStateTree,
   Serializer,
-  StringSerializer,
+  Uint8ArraySerializer,
   UpdateMeta,
   nonNull,
 } from "@collabs/core";
-import { CPositionSource, PositionSourceLoadEvent } from "./c_position_source";
+import {
+  IValueListInsertMessage,
+  ValueListInsertMessage,
+  ValueListMessage,
+} from "../../generated/proto_compiled";
+import { CPositionSource } from "./c_position_source";
 import { LocalList } from "./local_list";
 
 /**
@@ -41,7 +46,12 @@ import { LocalList } from "./local_list";
  */
 export class CValueList<T> extends AbstractList_CObject<T, [T]> {
   private readonly positionSource: CPositionSource;
-  private readonly deleteMessenger: CMessenger<Position>;
+
+  // Since we have positionSource as a child, we can't be a CPrimitive,
+  // but we'd like to act like one.
+  // So, we use messenger to send our own messages, and we override
+  // save/load to also save/load our own state (this.list).
+  private readonly messenger: CMessenger<Uint8Array>;
 
   private readonly list: LocalList<T>;
 
@@ -78,46 +88,76 @@ export class CValueList<T> extends AbstractList_CObject<T, [T]> {
     );
     this.list = new LocalList(this.positionSource);
 
-    this.deleteMessenger = super.registerCollab(
+    this.messenger = super.registerCollab(
       "1",
       (init) =>
-        new CMessenger(init, { messageSerializer: StringSerializer.instance })
+        new CMessenger(init, {
+          messageSerializer: Uint8ArraySerializer.instance,
+        })
     );
 
-    // Operation handlers.
-    this.positionSource.on("Create", (e) => {
-      // e.info is valuesSer from this.insert.
-      const info = nonNull(e.info);
-      const values =
-        e.count === 1
-          ? [this.valueSerializer.deserialize(info)]
-          : this.valueArraySerializer.deserialize(info);
-      this.list.setCreated(e, values);
-      // Here we exploit forwards non-interleaving, which guarantees
-      // that the values are contiguous.
-      this.emit("Insert", {
-        index: this.list.indexOfPosition(e.positions[0]),
-        values,
-        positions: e.positions,
-        meta: e.meta,
-      });
-    });
-    this.deleteMessenger.on("Message", (e) => {
-      // OPT: combine calls?
-      if (this.list.hasPosition(e.message)) {
-        // Use ! instead of nonNull because T might allow null.
-        // eslint-disable-next-line @typescript-eslint/no-non-null-assertion
-        const value = this.list.getByPosition(e.message)!;
-        const index = this.list.indexOfPosition(e.message);
-        this.list.delete(e.message);
-        this.emit("Delete", {
-          index,
-          values: [value],
-          positions: [e.message],
-          meta: e.meta,
+    // Message handler.
+    this.messenger.on("Message", (e) =>
+      this.altReceivePrimitive(e.message, e.meta)
+    );
+  }
+
+  /**
+   * Analogous to CPrimitive.receivePrimitive - actually for processing
+   * this.messenger's messages.
+   */
+  private altReceivePrimitive(message: Uint8Array, meta: UpdateMeta): void {
+    const decoded = ValueListMessage.decode(message);
+    switch (decoded.op) {
+      case "insert": {
+        const insert = nonNull(decoded.insert) as ValueListInsertMessage;
+        const values =
+          insert.data === "value"
+            ? [this.valueSerializer.deserialize(insert.value)]
+            : this.valueArraySerializer.deserialize(insert.valueArray);
+        const waypoint = this.positionSource.getWaypoint(
+          meta.senderID,
+          insert.counter
+        );
+        // TODO: in principle we know the valueIndex from seenPositions, can omit.
+        const positions = this.positionSource.encodeAll(
+          waypoint,
+          insert.valueIndex,
+          values.length
+        );
+
+        this.list.setCreated(positions[0], values);
+        // Here we exploit forward non-interleaving, which guarantees
+        // that the values are contiguous.
+        this.emit("Insert", {
+          index: this.list.indexOfPosition(positions[0]),
+          values,
+          positions,
+          meta,
         });
+        break;
       }
-    });
+      case "delete": {
+        const position = decoded.delete;
+        // OPT: combine calls?
+        if (this.list.hasPosition(position)) {
+          // Use ! instead of nonNull because T might allow null.
+          // eslint-disable-next-line @typescript-eslint/no-non-null-assertion
+          const value = this.list.getByPosition(position)!;
+          const index = this.list.indexOfPosition(position);
+          this.list.delete(position);
+          this.emit("Delete", {
+            index,
+            values: [value],
+            positions: [position],
+            meta,
+          });
+        }
+        break;
+      }
+      default:
+        throw new Error(`Unknown decoded.op: ${decoded.op}`);
+    }
   }
 
   // OPT: optimize bulk methods.
@@ -143,13 +183,27 @@ export class CValueList<T> extends AbstractList_CObject<T, [T]> {
 
     if (values.length === 0) return undefined;
 
-    const prevPos = index === 0 ? null : this.list.getPosition(index - 1);
-    // We pass valueSer in the info field, which shows up on the Create event.
-    const valuesSer =
-      values.length === 1
-        ? this.valueSerializer.serialize(values[0])
-        : this.valueArraySerializer.serialize(values);
-    this.positionSource.createPositions(prevPos, values.length, valuesSer);
+    const firstNewPos = this.positionSource.createPositions(
+      // OPT: Optimize LocalList for these sequential calls.
+      index === 0 ? null : this.list.getPosition(index - 1),
+      index === this.length ? null : this.list.getPosition(index),
+      values.length,
+      this
+    )[0];
+    const [waypoint, valueIndex] = this.positionSource.decode(firstNewPos);
+
+    const insertMessage: IValueListInsertMessage = {
+      counter: waypoint.counter,
+      valueIndex: valueIndex === 0 ? undefined : valueIndex,
+    };
+    if (values.length === 1) {
+      insertMessage.value = this.valueSerializer.serialize(values[0]);
+    } else {
+      insertMessage.valueArray = this.valueArraySerializer.serialize(values);
+    }
+    this.messenger.sendMessage(
+      ValueListMessage.encode({ insert: insertMessage }).finish()
+    );
 
     return values[0];
   }
@@ -168,7 +222,9 @@ export class CValueList<T> extends AbstractList_CObject<T, [T]> {
     // OPT: optimize range iteration (ListView.slice for positions?)
     // Delete from back to front, so indices make sense.
     for (let i = index + count - 1; i >= index; i--) {
-      this.deleteMessenger.sendMessage(this.list.getPosition(i));
+      this.messenger.sendMessage(
+        ValueListMessage.encode({ delete: this.list.getPosition(i) }).finish()
+      );
     }
   }
 
@@ -289,25 +345,16 @@ export class CValueList<T> extends AbstractList_CObject<T, [T]> {
   }
 
   save(): SavedStateTree {
+    // Override CObject.save to add our own state in SavedStateTree.self.
     const ans = super.save();
     ans.self = this.list.save(this.valueArraySerializer);
     return ans;
   }
 
   load(savedStateTree: SavedStateTree | null, meta: UpdateMeta): void {
-    // None of our children use null saved states, so just return.
-    if (savedStateTree === null) return;
-
-    let sourceLoadEvent!: PositionSourceLoadEvent;
-    this.positionSource.on(
-      "Load",
-      (e) => {
-        sourceLoadEvent = e;
-      },
-      { once: true }
-    );
     super.load(savedStateTree, meta);
 
+    if (savedStateTree === null) return;
     const savedState = nonNull(savedStateTree.self);
 
     if (this.list.inInitialState) {
@@ -329,16 +376,17 @@ export class CValueList<T> extends AbstractList_CObject<T, [T]> {
       const remote = new LocalList<T>(this.positionSource);
       remote.load(savedState, this.valueArraySerializer);
 
-      // 1. Delete values whose positions were known to the remote CPositionSource
-      // but not present in the remote list.
+      // 1. Delete values whose positions were seen by the remote list but are not
+      // present in it.
+      // Those must have been deleted by (a replica of) us (= this CValueList),
+      // since we see exactly the positions corresponding to waypoints we create.
       // OPT: do changes by-waypoint instead, for shorter loops, optimized set/delete,
       // and fewer events.
       const deleteEvents: ListEvent<T>[] = [];
       for (const [index, value, position] of this.list.entries()) {
-        if (
-          !sourceLoadEvent.isNewRemotely(position) &&
-          !remote.hasPosition(position)
-        ) {
+        const [waypoint, valueIndex] = this.positionSource.decode(position);
+        const remoteSeen = remote.getSeen(waypoint);
+        if (valueIndex < remoteSeen && !remote.hasPosition(position)) {
           // Wait to make changes until the end, to avoid modifications during iterators.
           deleteEvents.push({
             index,
@@ -355,7 +403,7 @@ export class CValueList<T> extends AbstractList_CObject<T, [T]> {
         this.emit("Delete", e);
       }
 
-      // 2. Add values from remote whose positions were not known to the local
+      // 2. Add values from remote whose positions were not seen by the local
       // CPositionSource.
       const insertEvents: ListEvent<T>[] = [];
       let insertedSoFar = 0;
@@ -364,7 +412,9 @@ export class CValueList<T> extends AbstractList_CObject<T, [T]> {
         // (remotely-deleted) elements; indices that skip over child waypoints.
         // Also, double-check that CRichText's Insert event handler still works
         // (it assumes no existing positions in the middle of an Insert event's values).
-        if (sourceLoadEvent.isNewLocally(position)) {
+        const [waypoint, valueIndex] = this.positionSource.decode(position);
+        const localSeen = this.list.getSeen(waypoint);
+        if (valueIndex >= localSeen) {
           insertEvents.push({
             index: this.list.indexOfPosition(position, "right") + insertedSoFar,
             positions: [position],

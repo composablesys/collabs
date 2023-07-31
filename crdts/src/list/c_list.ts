@@ -398,9 +398,18 @@ export class CList<
    * @throws If index is not in `[0, this.length]`.
    */
   insert(index: number, ...args: InsertArgs): C {
-    const prevPos = index === 0 ? null : this.list.getPosition(index - 1);
-    const position = this.positionSource.createPositions(prevPos, 1)[0];
-    return this.set.add(position, args).value;
+    const position = this.createPositions(index, 1)[0];
+    const newEntry = this.set.add(position, args);
+    return newEntry.value;
+  }
+
+  private createPositions(index: number, count: number): Position[] {
+    return this.positionSource.createPositions(
+      index === 0 ? null : this.list.getPosition(index - 1),
+      index === this.length ? null : this.list.getPosition(index),
+      count,
+      this
+    );
   }
 
   /**
@@ -516,9 +525,7 @@ export class CList<
     if (count === 0) return insertionIndex;
 
     // Positions to insert at.
-    const prevPos =
-      insertionIndex === 0 ? null : this.list.getPosition(insertionIndex - 1);
-    const positions = this.positionSource.createPositions(prevPos, count);
+    const positions = this.createPositions(insertionIndex, count);
     // Values to move.
     const toMove = this.list.slice(index, index + count);
     // Move them.
