@@ -206,7 +206,7 @@ export class CList<
    * The abstract total order underlying this list CRDT.
    *
    * Access this to construct separate [[LocalList]] views on top of
-   * our total order, e.g., a view of all archived values.
+   * the same total order, e.g., a view of all archived values.
    */
   readonly totalOrder: CTotalOrder;
 
@@ -410,8 +410,7 @@ export class CList<
     return this.totalOrder.createPositions(
       index === 0 ? null : this.list.getPosition(index - 1),
       index === this.length ? null : this.list.getPosition(index),
-      count,
-      this
+      count
     );
   }
 

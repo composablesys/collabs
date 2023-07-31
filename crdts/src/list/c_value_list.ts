@@ -49,7 +49,7 @@ export class CValueList<T> extends AbstractList_CObject<T, [T]> {
    * The abstract total order underlying this list CRDT.
    *
    * Access this to construct separate [[LocalList]] views on top of
-   * our total order.
+   * the same total order.
    */
   readonly totalOrder: CTotalOrder;
 
@@ -122,9 +122,12 @@ export class CValueList<T> extends AbstractList_CObject<T, [T]> {
           meta.senderID,
           insert.counter
         );
-        // TODO: in principle we know the valueIndex from seenPositions, can omit.
         const positions = this.totalOrder.encodeAll(
           waypoint,
+          // OPT: In principle, we could infer the valueIndex from list.getSeen
+          // instead of sending it over the network. However, that would not
+          // work if someone else created positions in our total order
+          // that happened to extend one of our waypoints.
           insert.valueIndex,
           values.length
         );
@@ -190,8 +193,7 @@ export class CValueList<T> extends AbstractList_CObject<T, [T]> {
       // OPT: Optimize LocalList for these sequential calls.
       index === 0 ? null : this.list.getPosition(index - 1),
       index === this.length ? null : this.list.getPosition(index),
-      values.length,
-      this
+      values.length
     )[0];
     const [waypoint, valueIndex] = this.totalOrder.decode(firstNewPos);
 

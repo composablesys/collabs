@@ -28,7 +28,7 @@ export class Waypoint {
      */
     readonly senderID: string,
     /**
-     * A counter for waypoints send by [[senderID]].
+     * A counter for waypoints sent by [[senderID]].
      * Starts at 0 and increases contiguously.
      */
     readonly counter: number,
@@ -61,29 +61,30 @@ export class Waypoint {
 }
 
 /**
- * A source of [[Position]]s for use in a collaborative list.
+ * A collaborative abstract total order on [[Position]]s.
  *
  * This is a low-level API intended for internal use by list CRDT implementations.
  * In most apps, you are better off using [[CValueList]] or [[CList]].
  *
- * The set of allowed positions and their sort order is collaborative
- * (replicated on all devices). You can then use a [[LocalList]] to assign
- * values to those positions and to convert between indices, positions,
- * and values.
+ * A CTotalOrder represents the core of a list CRDT: a collaborative
+ * list of Positions
+ * that can be expanded over time, but without any associated values.
+ * Instead, you use a [[LocalList]] to map a subset of Positions to
+ * values, in list order with indexed access.
  * Note that LocalList is a local (non-collaborative) data structure, i.e.,
- * the value assignments are not automatically replicated.
+ * its value assignments are not automatically replicated.
  *
  * ### Waypoints
  *
- * Internally, each [[Position]] is represented as a pair
- * (waypoint, valueIndex), where waypoint is a [[Waypoint]]
- * and valueIndex is a nonnegative
- * integer that increases monotonically. Methods [[decode]],
+ * Internally, CTotalOrder stores an append-only log of [[Waypoint]]s.
+ * The allowed [[Position]]s correspond to pairs (waypoint, valueIndex)
+ * where waypoint is an existing Waypoint and
+ * valueIndex is a nonnegative number. Methods [[decode]],
  * [[encode]], and [[encodeAll]] convert between the two representations.
  *
- * Optimizing users may prefer the internal
- * representation, e.g., storing a map from waypoints to value
- * arrays instead of a map from Positions to values.
+ * Note that waypoints and positions are only created, never destroyed.
+ * To create new positions (creating a new Waypoint if needed),
+ * call [[createPositions]].
  *
  * ### List Order
  *
@@ -116,22 +117,23 @@ export class CTotalOrder extends CPrimitive {
    * The root waypoint.
    *
    * The special position (rootWaypoint, 0) is the root of the tree of
-   * positions. It technically appears first in the list of positions
+   * positions. It technically appears first in the total order
    * but is usually not used.
    */
   readonly rootWaypoint: Waypoint;
 
   /**
    * Tracks waypoints created by this specific object (i.e., the current
-   * replica & session), keyed by createPosition's caller arg.
-   * A given caller can only extend its own waypoints.
+   * replica & session). These are the only waypoints that we can
+   * extend, to prevent multiple users from extending a waypoint
+   * concurrently (giving non-unique positions).
    *
    * Each waypoint maps to the next valueIndex to create for that waypoint.
    *
    * This state is ephemeral (not saved), since a future loader will
    * be in a different session.
    */
-  private ourWaypoints = new WeakMap<object, Map<Waypoint, number>>();
+  private ourWaypoints = new Map<Waypoint, number>();
 
   /**
    * Constructs a CTotalOrder.
@@ -150,16 +152,13 @@ export class CTotalOrder extends CPrimitive {
    *
    * If !(prevPosition < nextPosition), behavior is undefined.
    *
-   * TODO: but might not trigger an op immediately (if waypoint, hence
-   * all its positions, already exist).
-   *
-   * TODO: caller: for enforcing that only a caller extends its own
-   * waypoints (important for CValueList).
+   * Note that this might not actually send a message.
    *
    * @param prevPosition The previous position, or null to
    * create positions at the beginning of the list.
-   * @param prevPosition The next position, or null to
+   * @param nextPosition The next position, or null to
    * create positions at the end of the list.
+   * @param count The number of positions to create.
    * @returns The created positions, in list order.
    * Internally, they use the same waypoint with contiguously
    * increasing valueIndex.
@@ -168,8 +167,7 @@ export class CTotalOrder extends CPrimitive {
   createPositions(
     prevPosition: Position | null,
     nextPosition: Position | null,
-    count: number,
-    caller: object
+    count: number
   ): Position[] {
     if (prevPosition !== null && prevPosition === nextPosition) {
       throw new Error("prevPosition == nextPosition");
@@ -205,8 +203,7 @@ export class CTotalOrder extends CPrimitive {
           parentWaypoint,
           parentValueIndex,
           false,
-          count,
-          caller
+          count
         );
       }
     }
@@ -214,14 +211,11 @@ export class CTotalOrder extends CPrimitive {
     // Else we can go anywhere in prevPosition's right subtree.
 
     // First see if we can extend prevWaypoint.
-    const callerWaypoints = this.ourWaypoints.get(caller);
-    if (callerWaypoints !== undefined) {
-      const extendValueIndex = callerWaypoints.get(prevWaypoint);
-      if (extendValueIndex !== undefined) {
-        // Success: can extend.
-        callerWaypoints.set(prevWaypoint, extendValueIndex + count);
-        return this.encodeAll(prevWaypoint, extendValueIndex, count);
-      }
+    const extendValueIndex = this.ourWaypoints.get(prevWaypoint);
+    if (extendValueIndex !== undefined) {
+      // It's our waypoint, so we can extend it.
+      this.ourWaypoints.set(prevWaypoint, extendValueIndex + count);
+      return this.encodeAll(prevWaypoint, extendValueIndex, count);
     }
 
     // Next, see if we can create a new right child of prevPosition.
@@ -233,18 +227,12 @@ export class CTotalOrder extends CPrimitive {
       // This is better than creating a left child of
       // [prevWaypoint, prevValueIndex + 1] because it will be ordered after
       // concurrently-created extensions of prevWaypoint (same-author priority).
-      return this.createChildren(
-        prevWaypoint,
-        prevValueIndex,
-        true,
-        count,
-        caller
-      );
+      return this.createChildren(prevWaypoint, prevValueIndex, true, count);
     } else {
       // Treat (child, 0) like nextPosition. Since it's a descendant of
       // prevPosition, we create a new left descendant of child.
       const parentWaypoint = this.leftmostDescendant0(existingRight);
-      return this.createChildren(parentWaypoint, 0, false, count, caller);
+      return this.createChildren(parentWaypoint, 0, false, count);
     }
   }
 
@@ -338,8 +326,7 @@ export class CTotalOrder extends CPrimitive {
     parentWaypoint: Waypoint,
     parentValueIndex: number,
     isRight: boolean,
-    count: number,
-    caller: object
+    count: number
   ): Position[] {
     const message: ITotalOrderCreateMessage = {
       parentWaypointSenderID:
@@ -359,12 +346,7 @@ export class CTotalOrder extends CPrimitive {
     const newWaypoint = ourArray[ourArray.length - 1];
 
     // Record created positions in ourWaypoints.
-    let callerWaypoints = this.ourWaypoints.get(caller);
-    if (callerWaypoints === undefined) {
-      callerWaypoints = new Map();
-      this.ourWaypoints.set(caller, callerWaypoints);
-    }
-    callerWaypoints.set(newWaypoint, count);
+    this.ourWaypoints.set(newWaypoint, count);
 
     // Return created positions.
     return this.encodeAll(newWaypoint, 0, count);

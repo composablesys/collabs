@@ -322,10 +322,10 @@ export class CText extends CObject<TextEventsRecord> implements ICursorList {
   }
 
   /**
-   * The abstract total order underlying this list CRDT.
+   * The abstract total order underlying this text CRDT.
    *
    * Access this to construct separate [[LocalList]] views on top of
-   * our total order.
+   * the same total order.
    */
   get totalOrder(): CTotalOrder {
     return this.list.totalOrder;

@@ -13,6 +13,7 @@ import {
 } from "@collabs/core";
 import { CSpanLog, Span } from "./c_span_log";
 import { TextEvent } from "./c_text";
+import { CTotalOrder } from "./c_total_order";
 import { CValueList } from "./c_value_list";
 import { charArraySerializer } from "./char_array_serializer";
 import { LocalList } from "./local_list";
@@ -832,6 +833,16 @@ export class CRichText<
   /** Returns an iterator for present positions, in list order. */
   positions(): IterableIterator<Position> {
     return this.text.positions();
+  }
+
+  /**
+   * The abstract total order underlying this text CRDT.
+   *
+   * Access this to construct separate [[LocalList]] views on top of
+   * the same total order.
+   */
+  get totalOrder(): CTotalOrder {
+    return this.text.totalOrder;
   }
 }
 
