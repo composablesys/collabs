@@ -192,7 +192,7 @@ export class CTotalOrder extends CPrimitive {
         )
       ) {
         // Create a new left descendant of nextPosition.
-        // We don't create always create a left child of nextPosition because
+        // We don't create always create a left *child* of nextPosition because
         // there could be left child tombstones already.
         // Instead, create a new left child of its leftmost descendant.
         const [parentWaypoint, parentValueIndex] = this.leftmostDescendant(
@@ -219,18 +219,19 @@ export class CTotalOrder extends CPrimitive {
     }
 
     // Next, see if we can create a new right child of prevPosition.
-    // However, we won't do this if there is already a (tombstone) right child
+    // We won't do this if there is already a (tombstone) right child
     // of prevPosition.
     const existingRight = this.firstRightChild(prevWaypoint, prevValueIndex);
     if (existingRight === null) {
       // Create a new right child of prevPosition.
       // This is better than creating a left child of
       // [prevWaypoint, prevValueIndex + 1] because it will be ordered after
-      // concurrently-created extensions of prevWaypoint (same-author priority).
+      // concurrently-created extensions of prevWaypoint (same-author gets
+      // non-interleaving priority).
       return this.createChildren(prevWaypoint, prevValueIndex, true, count);
     } else {
       // Treat (child, 0) like nextPosition. Since it's a descendant of
-      // prevPosition, we create a new left descendant of child.
+      // prevPosition, we create a new leftmost descendant of child.
       const parentWaypoint = this.leftmostDescendant0(existingRight);
       return this.createChildren(parentWaypoint, 0, false, count);
     }
@@ -261,7 +262,7 @@ export class CTotalOrder extends CPrimitive {
     }
 
     // Now current's parent's waypoint is bWaypoint.
-    // See if current's parent is [bWaypoint, >= bValueIndex].
+    // See if the parent is a descendant of [bWaypoint, bValueIndex].
     if (current.parentValueIndex > bValueIndex) return true;
     else if (current.parentValueIndex === bValueIndex) return current.isRight;
     else return false;

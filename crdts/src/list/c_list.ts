@@ -252,7 +252,7 @@ export class CList<
 
     this.list = new LocalList(this.totalOrder);
 
-    // Maintain totalOrder's values as a cache of
+    // Maintain this.list's values as a cache of
     // of the currently set locations, mapping to
     // the corresponding entry.
     // Also dispatch our own events.
@@ -304,7 +304,7 @@ export class CList<
       (valueInit) => this.valueConstructor(valueInit, ...args),
       initialPosition
     );
-    // Maintain totalOrder's values as a cache of
+    // Maintain this.list's values as a cache of
     // of the currently set locations, mapping to
     // the corresponding entry.
     // Also dispatch our own events.

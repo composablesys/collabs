@@ -226,7 +226,7 @@ export class LocalList<T> implements ICursorList {
         items: newItems,
       });
     } else {
-      if (info.seen < valueIndex) {
+      if (valueIndex < info.seen) {
         throw new Error("setCreated called on seen positions");
       }
       // Get number of existing positions in info (which omits the

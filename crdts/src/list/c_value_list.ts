@@ -88,11 +88,14 @@ export class CValueList<T> extends AbstractList_CObject<T, [T]> {
         ? options.valueArraySerializer
         : ArraySerializer.getInstance(this.valueSerializer);
 
-    this.totalOrder = super.registerCollab("", (init) => new CTotalOrder(init));
+    this.totalOrder = super.registerCollab(
+      "0",
+      (init) => new CTotalOrder(init)
+    );
     this.list = new LocalList(this.totalOrder);
 
     this.messenger = super.registerCollab(
-      "1",
+      "",
       (init) =>
         new CMessenger(init, {
           messageSerializer: Uint8ArraySerializer.instance,
@@ -106,7 +109,7 @@ export class CValueList<T> extends AbstractList_CObject<T, [T]> {
   }
 
   /**
-   * Analogous to CPrimitive.receivePrimitive - actually for processing
+   * Analogous to CPrimitive.receivePrimitive, but actually for processing
    * this.messenger's messages.
    */
   private altReceivePrimitive(message: Uint8Array, meta: UpdateMeta): void {
@@ -348,14 +351,14 @@ export class CValueList<T> extends AbstractList_CObject<T, [T]> {
       // Shortcut: No need to merge, just load the state directly.
       this.list.load(savedState, this.valueArraySerializer);
       if (this.list.length > 0) {
+        // It's important that we don't do this when the length is zero:
+        // 0-length Insert events confuse CRichText and possibly others.
         const values = new Array<T>(this.list.length);
         const positions = new Array<Position>(this.list.length);
         for (const [i, value, position] of this.list.entries()) {
           values[i] = value;
           positions[i] = position;
         }
-        // It's important that we don't do this when the length is zero:
-        // 0-length Insert events confuse CRichText and possibly others.
         this.emit("Insert", { index: 0, values, positions, meta });
       }
     } else {
@@ -365,8 +368,7 @@ export class CValueList<T> extends AbstractList_CObject<T, [T]> {
 
       // 1. Delete values whose positions were seen by the remote list but are not
       // present in it.
-      // Those must have been deleted by (a replica of) us (= this CValueList),
-      // since we see exactly the positions corresponding to waypoints we create.
+      // Those must have been deleted by (a replica of) us (= this CValueList).
       // OPT: do changes by-waypoint instead, for shorter loops, optimized set/delete,
       // and fewer events.
       const deleteEvents: ListEvent<T>[] = [];
