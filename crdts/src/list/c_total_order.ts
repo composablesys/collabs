@@ -83,7 +83,7 @@ export class Waypoint {
  * [[encode]], and [[encodeAll]] convert between the two representations.
  *
  * Note that waypoints and positions are only created, never destroyed.
- * To create new positions (creating a new Waypoint if needed),
+ * To create new positions (creating a new waypoint if needed),
  * call [[createPositions]].
  *
  * ### List Order
@@ -159,7 +159,7 @@ export class CTotalOrder extends CPrimitive {
    * @param nextPosition The next position, or null to
    * create positions at the end of the list.
    * @param count The number of positions to create.
-   * @returns The created positions, in list order.
+   * @returns The created [[Position]]s, in list order.
    * Internally, they use the same waypoint with contiguously
    * increasing valueIndex.
    * @throws If count <= 0.
