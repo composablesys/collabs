@@ -66,7 +66,7 @@ export interface MultiValueMapItem<V> {
  * [[aggregate]] to the concurrently-set values,
  * returning your desired value.
  *
- * For example, our [whiteboard demo](https://collabs-demos.herokuapp.com/web_socket.html?container=demos/whiteboard/dist/whiteboard.html)
+ * For example, our [whiteboard demo](https://collabs-demos.herokuapp.com/whiteboard/)
  * takes the RGB average of concurrently-set colors,
  * thus blending concurrent strokes.
  */

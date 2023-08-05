@@ -7,15 +7,17 @@
      * others don't.
      */
     "rootDir": ".",
-    "outDir": "build",
-    "target": "es6",
-    /* Specify lib manually so we can exclude DOM. */
-    "lib": ["es6"],
-    "module": "commonjs",
+    "outDir": "build/esm",
+    "target": "es2019",
+    "module": "es2015",
+    /* Needed with module: es2015 or else stuff breaks. */
+    "moduleResolution": "node",
     /* Enable strict type checking. */
     "strict": true,
     /* Prevent errors caused by other libraries. */
     "skipLibCheck": true,
+    /* Include generated .js files and data_types js files. */
+    "allowJs": true,
     /* Enable interop with dependencies using different module systems. */
     "esModuleInterop": true,
     /* Emit .d.ts files. */

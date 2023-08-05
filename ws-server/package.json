@@ -18,8 +18,10 @@
     "local-first",
     "WebSocket"
   ],
-  "main": "build/src/index.js",
-  "types": "build/src/index.d.ts",
+  "module": "build/esm/src/index.js",
+  "browser": "build/esm/src/index.js",
+  "types": "build/esm/src/index.d.ts",
+  "main": "build/commonjs/src/index.js",
   "bin": {
     "collabs-ws-server": "bin/collabs-ws-server.js"
   },
@@ -34,6 +36,7 @@
   "publishConfig": {
     "access": "public"
   },
+  "sideEffects": false,
   "dependencies": {
     "@collabs/ws-client": "0.12.0",
     "@types/ws": "^8.5.5",
@@ -50,7 +53,7 @@
     "start": "bin/collabs-ws-server.js",
     "prepack": "npm run clean && npm run build && npm run test",
     "build": "npm-run-all build:*",
-    "build:ts": "tsc -p tsconfig.json",
+    "build:ts": "tsc -p tsconfig.json && tsc -p tsconfig.commonjs.json",
     "test": "npm-run-all test:*",
     "test:format": "prettier --check .",
     "fix": "npm-run-all fix:*",
