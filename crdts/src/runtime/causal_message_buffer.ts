@@ -1,16 +1,16 @@
-import { int64AsNumber, nonNull, UpdateMeta } from "@collabs/core";
+import { MessageMeta, int64AsNumber, nonNull } from "@collabs/core";
 import { CausalMessageBufferSave } from "../../generated/proto_compiled";
 import { CRDTMessageMeta } from "./crdt_meta";
 import { LoadCRDTMeta, ReceiveCRDTMeta } from "./crdt_meta_implementations";
 import { MessageSerializer } from "./message_serializer";
 
-interface ReceivedTransaction {
+interface ReceivedMessage {
   // OPT: dedupe message and messageStacks. Perhaps parse meta first,
   // then wait to parse messageStacks until you're ready to deliver?
   /** The original serialized message. */
   message: Uint8Array;
   messageStacks: (Uint8Array | string)[][];
-  meta: UpdateMeta;
+  meta: MessageMeta;
   caller: unknown;
 }
 
@@ -55,7 +55,7 @@ export class CausalMessageBuffer {
    *
    * Keyed by encodeDot's output.
    */
-  private readonly buffer = new Map<string, ReceivedTransaction>();
+  private readonly buffer = new Map<string, ReceivedMessage>();
 
   /**
    * @param deliver Callback to deliver messages, where
@@ -68,7 +68,7 @@ export class CausalMessageBuffer {
     private readonly deliver: (
       message: Uint8Array,
       messageStacks: (Uint8Array | string)[][],
-      meta: UpdateMeta,
+      meta: MessageMeta,
       caller: unknown | undefined
     ) => void
   ) {
@@ -91,7 +91,7 @@ export class CausalMessageBuffer {
   process(
     message: Uint8Array,
     messageStacks: (Uint8Array | string)[][],
-    meta: UpdateMeta,
+    meta: MessageMeta,
     caller: unknown
   ): boolean {
     const crdtMeta = <ReceiveCRDTMeta>meta.runtimeExtra;

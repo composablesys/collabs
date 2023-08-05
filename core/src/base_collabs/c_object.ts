@@ -8,7 +8,7 @@ import {
   MetaRequest,
   Parent,
   SavedStateTree,
-  UpdateMeta,
+  MessageMeta,SavedStateMeta
 } from "../core";
 import { nonNull } from "../util/assertions";
 
@@ -112,7 +112,7 @@ export class CObject<Events extends CollabEventsRecord = CollabEventsRecord>
     this.send(messageStack, metaRequests);
   }
 
-  receive(messageStack: (Uint8Array | string)[], meta: UpdateMeta): void {
+  receive(messageStack: (Uint8Array | string)[], meta: MessageMeta): void {
     if (messageStack.length === 0) {
       // We are the target
       throw new Error("CObject received message for itself");
@@ -163,7 +163,7 @@ export class CObject<Events extends CollabEventsRecord = CollabEventsRecord>
    * views that were not automatically updated by children's load events.
    * It is recommended to do so as follows:
    * ```ts
-   * load(savedStateTree: SavedStateTree | null, meta: UpdateMeta) {
+   * load(savedStateTree: SavedStateTree | null, meta: SavedStateMeta) {
    *   super.load(savedStateTree, meta);
    *   // Process your extra saved state from savedStateTree.self.
    *   const savedState = savedStateTree === null? null: savedStateTree.self!;
@@ -173,7 +173,7 @@ export class CObject<Events extends CollabEventsRecord = CollabEventsRecord>
    * }
    * ```
    */
-  load(savedStateTree: SavedStateTree | null, meta: UpdateMeta): void {
+  load(savedStateTree: SavedStateTree | null, meta: SavedStateMeta): void {
     if (savedStateTree === null) {
       // Pass the null on to children that might override canGC().
       // For consistency with CLazyMap, only do this for nontrivial children.

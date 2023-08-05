@@ -2,7 +2,9 @@ import {
   DefaultSerializer,
   InitToken,
   MapEventsRecord,
+  MessageMeta,
   Optional,
+  SavedStateMeta,
   Serializer,
   UpdateMeta,
   int64AsNumber,
@@ -254,7 +256,7 @@ export class CPresence<V extends Record<string, any>> extends PrimitiveCRDT<
 
   protected receiveCRDT(
     message: string | Uint8Array,
-    meta: UpdateMeta,
+    meta: MessageMeta,
     _crdtMeta: CRDTMessageMeta
   ): void {
     // Ignore own messages. Their methods emit their own events.
@@ -268,7 +270,7 @@ export class CPresence<V extends Record<string, any>> extends PrimitiveCRDT<
 
     switch (decoded.type) {
       case "heartbeat": {
-        this.processHeartbeat(null, meta);
+        this.processHeartbeat(null, meta.senderID, meta);
         break;
       }
       case "set": {
@@ -276,10 +278,10 @@ export class CPresence<V extends Record<string, any>> extends PrimitiveCRDT<
         if (set.isResponse && this.state.has(meta.senderID)) {
           // It's a response that (probably) just repeats our current state.
           // Treat as a heartbeat, to avoid a redundant event.
-          this.processHeartbeat(null, meta);
+          this.processHeartbeat(null, meta.senderID, meta);
         } else {
           const value = this.updateSerializer.deserialize(set.value) as V;
-          this.processHeartbeat(value, meta);
+          this.processHeartbeat(value, meta.senderID, meta);
         }
         if (set.isJoin) this.sendResponse();
         break;
@@ -290,13 +292,13 @@ export class CPresence<V extends Record<string, any>> extends PrimitiveCRDT<
         if (info === undefined) {
           // We don't have the state to update; treat as a heartbeat, which
           // will trigger us to request the full state.
-          this.processHeartbeat(null, meta);
+          this.processHeartbeat(null, meta.senderID, meta);
         } else {
           const newValue = {
             ...info.value,
             ...this.updateSerializer.deserialize(decoded.update),
           };
-          this.processHeartbeat(newValue, meta);
+          this.processHeartbeat(newValue, meta.senderID, meta);
         }
         break;
       }
@@ -324,10 +326,11 @@ export class CPresence<V extends Record<string, any>> extends PrimitiveCRDT<
    */
   private processHeartbeat(
     newValue: V | null,
+    senderID: string,
     meta: UpdateMeta,
     time = Date.now()
   ): void {
-    let info = this.state.get(meta.senderID);
+    let info = this.state.get(senderID);
     if (info === undefined) {
       if (newValue === null) {
         // The sender has state but we don't know it; request it.
@@ -339,7 +342,7 @@ export class CPresence<V extends Record<string, any>> extends PrimitiveCRDT<
           () =>
             super.sendCRDT(
               PresenceMessage.encode({
-                request: meta.senderID,
+                request: senderID,
               }).finish()
             ),
           // Requests don't count as heartbeats, so don't call resetHeartbeat().
@@ -348,7 +351,7 @@ export class CPresence<V extends Record<string, any>> extends PrimitiveCRDT<
         return;
       } else {
         info = { value: newValue, present: false, time: 0, timeout: null };
-        this.state.set(meta.senderID, info);
+        this.state.set(senderID, info);
       }
     }
 
@@ -366,7 +369,7 @@ export class CPresence<V extends Record<string, any>> extends PrimitiveCRDT<
       if (!info.present) this._size++;
       info.present = true;
       info.timeout = setTimeout(
-        () => this.processTimeout(meta.senderID, nonNull(info), meta),
+        () => this.processTimeout(senderID, nonNull(info), meta),
         ttlRemaining
       );
 
@@ -379,7 +382,7 @@ export class CPresence<V extends Record<string, any>> extends PrimitiveCRDT<
         // However, we don't emit an event when a heartbeat causes us to
         // keep the same value alive.
         this.emit("Set", {
-          key: meta.senderID,
+          key: senderID,
           value: info.value,
           previousValue,
           meta,
@@ -532,12 +535,15 @@ export class CPresence<V extends Record<string, any>> extends PrimitiveCRDT<
         time: Date.now(),
       };
     }
-    return PresenceSave.encode({ state }).finish();
+    return PresenceSave.encode({
+      state,
+      saverID: this.runtime.replicaID,
+    }).finish();
   }
 
   protected loadCRDT(
     savedState: Uint8Array | null,
-    meta: UpdateMeta,
+    meta: SavedStateMeta,
     crdtMeta: CRDTSavedStateMeta
   ): void {
     if (savedState === null) return;
@@ -560,7 +566,7 @@ export class CPresence<V extends Record<string, any>> extends PrimitiveCRDT<
           time = 2 * Date.now() - time;
         }
         // Process the value and emit events if appropriate.
-        this.processHeartbeat(value, meta, time);
+        this.processHeartbeat(value, decoded.saverID, meta, time);
       }
     }
   }

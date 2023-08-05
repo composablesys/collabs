@@ -4,8 +4,8 @@ import {
   CollabEvent,
   CollabEventsRecord,
   InitToken,
+  MessageMeta,
   PrimitiveCRDT,
-  UpdateMeta,
 } from "@collabs/collabs";
 import { CNumberComponentMessage } from "../generated/proto_compiled";
 import {
@@ -52,7 +52,7 @@ export class AddComponent
     }
   }
 
-  protected receiveCRDT(message: string | Uint8Array, meta: UpdateMeta) {
+  protected receiveCRDT(message: string | Uint8Array, meta: MessageMeta) {
     const decoded = CNumberComponentMessage.decode(<Uint8Array>message);
     const previousValue = this.state.value;
     this.state.value += decoded.arg;
@@ -99,7 +99,7 @@ export class MultComponent
     }
   }
 
-  protected receiveCRDT(message: string | Uint8Array, meta: UpdateMeta) {
+  protected receiveCRDT(message: string | Uint8Array, meta: MessageMeta) {
     const decoded = CNumberComponentMessage.decode(<Uint8Array>message);
     const previousValue = this.state.value;
     this.state.value *= decoded.arg;
@@ -144,7 +144,7 @@ export class MinComponent
     this.sendCRDT(buffer);
   }
 
-  protected receiveCRDT(message: string | Uint8Array, meta: UpdateMeta) {
+  protected receiveCRDT(message: string | Uint8Array, meta: MessageMeta) {
     const decoded = CNumberComponentMessage.decode(<Uint8Array>message);
     const previousValue = this.state.value;
     this.state.value = Math.min(this.state.value, decoded.arg);
@@ -189,7 +189,7 @@ export class MaxComponent
     this.sendCRDT(buffer);
   }
 
-  protected receiveCRDT(message: string | Uint8Array, meta: UpdateMeta) {
+  protected receiveCRDT(message: string | Uint8Array, meta: MessageMeta) {
     const decoded = CNumberComponentMessage.decode(<Uint8Array>message);
     const previousValue = this.state.value;
     this.state.value = Math.max(this.state.value, decoded.arg);
@@ -248,10 +248,10 @@ class CNumberBase extends MultipleSemidirectProduct<CNumberState> {
 
   protected action(
     m2MessageStack: (Uint8Array | string)[],
-    _m2Meta: UpdateMeta,
+    _m2Meta: MessageMeta,
     m2Index: number,
     m1MessageStack: (Uint8Array | string)[],
-    _m1Meta: UpdateMeta | null
+    _m1Meta: MessageMeta | null
   ): { m1MessageStack: (Uint8Array | string)[] } | null {
     const m2Decoded = CNumberComponentMessage.decode(
       <Uint8Array>m2MessageStack[0]

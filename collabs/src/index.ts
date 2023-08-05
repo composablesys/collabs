@@ -36,6 +36,7 @@ export {
   MapDeleteEvent,
   MapEventsRecord,
   MapSetEvent,
+  MessageMeta,
   MessengerEvent,
   MessengerEventsRecord,
   MetaRequest,
@@ -43,6 +44,7 @@ export {
   Parent,
   Position,
   ReplicaIDs,
+  SavedStateMeta,
   SavedStateTree,
   Serializer,
   SetEvent,
@@ -93,6 +95,6 @@ export {
   TestingRuntimes,
   TextEvent,
   TextEventsRecord,
-  TransactionEvent,
+  UpdateEvent,
   VectorClock,
 } from "@collabs/crdts";

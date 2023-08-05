@@ -36,7 +36,7 @@ When calling the `EventEmitter` methods, TypeScript will force you to use a vali
 
 ## Using `Collab` Events
 
-All events emitted by `Collab`s extend [`CollabEvent`](../api/collabs/interfaces/CollabEvent.html). This means that they have a `meta` field of type [`UpdateMeta`](../api/collabs/interfaces/UpdateMeta.html). When listening on events, you can use `meta.isLocalOp` to filter out events from the local user.
+All events emitted by `Collab`s extend [`CollabEvent`](../api/collabs/interfaces/CollabEvent.html). This means that they have a `meta` field of type [`UpdateMeta`](../api/collabs/modules.html#UpdateMeta). When listening on events, you can use `meta.isLocalOp` to filter out events from the local user.
 
 Also, all `Collab`s have an "Any" event of type `CollabEvent`, from [`CollabEventsRecord`](../api/collabs/interfaces/CollabEventsRecord). This event is emitted after any other event. Thus if you just want to know when a `Collab` is changed, but you don't care about the specific change (e.g., because you are planning to just refresh your whole view of the structure), then you can listen on "Any" events instead of listening on every event specifically.
 
@@ -46,7 +46,7 @@ When listening on events from a `Collab` that is created dynamically in a collec
 
 Events are emitted as usual during loading ([CRuntime.load](../api/collabs/classes/CRuntime.html#load)) - both when loading saved state at the beginning of a session, and if you call `CRuntime.load` during a session to merge in saved state. In both cases, you'll get incremental events describing the exact changes as they occur, just like for operations.
 
-> As an optimization, you may wish to ignore incremental events during loading, instead refreshing the whole display in the final `CRuntime` "Change" event. Use an event's [`meta.updateType`](../api/collabs/interfaces/UpdateMeta.html#updateType) field to check whether it is from a saved state, i.e., a `CRuntime.load` call.
+> As an optimization, you may wish to ignore incremental events during loading, instead refreshing the whole display in the final `CRuntime` "Change" event. Use an event's [`meta.updateType`](../api/collabs/modules.html#UpdateMeta) field to check whether it is from a saved state, i.e., a `CRuntime.load` call.
 
 > **Note:** The events you get when loading a saved state are not exactly the same as if you received the original operations. This is usually not an issue - event handlers that work for operations should also work for saved states - but it can cause subtle bugs. In particular:
 >

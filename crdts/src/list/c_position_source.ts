@@ -1,12 +1,14 @@
 import {
+  CPrimitive,
   CollabEvent,
   CollabEventsRecord,
-  CPrimitive,
   InitToken,
-  nonNull,
+  MessageMeta,
   Position,
-  protobufHas,
+  SavedStateMeta,
   UpdateMeta,
+  nonNull,
+  protobufHas,
 } from "@collabs/core";
 import {
   IPositionSourceCreateMessage,
@@ -398,7 +400,7 @@ export class CPositionSource extends CPrimitive<PositionSourceEventsRecord> {
 
   protected receivePrimitive(
     message: string | Uint8Array,
-    meta: UpdateMeta
+    meta: MessageMeta
   ): void {
     const decoded = PositionSourceCreateMessage.decode(<Uint8Array>message);
 
@@ -640,7 +642,7 @@ export class CPositionSource extends CPrimitive<PositionSourceEventsRecord> {
 
   protected loadPrimitive(
     savedState: Uint8Array | null,
-    meta: UpdateMeta
+    meta: SavedStateMeta
   ): void {
     if (savedState === null) return;
 

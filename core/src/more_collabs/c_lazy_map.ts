@@ -5,8 +5,10 @@ import {
   CollabID,
   IParent,
   InitToken,
+  MessageMeta,
   MetaRequest,
   Parent,
+  SavedStateMeta,
   SavedStateTree,
   UpdateMeta,
   collabIDOf,
@@ -204,7 +206,7 @@ export class CLazyMap<K, C extends Collab>
     this.send(messageStack, metaRequests);
   }
 
-  receive(messageStack: (Uint8Array | string)[], meta: UpdateMeta): void {
+  receive(messageStack: (Uint8Array | string)[], meta: MessageMeta): void {
     const keyString = <string>messageStack.pop();
     this.applyUpdate(
       keyString,
@@ -367,7 +369,7 @@ export class CLazyMap<K, C extends Collab>
     };
   }
 
-  load(savedStateTree: SavedStateTree | null, meta: UpdateMeta): void {
+  load(savedStateTree: SavedStateTree | null, meta: SavedStateMeta): void {
     if (savedStateTree === null) {
       // Pass the null on to children that might override canGC().
       for (const child of this.nontrivialMap.values()) child.load(null, meta);

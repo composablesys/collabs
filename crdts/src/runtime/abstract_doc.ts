@@ -8,7 +8,7 @@ import { CRuntime, RuntimeEventsRecord, RuntimeOptions } from "./c_runtime";
 
 const runtimeEventNames: (keyof RuntimeEventsRecord)[] = [
   "Change",
-  "Transaction",
+  "Update",
   "Send",
 ];
 
@@ -150,5 +150,18 @@ export abstract class AbstractDoc extends EventEmitter<RuntimeEventsRecord> {
    */
   get replicaID(): string {
     return this.runtime.replicaID;
+  }
+
+  /**
+   *
+   * The vector clock for our current state, mapping each replicaID
+   * to the number of applied transactions from that replicaID.
+   *
+   * Our current state includes precisely the transactions
+   * with ID `(senderID, senderCounter)` where
+   * `senderCounter <= (vectorClock.get(senderID) ?? 0)`.
+   */
+  vectorClock(): Map<string, number> {
+    return this.runtime.vectorClock();
   }
 }

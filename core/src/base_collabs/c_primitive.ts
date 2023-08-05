@@ -2,8 +2,7 @@ import {
   Collab,
   CollabEventsRecord,
   MetaRequest,
-  SavedStateTree,
-  UpdateMeta,
+  SavedStateTree,MessageMeta,SavedStateMeta
 } from "../core";
 import { nonNull } from "../util/assertions";
 
@@ -36,7 +35,7 @@ export abstract class CPrimitive<
    *
    * @param message The message to send.
    * @param metaRequest A metadata request. The [[runtime]] will use
-   * this when creating the [[UpdateMeta]] for [[receivePrimitive]].
+   * this when creating the [[MessageMeta]] for [[receivePrimitive]].
    */
   protected sendPrimitive(
     message: Uint8Array | string,
@@ -45,7 +44,7 @@ export abstract class CPrimitive<
     this.send([message], metaRequest === undefined ? [] : [metaRequest]);
   }
 
-  receive(messageStack: (Uint8Array | string)[], meta: UpdateMeta): void {
+  receive(messageStack: (Uint8Array | string)[], meta: MessageMeta): void {
     if (messageStack.length !== 1) {
       // We are not the target
       throw new Error("CPrimitive received message for child");
@@ -76,7 +75,7 @@ export abstract class CPrimitive<
    */
   protected abstract receivePrimitive(
     message: Uint8Array | string,
-    meta: UpdateMeta
+    meta: MessageMeta
   ): void;
 
   save(): SavedStateTree {
@@ -100,7 +99,7 @@ export abstract class CPrimitive<
    */
   protected abstract savePrimitive(): Uint8Array;
 
-  load(savedState: SavedStateTree | null, meta: UpdateMeta): void {
+  load(savedState: SavedStateTree | null, meta: SavedStateMeta): void {
     this.loadPrimitive(
       savedState === null ? null : nonNull(savedState.self),
       meta
@@ -127,6 +126,6 @@ export abstract class CPrimitive<
    */
   protected abstract loadPrimitive(
     savedState: Uint8Array | null,
-    meta: UpdateMeta
+    meta: SavedStateMeta
   ): void;
 }

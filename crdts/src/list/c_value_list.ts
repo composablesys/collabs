@@ -6,10 +6,10 @@ import {
   InitToken,
   ListEvent,
   Position,
+  SavedStateMeta,
   SavedStateTree,
   Serializer,
   StringSerializer,
-  UpdateMeta,
   nonNull,
 } from "@collabs/core";
 import { CPositionSource, PositionSourceLoadEvent } from "./c_position_source";
@@ -294,7 +294,7 @@ export class CValueList<T> extends AbstractList_CObject<T, [T]> {
     return ans;
   }
 
-  load(savedStateTree: SavedStateTree | null, meta: UpdateMeta): void {
+  load(savedStateTree: SavedStateTree | null, meta: SavedStateMeta): void {
     // None of our children use null saved states, so just return.
     if (savedStateTree === null) return;
 

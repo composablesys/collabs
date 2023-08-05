@@ -2,18 +2,18 @@ import {
   AbstractRuntime,
   CObject,
   Collab,
-  CollabEvent,
   CollabEventsRecord,
   InitToken,
   IRuntime,
+  MessageMeta,
   MetaRequest,
   nonNull,
   ReplicaIDs,
+  SavedStateMeta,
   SavedStateTreeSerializer,
-  UpdateMeta,
 } from "@collabs/core";
 import { CausalMessageBuffer } from "./causal_message_buffer";
-import { CRDTMetaRequest } from "./crdt_meta";
+import { CRDTMessageMeta, CRDTMetaRequest } from "./crdt_meta";
 import { SendCRDTMeta } from "./crdt_meta_implementations";
 import { MessageSerializer } from "./message_serializer";
 
@@ -28,43 +28,103 @@ class PublicCObject extends CObject {
 
 /**
  * Event emitted by [[CRuntime]] or [[AbstractDoc]]
- * when a message is to be sent.
+ * when a message is to be sent, due to a local transaction.
  */
 export interface SendEvent {
   /**
    * The message.
    */
   message: Uint8Array;
+  /**
+   * The message's sender: our [[AbstractDoc.replicaID]] / [[CRuntime.replicaID]].
+   */
+  senderID: string;
+  /**
+   * A 1-indexed counter for our local transactions.
+   *
+   * The pair `(senderID, senderCounter)` uniquely
+   * identifies the message's transaction. It is sometimes called a *causal dot*.
+   */
+  senderCounter: number;
 }
 
-export interface TransactionEvent extends CollabEvent {
-  /**
-   * Metadata for the update that caused this transaction.
-   *
-   * Same as the `meta` field on all of the transaction's events.
-   */
-  meta: UpdateMeta;
-  /**
-   * The serialized update corresponding to this transaction.
-   *
-   * Specifically, this is:
-   * - For a local operation, its [[SendEvent.message]].
-   * - For a remote message, the `message` passed to [[receive]].
-   * - For a loaded state, the `savedState` passed to [[load]].
-   */
-  update: Uint8Array;
-  /**
-   * The caller who triggered this transaction.
-   *
-   * Specifically, this is:
-   * - For a local operation, `undefined`.
-   * - For a remote message, the `caller` passed to [[receive]].
-   * - For a loaded state, the `caller` passed to [[load]].
-   * - For a remote message delivered as part of a loaded state
-   * (due to unmet causal dependencies), the `caller` passed to [[load]].
-   */
-  caller: unknown | undefined;
-}
+/**
+ * Event emitted by [[CRuntime]] or [[AbstractDoc]]
+ * after applying an update.
+ */
+export type UpdateEvent =
+  | {
+      /**
+       * The serialized update.
+       *
+       * Specifically, this is:
+       * - For a local message, its [[SendEvent.message]].
+       * - For a remote message, the `message` passed to [[receive]].
+       * - For a loaded state, the `savedState` passed to [[load]].
+       */
+      update: Uint8Array;
+      /**
+       * The caller who triggered this update.
+       *
+       * Specifically, this is:
+       * - For a local message, `undefined`.
+       * - For a remote message, the `caller` passed to [[receive]].
+       * - For a loaded state, the `caller` passed to [[load]].
+       * - For a remote message delivered as part of a loaded state
+       * (due to unmet causal dependencies), the `caller` passed to [[load]].
+       */
+      caller: unknown | undefined;
+    } & (
+      | {
+          /**
+           * The update's type.
+           */
+          updateType: "message";
+          /**
+           * The replicaID that sent the message.
+           */
+          senderID: string;
+          /**
+           * A 1-indexed counter for senderID's transactions.
+           *
+           * The pair `(senderID, senderCounter)` uniquely
+           * identifies the message's transaction. It is sometimes called a *causal dot*.
+           */
+          senderCounter: number;
+          /**
+           * Whether the message is for a local transaction, i.e., it results
+           * from calling [[Collab]] methods on this replica.
+           */
+          isLocalOp: boolean;
+        }
+      | {
+          /**
+           * The update's type.
+           */
+          updateType: "savedState";
+          /**
+           * The vector clock for this saved state, mapping each replicaID
+           * to the number of included transactions from that replicaID.
+           *
+           * This saved state includes precisely the transactions
+           * with ID `(senderID, senderCounter)` where
+           * `senderCounter <= (vectorClock.get(senderID) ?? 0)`.
+           */
+          vectorClock: Map<string, number>;
+          /**
+           * For each replicaID in [[vectorClock]]'s keys, the number of
+           * transactions from that sender that were redundant
+           * (i.e., we had already applied them), possibly 0.
+           *
+           * The effect of this saved state on our state was to
+           * apply precisely the transactions with ID `(senderID, senderCounter)`
+           * where:
+           * - `vectorClock.has(senderID)`
+           * - `redundant.get(senderID) < senderCounter <= vectorClock.get(senderID)`.
+           */
+          redundant: Map<string, number>;
+        }
+    );
 
 /**
  * Events record for [[CRuntime]] and [[AbstractDoc]].
@@ -79,20 +139,18 @@ export interface RuntimeEventsRecord {
    */
   Send: SendEvent;
   /**
-   * Emitted at the end of each transaction (local or remote)
-   * and at the end of loading a saved state.
+   * Emitted after applying an update.
+   *
+   * The update may be a local message, remote message,
+   * or saved state. Note that it may consist of multiple transactions.
    */
-  Transaction: TransactionEvent;
+  Update: UpdateEvent;
   /**
-   * Emitted after each synchronous set of changes. This
+   * Emitted after applying a synchronous set of updates. This
    * is a good time to rerender the GUI.
    *
-   * Specifically, this is emitted at the end of:
-   * - A local transaction.
-   * - A series of remote transactions processed in the same
-   * [[CRuntime.receive]] / [[AbstractDoc.receive]] call. (There can be multiple if one
-   * transaction unblocks others' causal dependencies.)
-   * - [[CRuntime.load]] / [[AbstractDoc.load]].
+   * Specifically, this event is emitted in a new microtask
+   * scheduled at the end of the set's first update.
    */
   Change: object;
 }
@@ -165,7 +223,7 @@ export class CRuntime
   // Transaction vars.
   private inTransaction = false;
   private crdtMeta: SendCRDTMeta | null = null;
-  private meta: UpdateMeta | null = null;
+  private meta: MessageMeta | null = null;
   private messageBatches: (Uint8Array | string)[][] = [];
 
   readonly isCRDTRuntime = true;
@@ -236,20 +294,46 @@ export class CRuntime
     }
 
     const meta = this.meta;
-    nonNull(this.crdtMeta).freeze();
+    const crdtMeta = nonNull(this.crdtMeta);
+    crdtMeta.freeze();
 
     const message = MessageSerializer.serialize([this.messageBatches, meta]);
 
     this.messageBatches = [];
-    this.crdtMeta = null;
     this.meta = null;
+    this.crdtMeta = null;
 
     // Send. It will be delivered to each other replica's
     // receive function, eventually at-least-once.
-    this.emit("Send", { message });
+    this.emit("Send", {
+      message,
+      senderID: this.replicaID,
+      senderCounter: crdtMeta.senderCounter,
+    });
 
-    this.emit("Transaction", { meta, update: message, caller: undefined });
-    this.emit("Change", {});
+    this.emit("Update", {
+      update: message,
+      caller: undefined,
+      updateType: "message",
+      senderID: this.replicaID,
+      senderCounter: crdtMeta.senderCounter,
+      isLocalOp: true,
+    });
+    this.scheduleChange();
+  }
+
+  private changePending = false;
+  /**
+   * Emits a change event in a new microtask, if one is not pending already.
+   */
+  private scheduleChange() {
+    if (!this.changePending) {
+      this.changePending = true;
+      void Promise.resolve().then(() => {
+        this.changePending = false;
+        this.emit("Change", {});
+      });
+    }
   }
 
   /**
@@ -370,7 +454,7 @@ export class CRuntime
    * are acceptable. Two replicas will be in the same
    * state once they have the same set of received (or sent) messages.
    *
-   * @param caller Optionally, a value to use as the [[TransactionEvent.caller]] field.
+   * @param caller Optionally, a value to use as the [[UpdateEvent.caller]] field.
    * A caller can use that field to distinguish its own updates from updates
    * delivered by other sources.
    */
@@ -390,7 +474,7 @@ export class CRuntime
       const [messageStacks, meta] = MessageSerializer.deserialize(message);
       if (this.buffer.process(message, messageStacks, meta, caller)) {
         this.buffer.check();
-        this.emit("Change", {});
+        this.scheduleChange();
       }
     } finally {
       this.inApplyUpdate = false;
@@ -405,13 +489,21 @@ export class CRuntime
   private deliverFromBuffer(
     message: Uint8Array,
     messageStacks: (Uint8Array | string)[][],
-    meta: UpdateMeta,
+    meta: MessageMeta,
     caller: unknown | undefined
   ) {
     for (const messageStack of messageStacks) {
       this.rootCollab.receive(messageStack, meta);
     }
-    this.emit("Transaction", { meta, update: message, caller });
+    const crdtMeta = meta.runtimeExtra as CRDTMessageMeta;
+    this.emit("Update", {
+      update: message,
+      caller,
+      updateType: "message",
+      senderID: crdtMeta.senderID,
+      senderCounter: crdtMeta.senderCounter,
+      isLocalOp: false,
+    });
   }
 
   /**
@@ -452,7 +544,7 @@ export class CRuntime
    * but it is typically much more efficient.
    *
    * @param savedState Saved state from another replica's [[save]] call.
-   * @param caller Optionally, a value to use as the [[TransactionEvent.caller]] field.
+   * @param caller Optionally, a value to use as the [[UpdateEvent.caller]] field.
    * A caller can use that field to distinguish its own updates from updates
    * delivered by other sources.
    */
@@ -477,21 +569,49 @@ export class CRuntime
         caller
       );
       savedStateTree.self = undefined;
-      const meta: UpdateMeta = {
-        senderID: loadCRDTMeta.senderID,
+      const meta: SavedStateMeta = {
         updateType: "savedState",
-        isLocalOp: false,
         runtimeExtra: loadCRDTMeta,
+        isLocalOp: false,
       };
       this.rootCollab.load(savedStateTree, meta);
 
-      this.emit("Transaction", { meta, update: savedState, caller });
+      const vectorClock = new Map<string, number>();
+      const redundant = new Map<string, number>();
+      for (const [replicaID, remote] of loadCRDTMeta.remoteVectorClock
+        .vcEntries) {
+        vectorClock.set(replicaID, remote);
+        const local = loadCRDTMeta.localVectorClock.get(replicaID);
+        redundant.set(replicaID, Math.min(local, remote));
+      }
+      this.emit("Update", {
+        update: savedState,
+        caller,
+        updateType: "savedState",
+        vectorClock,
+        redundant,
+      });
 
       this.buffer.check();
 
-      this.emit("Change", {});
+      this.scheduleChange();
     } finally {
       this.inApplyUpdate = false;
     }
+  }
+
+  /**
+   *
+   * The vector clock for our current state, mapping each replicaID
+   * to the number of applied transactions from that replicaID.
+   *
+   * Our current state includes precisely the transactions
+   * with ID `(senderID, senderCounter)` where
+   * `senderCounter <= (vectorClock.get(senderID) ?? 0)`.
+   */
+  vectorClock(): Map<string, number> {
+    const vc = new Map(this.buffer.vc);
+    if (vc.get(this.replicaID) === 0) vc.delete(this.replicaID);
+    return vc;
   }
 }

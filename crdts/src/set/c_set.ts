@@ -3,16 +3,18 @@ import {
   Collab,
   CollabEventsRecord,
   CollabID,
-  collabIDOf,
   DefaultSerializer,
-  InitToken,
   IParent,
+  InitToken,
+  MessageMeta,
   MetaRequest,
-  nonNull,
   Parent,
+  SavedStateMeta,
   SavedStateTree,
   Serializer,
   UpdateMeta,
+  collabIDOf,
+  nonNull,
 } from "@collabs/core";
 import { CSetMessage, CSetSave } from "../../generated/proto_compiled";
 import { CRDTMessageMeta, CRDTSavedStateMeta, CRuntime } from "../runtime";
@@ -119,7 +121,7 @@ export class CSet<C extends Collab, AddArgs extends unknown[]>
   private inAdd = false;
   private ourCreatedValue?: C = undefined;
 
-  receive(messageStack: (Uint8Array | string)[], meta: UpdateMeta): void {
+  receive(messageStack: (Uint8Array | string)[], meta: MessageMeta): void {
     const lastMessage = nonNull(messageStack.pop());
     if (typeof lastMessage === "string") {
       // Message for an existing child.  Proceed as in
@@ -192,10 +194,10 @@ export class CSet<C extends Collab, AddArgs extends unknown[]>
     this.constructorArgs.delete(name);
 
     // Store the child in justDeletedChildren until the end
-    // of the transaction.
+    // of the current update. See [[fromID]]'s doc header for why.
     if (this.justDeletedChildren.size === 0) {
       (this.runtime as CRuntime).on(
-        "Transaction",
+        "Update",
         () => this.justDeletedChildren.clear(),
         { once: true }
       );
@@ -226,8 +228,10 @@ export class CSet<C extends Collab, AddArgs extends unknown[]>
     let ans: string;
     if (this.trCounter === 0) {
       // Reset trCounter at the end of the transaction.
+      // Since this method is only called during receive(), transactions
+      // coincide with updates.
       (this.runtime as CRuntime).on(
-        "Transaction",
+        "Update",
         () => {
           this.trCounter = 0;
         },
@@ -337,7 +341,7 @@ export class CSet<C extends Collab, AddArgs extends unknown[]>
     };
   }
 
-  load(savedStateTree: SavedStateTree | null, meta: UpdateMeta): void {
+  load(savedStateTree: SavedStateTree | null, meta: SavedStateMeta): void {
     const crdtMeta = meta.runtimeExtra as CRDTSavedStateMeta;
 
     let saveMessage: CSetSave;
@@ -405,7 +409,7 @@ export class CSet<C extends Collab, AddArgs extends unknown[]>
    * is if `descendant` was just deleted from this set.
    * In that case, this method will
    * still return the original `descendant` until the end of
-   * the deleting transaction or [[CRuntime.load]] call.
+   * the deleting update.
    * Thus event handlers within the same transaction can still
    * get the deleted value.
    *

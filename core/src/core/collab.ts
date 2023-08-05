@@ -1,7 +1,13 @@
 import { EventEmitter } from "./event_emitter";
 import { IRuntime, isRuntime } from "./iruntime";
 import { Parent } from "./parent";
-import { MetaRequest, SavedStateTree, UpdateMeta } from "./updates";
+import {
+  MessageMeta,
+  MetaRequest,
+  SavedStateMeta,
+  SavedStateTree,
+  UpdateMeta,
+} from "./updates";
 
 /**
  * Used to initialize a [[Collab]] with the given
@@ -181,7 +187,7 @@ export abstract class Collab<
    * a stack of Uint8Arrays. Note that this method
    * may mutate it in-place.
    * @param metaRequests A stack of metadata requests. The [[runtime]] will use
-   * the union of these when creating the [[UpdateMeta]] for [[receive]].
+   * the union of these when creating the [[MessageMeta]] for [[receive]].
    * Note that the stack need not align with `messageStack`, and this method may mutate
    * it in place.
    */
@@ -217,7 +223,7 @@ export abstract class Collab<
    */
   abstract receive(
     messageStack: (Uint8Array | string)[],
-    meta: UpdateMeta
+    meta: MessageMeta
   ): void;
 
   /**
@@ -264,7 +270,10 @@ export abstract class Collab<
    * It incorporates all possible metadata requests. Note that
    * `meta.updateType` is always `"savedState"`.
    */
-  abstract load(savedStateTree: SavedStateTree | null, meta: UpdateMeta): void;
+  abstract load(
+    savedStateTree: SavedStateTree | null,
+    meta: SavedStateMeta
+  ): void;
 
   /**
    * Internal (parent) use only.

@@ -1,6 +1,6 @@
 import { AbstractDoc, CRuntime, EventEmitter } from "@collabs/collabs";
 import { nonNull } from "@collabs/core";
-import { TransactionEvent } from "@collabs/crdts";
+import { UpdateEvent } from "@collabs/crdts";
 
 /** How many updates before we consider a checkpoint. */
 const updatesBeforeCheckpoint = 100;
@@ -178,7 +178,7 @@ export class IndxedDBDocStore extends EventEmitter<IndexedDBDocStoreEventsRecord
     this.docsByID.delete(info.docID);
   }
 
-  private onTransaction = (e: TransactionEvent, doc: Doc) => {
+  private onTransaction = (e: UpdateEvent, doc: Doc) => {
     const info = this.subs.get(doc);
     if (info === undefined) return;
 

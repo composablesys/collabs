@@ -1,5 +1,5 @@
 import { AbstractDoc, CRuntime, EventEmitter } from "@collabs/collabs";
-import { TransactionEvent } from "@collabs/crdts";
+import { UpdateEvent } from "@collabs/crdts";
 import { fromByteArray, toByteArray } from "base64-js";
 
 /** How many updates before we consider a checkpoint. */
@@ -224,7 +224,7 @@ export class LocalStorageDocStore extends EventEmitter<LocalStorageDocStoreEvent
     this.docsByID.delete(info.docID);
   }
 
-  private onTransaction = (e: TransactionEvent, doc: Doc) => {
+  private onTransaction = (e: UpdateEvent, doc: Doc) => {
     const info = this.subs.get(doc);
     if (info === undefined) return;
 

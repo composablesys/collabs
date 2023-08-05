@@ -2,7 +2,8 @@ import {
   CollabEventsRecord,
   CPrimitive,
   InitToken,
-  UpdateMeta,
+  MessageMeta,
+  SavedStateMeta,
 } from "@collabs/core";
 import {
   CRDTMessageMeta,
@@ -64,7 +65,7 @@ export abstract class PrimitiveCRDT<
    */
   protected receivePrimitive(
     message: Uint8Array | string,
-    meta: UpdateMeta
+    meta: MessageMeta
   ): void {
     this.receiveCRDT(message, meta, <CRDTMessageMeta>meta.runtimeExtra);
   }
@@ -92,7 +93,7 @@ export abstract class PrimitiveCRDT<
    */
   protected abstract receiveCRDT(
     message: Uint8Array | string,
-    meta: UpdateMeta,
+    meta: MessageMeta,
     crdtMeta: CRDTMessageMeta
   ): void;
 
@@ -102,7 +103,7 @@ export abstract class PrimitiveCRDT<
 
   protected loadPrimitive(
     savedState: Uint8Array | null,
-    meta: UpdateMeta
+    meta: SavedStateMeta
   ): void {
     this.loadCRDT(savedState, meta, <CRDTSavedStateMeta>meta.runtimeExtra);
   }
@@ -145,7 +146,7 @@ export abstract class PrimitiveCRDT<
    */
   protected abstract loadCRDT(
     savedState: Uint8Array | null,
-    meta: UpdateMeta,
+    meta: SavedStateMeta,
     crdtMeta: CRDTSavedStateMeta
   ): void;
 }
