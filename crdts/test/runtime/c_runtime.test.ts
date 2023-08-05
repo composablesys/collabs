@@ -408,4 +408,6 @@ describe("CRuntime", () => {
   });
 });
 
-// TODO: metadata requests, CRDT meta (x3) features, transaction modes
+// TODO: metadata requests, CRDT meta (x3) features, transaction modes,
+// redundant loads skipped without issue, buffered messages in redundant
+// loads are still added to the buffer & potentially delivered

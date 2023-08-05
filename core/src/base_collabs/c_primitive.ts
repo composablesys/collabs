@@ -2,7 +2,9 @@ import {
   Collab,
   CollabEventsRecord,
   MetaRequest,
-  SavedStateTree,MessageMeta,SavedStateMeta
+  SavedStateTree,
+  MessageMeta,
+  SavedStateMeta,
 } from "../core";
 import { nonNull } from "../util/assertions";
 

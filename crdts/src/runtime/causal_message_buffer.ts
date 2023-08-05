@@ -114,9 +114,12 @@ export class CausalMessageBuffer {
 
   /**
    * Checks the buffer and delivers any causally ready
-   * transactions.
+   * messages.
+   *
+   * @returns Whether any messages were delivered.
    */
-  check(): void {
+  check(): boolean {
+    let delivered = false;
     let recheck = false;
 
     do {
@@ -129,6 +132,7 @@ export class CausalMessageBuffer {
           this.buffer.delete(dot);
           this.deliver(tr.message, tr.messageStacks, tr.meta, tr.caller);
           this.processRemoteDelivery(crdtMeta);
+          delivered = true;
           // Delivering messages may make new ones ready, so go
           // through the whole buffer again.
           recheck = true;
@@ -140,6 +144,8 @@ export class CausalMessageBuffer {
         }
       }
     } while (recheck);
+
+    return delivered;
   }
 
   /**

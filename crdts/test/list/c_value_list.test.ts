@@ -878,6 +878,7 @@ describe("CValueList", () => {
     const copyRuntime = new CRuntime({
       debugReplicaID: ReplicaIDs.pseudoRandom(rng),
       autoTransactions: "debugOp",
+      allowRedundantLoads: true,
     });
     const copy = copyRuntime.registerCollab(
       "list",
@@ -907,6 +908,7 @@ describe("CValueList", () => {
     beforeEach(() => {
       const alice = new CRuntime({
         debugReplicaID: ReplicaIDs.pseudoRandom(rng),
+        allowRedundantLoads: true,
       });
       aliceList = alice.registerCollab("list", (init) => new CValueList(init));
 

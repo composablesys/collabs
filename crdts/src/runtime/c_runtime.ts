@@ -173,14 +173,6 @@ export interface RuntimeOptions {
    */
   causalityGuaranteed?: boolean;
   /**
-   * For debugging/testing/benchmarking purposes, you may specify `replicaID`, typically
-   * using [[ReplicaIDs.pseudoRandom]].
-   *
-   * Otherwise, `replicaID` is randomly generated using
-   * [[ReplicaIDs.random]].
-   */
-  debugReplicaID?: string;
-  /**
    * How long transactions should be in the absence of a top-level [[CRuntime.transact]] / [[AbstractDoc.transact]] call:
    * - "microtask" (default): All operations in the same microtask form a transaction
    * (specifically, until `Promise.resolve().then()` executes).
@@ -192,6 +184,28 @@ export interface RuntimeOptions {
    * operations are delivered together.
    */
   autoTransactions?: "microtask" | "error" | "debugOp";
+  /**
+   * For debugging/testing/benchmarking purposes, you may specify `replicaID`, typically
+   * using [[ReplicaIDs.pseudoRandom]].
+   *
+   * Otherwise, `replicaID` is randomly generated using
+   * [[ReplicaIDs.random]].
+   */
+  debugReplicaID?: string;
+  /**
+   * If true, [[AbstractDoc.load]] / [[CRuntime.load]] always pass loaded
+   * state to the Collabs and emit an Update event, even if the saved state
+   * appears to be redundant.
+   *
+   * Set this to true if loading is intentionally not idempotent (loading
+   * an already-applied transaction has a nontrivial effect), or if you
+   * want to test whether loading is idempotent.
+   *
+   * A saved state "appears to be redundant" if all of its vector clock
+   * entries are <= our own. In that case, [[UpdateEvent]]'s `vectorClock`
+   * and `redundant` fields are deep-equal.
+   */
+  allowRedundantLoads?: boolean;
 }
 
 /**
@@ -215,6 +229,7 @@ export class CRuntime
   private readonly buffer: CausalMessageBuffer;
 
   private readonly autoTransactions: "microtask" | "debugOp" | "error";
+  private readonly allowRedundantLoads: boolean;
 
   // State vars.
   private used = false;
@@ -237,6 +252,7 @@ export class CRuntime
     super(options.debugReplicaID ?? ReplicaIDs.random());
     const causalityGuaranteed = options.causalityGuaranteed ?? false;
     this.autoTransactions = options.autoTransactions ?? "microtask";
+    this.allowRedundantLoads = options.allowRedundantLoads ?? false;
 
     this.registry = super.setRootCollab((init) => new PublicCObject(init));
 
@@ -319,14 +335,14 @@ export class CRuntime
       senderCounter: crdtMeta.senderCounter,
       isLocalOp: true,
     });
-    this.scheduleChange();
+    this.scheduleChangeEvent();
   }
 
   private changePending = false;
   /**
    * Emits a change event in a new microtask, if one is not pending already.
    */
-  private scheduleChange() {
+  private scheduleChangeEvent() {
     if (!this.changePending) {
       this.changePending = true;
       void Promise.resolve().then(() => {
@@ -474,7 +490,7 @@ export class CRuntime
       const [messageStacks, meta] = MessageSerializer.deserialize(message);
       if (this.buffer.process(message, messageStacks, meta, caller)) {
         this.buffer.check();
-        this.scheduleChange();
+        this.scheduleChangeEvent();
       }
     } finally {
       this.inApplyUpdate = false;
@@ -483,8 +499,8 @@ export class CRuntime
 
   /**
    * Called by this.buffer when a (remote) transaction is ready for delivery.
-   * This is always within our call to this.buffer.check() in [[receive]],
-   * so errors will propagate to there.
+   * This is always within our call to this.buffer.check() in [[receive]]
+   * or [[load]], so errors will propagate to there.
    */
   private deliverFromBuffer(
     message: Uint8Array,
@@ -574,16 +590,34 @@ export class CRuntime
         runtimeExtra: loadCRDTMeta,
         isLocalOp: false,
       };
-      this.rootCollab.load(savedStateTree, meta);
 
+      let isRedundant = true;
       const vectorClock = new Map<string, number>();
       const redundant = new Map<string, number>();
       for (const [replicaID, remote] of loadCRDTMeta.remoteVectorClock
         .vcEntries) {
         vectorClock.set(replicaID, remote);
         const local = loadCRDTMeta.localVectorClock.get(replicaID);
+        // If local > remote (fully redundant), set to remote, so that
+        // redundant.get(replicaID) == vectorClock.get(replicaID).
         redundant.set(replicaID, Math.min(local, remote));
+        if (local < remote) isRedundant = false;
       }
+
+      if (isRedundant && !this.allowRedundantLoads) {
+        // The saved state is redundant. Don't load or emit events.
+
+        // We did still call buffer.load. This doesn't affect our VC because
+        // the remote VC was redundant, but it may still have added
+        // new messages to the buffer. Check if any of these are ready in
+        // our state, and if so, emit a Change event.
+        if (this.buffer.check()) this.scheduleChangeEvent();
+
+        return;
+      }
+
+      this.rootCollab.load(savedStateTree, meta);
+
       this.emit("Update", {
         update: savedState,
         caller,
@@ -594,7 +628,7 @@ export class CRuntime
 
       this.buffer.check();
 
-      this.scheduleChange();
+      this.scheduleChangeEvent();
     } finally {
       this.inApplyUpdate = false;
     }

@@ -562,6 +562,7 @@ describe("CRichText", () => {
       ] as [CRuntime, CRichText<Format>][]) {
         const checker = new CRuntime({
           debugReplicaID: ReplicaIDs.pseudoRandom(rng),
+          allowRedundantLoads: true,
         });
         const checkerText = checker.registerCollab(
           "richText",

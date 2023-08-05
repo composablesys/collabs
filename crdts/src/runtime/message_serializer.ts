@@ -1,4 +1,8 @@
-import { MessageStacksSerializer, Serializer, MessageMeta } from "@collabs/core";
+import {
+  MessageStacksSerializer,
+  Serializer,
+  MessageMeta,
+} from "@collabs/core";
 import { RuntimeMetaSerializer } from "./crdt_meta_implementations";
 
 /**

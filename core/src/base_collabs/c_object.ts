@@ -8,7 +8,8 @@ import {
   MetaRequest,
   Parent,
   SavedStateTree,
-  MessageMeta,SavedStateMeta
+  MessageMeta,
+  SavedStateMeta,
 } from "../core";
 import { nonNull } from "../util/assertions";
 
