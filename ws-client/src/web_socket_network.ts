@@ -35,7 +35,7 @@ export interface WebSocketNetworkEventsRecord {
   SubscribeDenied: { doc: AbstractDoc | CRuntime; docID: string };
 }
 
-interface RoomInfo {
+interface DocInfo {
   readonly docID: string;
   localCounter: number;
   off?: () => void;
@@ -45,7 +45,7 @@ interface RoomInfo {
 export class WebSocketNetwork extends EventEmitter<WebSocketNetworkEventsRecord> {
   private ws: WebSocket | null = null;
 
-  private readonly subs = new Map<Doc, RoomInfo>();
+  private readonly subs = new Map<Doc, DocInfo>();
   /** Inverse map docID -> Doc. */
   private readonly docsByID = new Map<string, Doc>();
 
@@ -151,13 +151,13 @@ export class WebSocketNetwork extends EventEmitter<WebSocketNetworkEventsRecord>
   }
 
   unsubscribe(doc: AbstractDoc | CRuntime) {
-    const sub = this.subs.get(doc);
-    if (sub === undefined) return;
+    const info = this.subs.get(doc);
+    if (info === undefined) return;
 
-    if (sub.off !== undefined) sub.off();
+    if (info.off !== undefined) info.off();
     this.subs.delete(doc);
-    this.docsByID.delete(sub.docID);
-    this.sendInternal({ unsubscribe: { docID: sub.docID } });
+    this.docsByID.delete(info.docID);
+    this.sendInternal({ unsubscribe: { docID: info.docID } });
   }
 
   private wsReceive(encoded: ArrayBuffer) {
@@ -186,7 +186,7 @@ export class WebSocketNetwork extends EventEmitter<WebSocketNetworkEventsRecord>
   private onWelcome(message: Welcome): void {
     const doc = this.docsByID.get(message.docID);
     if (doc === undefined) return;
-    const roomInfo = nonNull(this.subs.get(doc));
+    const info = nonNull(this.subs.get(doc));
 
     const ourOldState = doc.save();
 
@@ -220,16 +220,16 @@ export class WebSocketNetwork extends EventEmitter<WebSocketNetworkEventsRecord>
         docID: message.docID,
         update: ourOldState,
         updateType: UpdateType.SavedState,
-        localCounter: ++roomInfo.localCounter,
+        localCounter: ++info.localCounter,
       },
     });
 
-    if (roomInfo.off === undefined) {
+    if (info.off === undefined) {
       // Subscribe to future doc updates and forward them to the server.
       // This includes both local operations and updates that we learn
       // of from other network/storage tools.
       const docID = message.docID;
-      roomInfo.off = doc.on("Update", (e) => {
+      info.off = doc.on("Update", (e) => {
         // Skip updates that we delivered.
         if (e.caller === this) return;
         // Skip updates delivered by other tabs; they should be sending
@@ -243,7 +243,7 @@ export class WebSocketNetwork extends EventEmitter<WebSocketNetworkEventsRecord>
             docID,
             update: e.update,
             updateType: stringToEnum(e.updateType),
-            localCounter: ++roomInfo.localCounter,
+            localCounter: ++info.localCounter,
           },
         });
       });
@@ -253,13 +253,13 @@ export class WebSocketNetwork extends EventEmitter<WebSocketNetworkEventsRecord>
   private onSubscribeDenied(message: SubscribeDenied): void {
     const doc = this.docsByID.get(message.docID);
     if (doc === undefined) return;
-    const roomInfo = nonNull(this.subs.get(doc));
+    const info = nonNull(this.subs.get(doc));
 
-    if (roomInfo.subscribeDenied === undefined) {
+    if (info.subscribeDenied === undefined) {
       // First we've heard of it.
       this.emit("SubscribeDenied", { doc, docID: message.docID });
       // If the server disconnects and reconnects, don't emit another event.
-      roomInfo.subscribeDenied = true;
+      info.subscribeDenied = true;
     }
   }
 
@@ -278,9 +278,9 @@ export class WebSocketNetwork extends EventEmitter<WebSocketNetworkEventsRecord>
   private onAck(message: Ack): void {
     const doc = this.docsByID.get(message.docID);
     if (doc === undefined) return;
-    const roomInfo = nonNull(this.subs.get(doc));
+    const info = nonNull(this.subs.get(doc));
 
-    if (message.localCounter === roomInfo.localCounter) {
+    if (message.localCounter === info.localCounter) {
       // The ack'd update is the last one we sent to the server.
       // So doc's state is now completely saved.
       this.emit("Save", { doc, docID: message.docID });

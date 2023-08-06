@@ -63,20 +63,63 @@ function unescapeDots(str: string): string | null {
 
 type Doc = AbstractDoc | CRuntime;
 
+/*
+  # Storage format
+
+  Stored state is divided into "checkpoints" and "uncompacted updates",
+  like a database transaction log.
+  Each update is stored immediately.
+  Occasionally we trigger a checkpoint, which replaces all the uncompacted
+  updates with a single saved state; this is smaller
+  and loads faster than the raw update log.
+  
+  Checkpoints are stored under "<ourPrefix>.savedState<saveCounter>", where:
+  - <ourPrefix> is a localStorage key prefix specific to the docID & session (doc.replicaID).
+  - <saveCounter> is a counter for own checkpoints, used to
+  ensure that each key is unique.
+
+  Update storage:
+  - Messages are stored under "<docPrefix>.message<trID>", where:
+    - <docPrefix> is a localStorage key prefix specific to the 
+    docID but *not* the session. So tabs with the same docID open
+    share storage.
+    - <trID> is a
+  dot-escaped representation of the message's trID.
+  - Saved states from updates are not stored incrementally; instead, they trigger
+  an immediate checkpoint.
+
+  DocInfo.uncompactedKeys stores the uncompacted updates' keys.
+
+  All values are immutable (only set to a single value - though possibly
+  multiple times from different tabs). Thus it is safe to delete a key
+  from a different tab; you don't have to worry about overwriting a
+  concurrent change.
+*/
+
 interface DocInfo {
-  docID: string;
-  ourPrefix: string;
-  updateCounter: number;
+  readonly docID: string;
+  readonly docPrefix: string;
+  readonly ourPrefix: string;
+  off?: () => void;
+  /**
+   * The number of saved states stored during this session, used to give a
+   * unique name to each one.
+   */
   saveCounter: number;
-  /** The index-plus-1 of the last update incorporated into the last savedState. */
-  lastSaveUpdates: number;
-  lastSaveTime: number;
-  readonly off: () => void;
+  /**
+   * The keys of all of our saved and not-yet-deleted updates, including
+   * the last checkpoint.
+   *
+   * They will be deleted at our next checkpoint.
+   */
+  currentUpdates: string[];
+  lastCheckpointTime: number;
+  unsubscribed?: true;
 }
 
 export interface LocalStorageDocStoreEventsRecord {
   /**
-   * Emitted after all of doc's local changes are confirmed saved to the server.
+   * Emitted after all of doc's local changes are confirmed saved to localStorage.
    */
   Save: { doc: AbstractDoc | CRuntime; docID: string };
   /**
@@ -134,40 +177,31 @@ export class LocalStorageDocStore extends EventEmitter<LocalStorageDocStoreEvent
       throw new Error("Unsupported: multiple docs with same docID");
     }
 
-    const docPrefixDot = this.getDocPrefix(docID) + ".";
+    const docPrefix = this.getDocPrefix(docID);
+    const docPrefixDot = docPrefix + ".";
     const ourPrefix = this.getOurPrefix(docID, doc);
 
-    // Saved states are stored under "<ourPrefix>.savedState<counter>";
-    // updates are stored under "<ourPrefix>.update<counter>".
-    // All values are immutable (only set once), so it is safe to delete key
-    // from a different tab: you don't have to worry about overwriting a
-    // concurrent update.
-
-    // 1. Immediately store future updates to the doc, local & remote.
-    // Occasional these trigger a "checkpoint" where we replace the updates
-    // (& previous savedState) with a new savedState.
-    // TODO: what if subscribe is interleaved with unsubscribe?
-    const off = doc.on("Transaction", this.onTransaction);
+    // 1. Store subscription info.
     const info: DocInfo = {
       docID,
+      docPrefix,
       ourPrefix,
       saveCounter: 0,
-      updateCounter: 0,
-      lastSaveUpdates: 0,
-      lastSaveTime: 0,
-      off,
+      currentUpdates: [],
+      lastCheckpointTime: 0,
     };
-
-    // 2. Store subscription info.
     this.subs.set(doc, info);
     this.docsByID.set(docID, doc);
 
-    // 3. Load existing state into the doc.
+    // 2. Load existing state into the doc.
     // Do it in a separate task to match other doc stores
     // (e.g., in case you add Transaction listeners after calling subscribe).
     setTimeout(() => {
+      // Skip if we've been unsubscribed already.
+      if (info.unsubscribed) return;
+
       const savedStates: Uint8Array[] = [];
-      const updates: Uint8Array[] = [];
+      const messages: Uint8Array[] = [];
       const loadedKeys: string[] = [];
       for (let i = 0; i < window.localStorage.length; i++) {
         const key = window.localStorage.key(i);
@@ -180,36 +214,36 @@ export class LocalStorageDocStore extends EventEmitter<LocalStorageDocStoreEvent
               savedStates.push(savedState);
               loadedKeys.push(key);
             }
-          } else if (suffix.startsWith("update")) {
-            const update = getBytes(key);
-            if (update !== null) {
-              updates.push(update);
+          } else if (suffix.startsWith("message")) {
+            const message = getBytes(key);
+            if (message !== null) {
+              messages.push(message);
               loadedKeys.push(key);
             }
           }
         }
       }
 
-      // Load saved states first, to avoid temp causal buffering of updates.
+      // Load saved states first, to reduce causal buffering of updates.
       for (const savedState of savedStates) {
         doc.load(savedState, this);
       }
-      // TODO: sort updates by number within each user, so they start mostly causally ordered.
-      for (const update of updates) {
-        doc.receive(update, this);
+      for (const message of messages) {
+        doc.receive(message, this);
       }
-
-      // Emit a Load event even if nothing was loaded, to signal that loading
-      // is done regardless.
       this.emit("Load", { doc, docID });
 
-      // 4. Store doc's current state and delete the loadedKeys that it incorporates.
+      // 3. Store doc's current state and delete the loadedKeys that it incorporates.
       // Do it in a separate task to avoid blocking for too long.
       setTimeout(() => {
-        // Skip saving if we happen to do so before the timeout.
-        // TODO: refactor to avoid this check (no checkpoints before first save);
-        // don't register tr listener until after loading.
-        if (info.saveCounter === 0) this.checkpoint(doc, info);
+        // Skip if we've been unsubscribed already.
+        if (info.unsubscribed) return;
+
+        // Just before calling doc.save() (in checkpoint), add a listener for
+        // future updates to the doc - local or received from other sources.
+        info.off = doc.on("Update", this.onUpdate);
+
+        this.checkpoint(doc, info);
         for (const key of loadedKeys) localStorage.removeItem(key);
       });
     }, 0);
@@ -219,76 +253,79 @@ export class LocalStorageDocStore extends EventEmitter<LocalStorageDocStoreEvent
     const info = this.subs.get(doc);
     if (info === undefined) return;
 
-    info.off();
+    if (info.off !== undefined) info.off();
+    info.unsubscribed = true;
     this.subs.delete(doc);
     this.docsByID.delete(info.docID);
   }
 
-  private onTransaction = (e: UpdateEvent, doc: Doc) => {
+  private onUpdate = (e: UpdateEvent, doc: Doc) => {
+    // Skip updates that we delivered.
+    if (e.caller === this) return;
+    // Skip updates delivered by other tabs; they should be storing
+    // their own updates themselves.
+    // TODO
+
     const info = this.subs.get(doc);
     if (info === undefined) return;
 
-    if (e.meta.updateType === "message") {
+    if (e.updateType === "message") {
       if (
-        info.updateCounter - info.lastSaveUpdates >= updatesBeforeCheckpoint &&
-        Date.now() >= info.lastSaveTime + checkpointInterval
+        info.currentUpdates.length >= updatesBeforeCheckpoint &&
+        Date.now() >= info.lastCheckpointTime + checkpointInterval
       ) {
         // Time for a checkpoint.
-        // Do it in a separate task because we are on the critical path.
+        // Do it in a separate task because we are on the critical path
+        // for local ops.
         setTimeout(() => this.checkpoint(doc, info), 0);
       } else {
-        // Append the update.
+        // Append the update to the log.
+        const trID = escapeDots(`${e.senderCounter},${e.senderID}`);
+        const key = info.docPrefix + ".message" + trID;
         try {
-          setBytes(info.ourPrefix + ".update" + info.updateCounter, e.update);
+          setBytes(key, e.update);
         } catch (err) {
           this.emit("Error", { err });
           if (!this.suppressErrors) throw err;
           return;
         }
-        info.updateCounter++;
+        info.currentUpdates.push(key);
         this.emit("Save", { doc, docID: info.docID });
       }
     } else {
       // Since savedState updates are usually rare and large, do a
       // checkpoint instead of storing it.
-      // That also lets us avoid distinguishing messages vs savedStates
-      // in the update log.
       // Do it in a separate task because we are on the critical path.
       setTimeout(() => this.checkpoint(doc, info), 0);
     }
   };
 
   private checkpoint(doc: Doc, info: DocInfo) {
+    const checkpointKey = info.ourPrefix + ".savedState" + info.saveCounter;
     try {
-      setBytes(info.ourPrefix + ".savedState" + info.saveCounter, doc.save());
+      setBytes(checkpointKey, doc.save());
     } catch (err) {
       this.emit("Error", { err });
       if (!this.suppressErrors) throw err;
       return;
     }
 
-    // Delete dominated updates and the last checkpoint.
+    // Delete currentUpdates, which have been incorporated into our new checkpoint.
     // Note: setting the savedState before deleting the old one effectively
-    // doubles our memory usage, which could overflow the storage space.
+    // doubles our max memory usage.
     // But the alternative could lose data in a crash.
-    if (info.saveCounter !== 0) {
-      localStorage.removeItem(
-        info.ourPrefix + ".savedState" + (info.saveCounter - 1)
-      );
-    }
-    for (let i = info.lastSaveUpdates; i < info.updateCounter; i++) {
-      localStorage.removeItem(info.ourPrefix + ".update" + i);
+    for (const key of info.currentUpdates) {
+      localStorage.removeItem(key);
     }
 
     info.saveCounter++;
-    info.lastSaveUpdates = info.updateCounter;
-    info.lastSaveTime = Date.now();
+    info.currentUpdates = [checkpointKey];
+    info.lastCheckpointTime = Date.now();
 
     this.emit("Save", { doc, docID: info.docID });
   }
 
-  // Async to match other DocStores.
-  async delete(docID: string): Promise<void> {
+  delete(docID: string): void {
     // localStorage doesn't like concurrent iter/delete, so wait
     // to delete until the end.
     const toDelete: string[] = [];
@@ -304,7 +341,7 @@ export class LocalStorageDocStore extends EventEmitter<LocalStorageDocStoreEvent
     for (const key of toDelete) window.localStorage.removeItem(key);
   }
 
-  async clear(): Promise<void> {
+  clear(): void {
     // localStorage doesn't like concurrent iter/delete, so wait
     // to delete until the end.
     const toDelete: string[] = [];
@@ -320,7 +357,7 @@ export class LocalStorageDocStore extends EventEmitter<LocalStorageDocStoreEvent
   }
 
   // All present docIDs.
-  async docIDs(): Promise<Set<string>> {
+  docIDs(): Set<string> {
     const docIDs = new Set<string>();
     for (let i = 0; i < window.localStorage.length; i++) {
       const key = window.localStorage.key(i);
