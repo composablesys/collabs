@@ -4,6 +4,7 @@ import {
   Ack,
   IWSMessage,
   Receive,
+  SubscribeDenied,
   WSMessage,
   Welcome,
 } from "../generated/proto_compiled";
@@ -28,12 +29,17 @@ export interface WebSocketNetworkEventsRecord {
    * reconnecting.
    */
   Load: { doc: AbstractDoc | CRuntime; docID: string };
+  /**
+   * Emitted if we subscribe to a docID but the server denies us access.
+   */
+  SubscribeDenied: { doc: AbstractDoc | CRuntime; docID: string };
 }
 
 interface RoomInfo {
   readonly docID: string;
-  readonly off: () => void;
   localCounter: number;
+  off?: () => void;
+  subscribeDenied?: true;
 }
 
 export class WebSocketNetwork extends EventEmitter<WebSocketNetworkEventsRecord> {
@@ -134,121 +140,163 @@ export class WebSocketNetwork extends EventEmitter<WebSocketNetworkEventsRecord>
       throw new Error("Unsupported: multiple docs with same docID");
     }
 
-    let roomInfo: RoomInfo;
-    const off = doc.on("Transaction", (e) => {
-      if (e.caller === this) return;
-
-      // The transaction is either a new local message or
-      // a message/savedState delivered by a different provider;
-      // forward it to the server.
-      // TODO: incremental savedState instead.
-      this.sendInternal({
-        send: {
-          docID,
-          update: e.update,
-          updateType: stringToEnum(e.meta.updateType),
-          localCounter: ++roomInfo.localCounter,
-        },
-      });
-    });
-    roomInfo = { docID, off, localCounter: 0 };
-
-    this.subs.set(doc, roomInfo);
+    // TODO: if you unsub & re-sub to a doc, old acks might trick you
+    // into thinking you're up-to-date.
+    this.subs.set(doc, { docID, localCounter: 0 });
     this.docsByID.set(docID, doc);
     this.sendInternal({ subscribe: { docIDs: [docID] } });
+
+    // Wait to subscribe to doc updates until after the first time
+    // we send our whole state (on Welcome).
   }
 
   unsubscribe(doc: AbstractDoc | CRuntime) {
     const sub = this.subs.get(doc);
     if (sub === undefined) return;
 
-    const { docID, off } = sub;
-    off();
-    this.docsByID.delete(docID);
-    this.sendInternal({ unsubscribe: { docID } });
+    if (sub.off !== undefined) sub.off();
+    this.subs.delete(doc);
+    this.docsByID.delete(sub.docID);
+    this.sendInternal({ unsubscribe: { docID: sub.docID } });
   }
 
   private wsReceive(encoded: ArrayBuffer) {
     const message = WSMessage.decode(new Uint8Array(encoded));
     switch (message.type) {
-      case "welcome": {
-        const welcome = message.welcome as Welcome;
-        const doc = this.docsByID.get(welcome.docID);
-        if (doc === undefined) return;
-        const roomInfo = nonNull(this.subs.get(doc));
-
-        // Make us up-to-date with the server:
-        // 1. Load the welcome state.
-        if (protobufHas(welcome, "savedState")) {
-          doc.load(welcome.savedState, this);
-        }
-        // 2. Load the further updates.
-        for (let i = 0; i < welcome.updates.length; i++) {
-          const update = welcome.updates[i];
-          const updateType = welcome.updateTypes[i];
-          if (updateType === UpdateType.Message) doc.receive(update, this);
-          else doc.load(update, this);
-        }
-
-        this.emit("Load", { doc, docID: welcome.docID });
-
-        // Make the server up-to-date with us.
-        // TODO: use an incremental save instead;
-        // skip entirely if we've got nothing new.
-        const ourState = doc.save();
-        this.sendInternal({
-          send: {
-            docID: welcome.docID,
-            update: ourState,
-            updateType: UpdateType.SavedState,
-            localCounter: ++roomInfo.localCounter,
-          },
-        });
+      case "welcome":
+        this.onWelcome(message.welcome as Welcome);
         break;
-      }
-      case "receive": {
-        const receive = message.receive as Receive;
-        const doc = this.docsByID.get(receive.docID);
-        if (doc === undefined) return;
-
-        // Note: we might get this update before the room Welcome.
-        // That is fine; if the update causally depends on existing state,
-        // doc will buffer it.
-        if (receive.updateType === UpdateType.Message)
-          doc.receive(receive.update, this);
-        else doc.load(receive.update, this);
+      case "subscribeDenied":
+        this.onSubscribeDenied(message.subscribeDenied as SubscribeDenied);
         break;
-      }
+      case "receive":
+        this.onReceive(message.receive as Receive);
+        break;
       case "ack": {
-        const ack = message.ack as Ack;
-        const doc = this.docsByID.get(ack.docID);
-        if (doc === undefined) return;
-        const roomInfo = nonNull(this.subs.get(doc));
-
-        if (ack.localCounter === roomInfo.localCounter) {
-          // The ack'd update is the last one we sent to the server.
-          // So doc's state is now completely saved.
-          this.emit("Save", { doc, docID: ack.docID });
-        }
-
-        if (protobufHas(ack, "saveRequest")) {
-          // The server requests that we send our current saved state.
-          // It will use this as a "checkpoint", replacing its message log
-          // (up to the point that we've saved).
-          this.sendInternal({
-            saveResponse: {
-              docID: ack.docID,
-              savedState: doc.save(),
-              saveRequest: ack.saveRequest,
-            },
-          });
-        }
+        this.onAck(message.ack as Ack);
         break;
       }
       default:
         throw new Error(
           "Unexpected WebSocketNetwork message type: " + message.type
         );
+    }
+  }
+
+  private onWelcome(message: Welcome): void {
+    const doc = this.docsByID.get(message.docID);
+    if (doc === undefined) return;
+    const roomInfo = nonNull(this.subs.get(doc));
+
+    const ourOldState = doc.save();
+
+    // Make us up-to-date with the server:
+    //   1. Load the welcome state.
+    if (protobufHas(message, "savedState")) {
+      doc.load(message.savedState, this);
+    }
+    //   2. Load the further updates.
+    for (let i = 0; i < message.updates.length; i++) {
+      const update = message.updates[i];
+      const updateType = message.updateTypes[i];
+      switch (updateType) {
+        case UpdateType.Message:
+          doc.receive(update, this);
+          break;
+        case UpdateType.SavedState:
+          doc.load(update, this);
+          break;
+        default:
+          throw new Error("Unrecognized UpdateType: " + updateType);
+      }
+    }
+
+    this.emit("Load", { doc, docID: message.docID });
+
+    // Make the server up-to-date with us.
+    // OPT: use a delta on top of ourOldState instead.
+    this.sendInternal({
+      send: {
+        docID: message.docID,
+        update: ourOldState,
+        updateType: UpdateType.SavedState,
+        localCounter: ++roomInfo.localCounter,
+      },
+    });
+
+    if (roomInfo.off === undefined) {
+      // Subscribe to future doc updates and forward them to the server.
+      // This includes both local operations and updates that we learn
+      // of from other network/storage tools.
+      const docID = message.docID;
+      roomInfo.off = doc.on("Update", (e) => {
+        // Skip updates that we delivered.
+        if (e.caller === this) return;
+        // Skip updates delivered by other tabs; they should be sending
+        // their updates to the server themselves.
+        // TODO
+
+        // OPT: if it's a saved state, only send the delta on top of our
+        // old state to the server (skipping the delta computation if disconnected).
+        this.sendInternal({
+          send: {
+            docID,
+            update: e.update,
+            updateType: stringToEnum(e.updateType),
+            localCounter: ++roomInfo.localCounter,
+          },
+        });
+      });
+    }
+  }
+
+  private onSubscribeDenied(message: SubscribeDenied): void {
+    const doc = this.docsByID.get(message.docID);
+    if (doc === undefined) return;
+    const roomInfo = nonNull(this.subs.get(doc));
+
+    if (roomInfo.subscribeDenied === undefined) {
+      // First we've heard of it.
+      this.emit("SubscribeDenied", { doc, docID: message.docID });
+      // If the server disconnects and reconnects, don't emit another event.
+      roomInfo.subscribeDenied = true;
+    }
+  }
+
+  private onReceive(message: Receive): void {
+    const doc = this.docsByID.get(message.docID);
+    if (doc === undefined) return;
+
+    // Note: we might get this update before the room Welcome.
+    // That is fine; if the update causally depends on existing state,
+    // doc will buffer it.
+    if (message.updateType === UpdateType.Message)
+      doc.receive(message.update, this);
+    else doc.load(message.update, this);
+  }
+
+  private onAck(message: Ack): void {
+    const doc = this.docsByID.get(message.docID);
+    if (doc === undefined) return;
+    const roomInfo = nonNull(this.subs.get(doc));
+
+    if (message.localCounter === roomInfo.localCounter) {
+      // The ack'd update is the last one we sent to the server.
+      // So doc's state is now completely saved.
+      this.emit("Save", { doc, docID: message.docID });
+    }
+
+    if (protobufHas(message, "checkpointRequest")) {
+      // The server requests that we send our current saved state.
+      // It will use this as a "checkpoint", replacing its message log
+      // (up to the point that we've saved).
+      this.sendInternal({
+        checkpointResponse: {
+          docID: message.docID,
+          savedState: doc.save(),
+          checkpointRequest: message.checkpointRequest,
+        },
+      });
     }
   }
 }

@@ -10,13 +10,18 @@ message Welcome {
   required string docID = 1;
   optional bytes savedState = 2;
   repeated bytes updates = 3;
-  /* Aligned with updates. */
+  /* UpdateType enum. Aligned with updates. */
   repeated uint32 updateTypes = 4 [packed=true];
+}
+
+message SubscribeDenied {
+  required string docID = 1;
 }
 
 message Send {
   required string docID = 1;
   required bytes update = 2;
+  /** UpdateType enum. */
   required uint32 updateType = 3;
   required uint32 localCounter = 4;
 }
@@ -24,19 +29,20 @@ message Send {
 message Receive {
   required string docID = 1;
   required bytes update = 2;
+  /** UpdateType enum. */
   required uint32 updateType = 3;
 }
 
 message Ack {
   required string docID = 1;
   required uint32 localCounter = 2;
-  optional string saveRequest = 3;
+  optional string checkpointRequest = 3;
 }
 
-message SaveResponse {
+message CheckpointResponse {
   required string docID = 1;
   required bytes savedState = 2;
-  required string saveRequest = 3;
+  required string checkpointRequest = 3;
 }
 
 message WSMessage {
@@ -44,9 +50,10 @@ message WSMessage {
     Subscribe subscribe = 1;
     Unsubscribe unsubscribe = 2;
     Welcome welcome = 3;
-    Send send = 4;
-    Receive receive = 5;
-    Ack ack = 6;
-    SaveResponse saveResponse = 7;
+    SubscribeDenied subscribeDenied = 4;
+    Send send = 5;
+    Receive receive = 6;
+    Ack ack = 7;
+    CheckpointResponse checkpointResponse = 8;
   }
 }

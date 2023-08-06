@@ -1,6 +1,6 @@
 import {
+  CheckpointResponse,
   IWSMessage,
-  SaveResponse,
   Send,
   Subscribe,
   Unsubscribe,
@@ -12,10 +12,9 @@ import { ServerDocStore } from "./server_doc_store";
 
 interface RoomInfo {
   readonly clients: Set<WebSocket>;
-  lastSaveRequestTime: number | null;
 }
 
-const defaultHeartbeatInterval = 30000;
+const defaultHeartbeatIntervalMS = 30000;
 
 export class WebSocketNetworkServer {
   /** Maps docID to set of clients in that room. */
@@ -25,13 +24,22 @@ export class WebSocketNetworkServer {
 
   private readonly heartbeatInterval: number;
 
+  // Doc: to know who ws is for authenticate, intercept wss.on('upgrade') as
+  // shown in https://www.npmjs.com/package/ws#client-authentication .
+  // Then store ws mapped to its permissions in a WeakMap.
+  // Doc: can log errors using own wss "error" & "connection" listeners.
+  // Doc: heartbeatInterval 0 to disable, else ms.
   constructor(
     readonly wss: WebSocketServer,
     readonly docStore: ServerDocStore = new InMemoryDocStore(),
-    options: { heartbeatInterval?: number } = {}
+    private readonly authenticate: (
+      ws: WebSocket,
+      docID: string
+    ) => Promise<boolean> = async () => true,
+    options: { heartbeatIntervalMS?: number } = {}
   ) {
     this.heartbeatInterval =
-      options.heartbeatInterval ?? defaultHeartbeatInterval;
+      options.heartbeatIntervalMS ?? defaultHeartbeatIntervalMS;
 
     this.wss.on("connection", (ws) => {
       this.clients.set(ws, new Set());
@@ -45,6 +53,12 @@ export class WebSocketNetworkServer {
     });
   }
 
+  /**
+   * Ping to keep connection alive.
+   *
+   * This is necessary on at least Heroku, which has a 55 second timeout:
+   * https://devcenter.heroku.com/articles/websockets#timeouts
+   */
   private startHeartbeats(ws: WebSocket) {
     if (this.heartbeatInterval === 0) return;
     const interval = setInterval(() => {
@@ -67,10 +81,15 @@ export class WebSocketNetworkServer {
   private unsubscribe(ws: WebSocket, docID: string) {
     const room = this.rooms.get(docID);
     if (room === undefined) return;
+
     room.clients.delete(ws);
     if (room.clients.size === 0) this.rooms.delete(docID);
   }
 
+  /**
+   * Sends message over ws if the connection is currently open,
+   * else dropping it.
+   */
   private sendInternal(ws: WebSocket, message: IWSMessage) {
     if (ws.readyState == WebSocket.OPEN) {
       ws.send(WSMessage.encode(message).finish());
@@ -89,8 +108,11 @@ export class WebSocketNetworkServer {
       case "send":
         this.onSend(ws, message.send as Send);
         break;
-      case "saveResponse":
-        this.onSaveResponse(ws, message.saveResponse as SaveResponse);
+      case "checkpointResponse":
+        this.onCheckpointResponse(
+          ws,
+          message.checkpointResponse as CheckpointResponse
+        );
         break;
       default:
         throw new Error("Unexpected WebSocketNetwork message: " + encoded);
@@ -101,10 +123,16 @@ export class WebSocketNetworkServer {
     const wsRooms = this.clients.get(ws);
     if (wsRooms === undefined) return;
 
-    for (const docID of message.docIDs) {
+    // Subscribe all docs in parallel.
+    message.docIDs.map(async (docID) => {
+      if (!(await this.authenticate(ws, docID))) {
+        this.sendInternal(ws, { subscribeDenied: { docID } });
+        return;
+      }
+
       let room = this.rooms.get(docID);
       if (room === undefined) {
-        room = { clients: new Set(), lastSaveRequestTime: null };
+        room = { clients: new Set() };
         this.rooms.set(docID, room);
       }
       room.clients.add(ws);
@@ -113,27 +141,25 @@ export class WebSocketNetworkServer {
       // Note that we may already think ws is subscribed to a room.
       // Re-send the state anyway, in case they were offline and missed some
       // messages.
-      // Do the data fetches in parallel.
-      void this.docStore
-        .load(docID)
-        .then(([savedState, updates, updateTypes]) => {
-          this.sendInternal(ws, {
-            welcome: {
-              docID,
-              savedState,
-              updates,
-              updateTypes,
-            },
-          });
-        });
-    }
+      const [savedState, updates, updateTypes] = await this.docStore.load(
+        docID
+      );
+      this.sendInternal(ws, {
+        welcome: {
+          docID,
+          savedState,
+          updates,
+          updateTypes,
+        },
+      });
+    });
   }
 
   private onUnsubscribe(ws: WebSocket, message: Unsubscribe) {
     const wsRooms = this.clients.get(ws);
     if (wsRooms === undefined) return;
-    wsRooms.delete(message.docID);
 
+    wsRooms.delete(message.docID);
     this.unsubscribe(ws, message.docID);
   }
 
@@ -154,7 +180,8 @@ export class WebSocketNetworkServer {
       }).finish();
       for (const client of room.clients) {
         if (client !== ws && client.readyState === WebSocket.OPEN) {
-          // Note: peer might get this update before the room Welcome.
+          // Note: peer might get this update before the room Welcome,
+          // since loading the state from docStore is async.
           // That is fine; if the update depends on existing state,
           // peer's doc will buffer it.
           client.send(echo);
@@ -165,25 +192,28 @@ export class WebSocketNetworkServer {
     const localCounter = message.localCounter;
     void this.docStore
       .addUpdate(docID, message.update, message.updateType)
-      .then((saveRequest) => {
-        // Ack the update, confirming that we have saved it.
+      .then((checkpointRequest) => {
+        // Ack the update, confirming that we have saved it,
+        // and possibly sending a checkpointRequest.
         this.sendInternal(ws, {
-          ack: { docID, localCounter, saveRequest },
+          ack: { docID, localCounter, checkpointRequest },
         });
       });
   }
 
-  private onSaveResponse(ws: WebSocket, saveResponse: SaveResponse) {
+  private onCheckpointResponse(
+    ws: WebSocket,
+    checkpointResponse: CheckpointResponse
+  ) {
     // Check that ws is actually in the room.
-    const room = this.rooms.get(saveResponse.docID);
+    const room = this.rooms.get(checkpointResponse.docID);
     if (room === undefined || !room.clients.has(ws)) return;
 
-    void this.docStore.save(
-      saveResponse.docID,
-      saveResponse.savedState,
-      saveResponse.saveRequest
+    // Store the checkpointResponse.
+    void this.docStore.checkpoint(
+      checkpointResponse.docID,
+      checkpointResponse.savedState,
+      checkpointResponse.checkpointRequest
     );
   }
-
-  // TODO: ping-pong? I recall it was necessary to keep Heroku WS connections alive.
 }

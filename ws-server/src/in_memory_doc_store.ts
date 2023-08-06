@@ -1,12 +1,22 @@
 import { UpdateType } from "@collabs/ws-client/src/update_type";
 import { ServerDocStore } from "./server_doc_store";
 
+/** How many updates before we consider a checkpoint. */
+const updatesBeforeCheckpoint = 100;
+/** The minimum time between checkpoints. */
+const checkpointInterval = 10000;
+
 interface StoredDoc {
   savedState: Uint8Array | null;
+  /** Updates not included in savedState (the last checkpoint). */
   updates: Uint8Array[];
   updateTypes: UpdateType[];
-  savedStateCount: number;
-  lastSaveRequestTime: number | null;
+  /**
+   * The number of our all-time updates included in savedState
+   * (the last checkpoint).
+   */
+  lastCheckpointCounter: number;
+  lastCheckpointRequestTime: number | null;
 }
 
 export class InMemoryDocStore implements ServerDocStore {
@@ -20,8 +30,8 @@ export class InMemoryDocStore implements ServerDocStore {
         savedState: null,
         updates: [],
         updateTypes: [],
-        savedStateCount: 0,
-        lastSaveRequestTime: null,
+        lastCheckpointCounter: 0,
+        lastCheckpointRequestTime: null,
       };
       this.docs.set(docID, info);
     }
@@ -50,39 +60,44 @@ export class InMemoryDocStore implements ServerDocStore {
     info.updates.push(update);
     info.updateTypes.push(updateType);
 
-    // Do save request if:
+    // Do checkpoint request if:
     // - There are at least 100 pending updates in the log.
-    // - It has been at least 5 seconds since the last save request,
+    // - It has been at least 10 seconds since the last save request,
     // including potential failed or long-latency requests.
-    if (info.updates.length >= 100) {
+    if (info.updates.length >= updatesBeforeCheckpoint) {
       if (
-        info.lastSaveRequestTime === null ||
-        info.lastSaveRequestTime + 5000 <= Date.now()
+        info.lastCheckpointRequestTime === null ||
+        info.lastCheckpointRequestTime + checkpointInterval <= Date.now()
       ) {
-        return `${info.savedStateCount}`;
+        // The number of our all-time updates included in savedState + updates.
+        const updateCount = info.lastCheckpointCounter + info.updates.length;
+        return `${updateCount}`;
       }
     }
     return null;
   }
 
-  async save(
+  async checkpoint(
     docID: string,
     savedState: Uint8Array,
-    saveRequest: string
+    checkpointRequest: string
   ): Promise<void> {
-    const count = Number.parseInt(saveRequest);
-    if (isNaN(count)) throw new Error(`Invalid saveRequest: ${saveRequest}`);
+    // The number of our all-time updates included in savedState.
+    const updateCount = Number.parseInt(checkpointRequest);
+    if (isNaN(updateCount))
+      throw new Error(`Invalid saveRequest: ${checkpointRequest}`);
 
     const info = this.getInfo(docID);
-    if (info.savedStateCount >= count) return;
-    if (count > info.savedStateCount + info.updates.length) {
+    if (info.lastCheckpointCounter >= updateCount) return;
+    if (updateCount > info.lastCheckpointCounter + info.updates.length) {
       throw new Error("savedState claims to contain more updates than exist");
     }
 
-    const dominated = count - info.savedStateCount;
+    // The number of updates in the current log that are included in savedState.
+    const dominated = updateCount - info.lastCheckpointCounter;
     info.savedState = savedState;
-    info.savedStateCount = count;
     info.updates = info.updates.slice(dominated);
     info.updateTypes = info.updateTypes.slice(dominated);
+    info.lastCheckpointCounter = updateCount;
   }
 }

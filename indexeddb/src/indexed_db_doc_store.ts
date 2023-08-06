@@ -15,7 +15,7 @@ interface DocInfo {
   docID: string;
   /** The number of updates since our last checkpoint. */
   uncompactedCount: number;
-  lastSaveTime: number;
+  lastCheckpointTime: number;
   readonly off: () => void;
 }
 
@@ -106,7 +106,7 @@ export class IndxedDBDocStore extends EventEmitter<IndexedDBDocStoreEventsRecord
     const info: DocInfo = {
       docID,
       uncompactedCount: 0,
-      lastSaveTime: 0,
+      lastCheckpointTime: 0,
       off,
     };
 
@@ -189,7 +189,7 @@ export class IndxedDBDocStore extends EventEmitter<IndexedDBDocStoreEventsRecord
     if (e.meta.updateType === "message") {
       if (
         info.uncompactedCount >= updatesBeforeCheckpoint &&
-        Date.now() >= info.lastSaveTime + checkpointInterval
+        Date.now() >= info.lastCheckpointTime + checkpointInterval
       ) {
         // Time for a checkpoint.
         // Do it in a separate task because we are on the critical path.
@@ -228,7 +228,7 @@ export class IndxedDBDocStore extends EventEmitter<IndexedDBDocStoreEventsRecord
 
     info.saveCounter++;
     info.lastSaveUpdates = info.updateCounter;
-    info.lastSaveTime = Date.now();
+    info.lastCheckpointTime = Date.now();
 
     this.emit("Save", { doc, docID: info.docID });
   }

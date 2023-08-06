@@ -16,8 +16,8 @@ export interface ServerDocStore {
   >;
 
   /**
-   * Returns a "save request" ID if you think it's a good time to save,
-   * else null.
+   * Returns a "checkpoint request" ID if you think it's a good time to save
+   * a checkpoint, else null.
    * E.g., an internal counter for this update. Caller guarantees that save
    * includes all updates up to this point.
    * Note: it will be sent over the network and echoed back by a client.
@@ -33,9 +33,9 @@ export interface ServerDocStore {
    * in-progress saves - just make sure you don't lose any updates.
    * Note: saveRequest comes over the network and should be validated.
    */
-  save(
+  checkpoint(
     docID: string,
     savedState: Uint8Array,
-    saveRequest: string
+    checkpointRequest: string
   ): Promise<void>;
 }
