@@ -22,7 +22,7 @@ type Doc = AbstractDoc | CRuntime;
   like a database transaction log.
   Each update is stored immediately.
   Occasionally we trigger a checkpoint, which replaces all the uncompacted
-  updates with a single saved state; this is smaller
+  updates (& previous checkpoint) with a single saved state; this is smaller
   and loads faster than the raw update log.
   
   Checkpoints are stored as objects of the form
@@ -30,8 +30,7 @@ type Doc = AbstractDoc | CRuntime;
     docID: string;
     savedState: Uint8Array;
   }
-  under an auto-generated primary key. We store our own last checkpoint's primary
-  key so we know to delete it at our next checkpoint.
+  under an auto-generated primary key.
 
   Update storage:
   - Messages are stored as objects of the form
@@ -40,10 +39,8 @@ type Doc = AbstractDoc | CRuntime;
       message: Uint8Array;
     }
     under an auto-generated primary key.
-    We store all of our own messages' primary keys so we know to delete them
-    at our next checkpoint.
   - Saved states from updates are not stored incrementally; instead, they trigger
-  an immediate checkpoint.
+    an immediate checkpoint.
 
   All values are immutable (a given primary key is 
   only set once). Thus it is safe to delete a key
@@ -61,7 +58,7 @@ interface DocInfo {
   readonly docID: string;
   off?: () => void;
   /**
-   * The keys of all of our saved and not-yet-deleted updates, including
+   * The primary keys of all of our saved and not-yet-deleted updates, including
    * the last checkpoint.
    *
    * They will be deleted at our next checkpoint.
@@ -73,17 +70,41 @@ interface DocInfo {
 
 export interface IndexedDBDocStoreEventsRecord {
   /**
-   * Emitted after all of doc's local changes are confirmed saved to IndexedDB.
+   * Emitted after doc's current state is confirmed saved to IndexedDB.
    */
   Save: { doc: AbstractDoc | CRuntime; docID: string };
   /**
    * Emitted after doc loads the store's current state.
    */
   Load: { doc: AbstractDoc | CRuntime; docID: string };
-  Error: { event: Event };
+  /**
+   * Emitted when IndexedDB emits an error event, e.g., because it is out of space.
+   */
+  Error: { err: Event };
 }
 
-export class IndxedDBDocStore extends EventEmitter<IndexedDBDocStoreEventsRecord> {
+/**
+ * Stores updates to Collabs documents in IndexeddDB.
+ *
+ * To load existing state into a document (if any) and store future updates
+ * to that document, call [[subscribe]]. You will need to supply a `docID`
+ * that identifies which stored state to use.
+ *
+ * This class is designed to work seamlessly with other sources of updates,
+ * such as [@collabs/ws-client](https://www.npmjs.com/package/@collabs/ws-client).
+ * In particular, updates from those sources will be stored alongside local
+ * operations. TODO: exception: cross-tab stuff
+ *
+ * See also: [@collabs/local-storage](https://www.npmjs.com/package/@collabs/local-storage),
+ * which stores updates in localStorage instead of IndexedDB.
+ */
+export class IndexedDBDocStore extends EventEmitter<IndexedDBDocStoreEventsRecord> {
+  /**
+   * The name of this class's IndexedDB database,
+   * set in the constructor.
+   *
+   * Default: "@collabs/storage".
+   */
   readonly dbName: string;
 
   private readonly dbPromise: Promise<IDBDatabase>;
@@ -92,47 +113,61 @@ export class IndxedDBDocStore extends EventEmitter<IndexedDBDocStoreEventsRecord
   private subs = new Map<Doc, DocInfo>();
   private docsByID = new Map<string, Doc>();
 
-  constructor(
-    options: {
-      dbName?: string;
-    } = {}
-  ) {
+  /**
+   * Constructs an IndexedDBDocStore.
+   *
+   * You typically only need one IndexedDBDocStore per app, since it
+   * can [[subscribe]] multiple documents.
+   *
+   * @param options.dbName The name of the database to use.
+   * Default: "@collabs/storage".
+   */
+  constructor(options: { dbName?: string } = {}) {
     super();
 
     this.dbName = options.dbName ?? "@collabs/storage";
 
-    let dbResolve!: (db: IDBDatabase) => void;
-    let dbReject!: (reason: unknown) => void;
     this.dbPromise = new Promise<IDBDatabase>((resolve, reject) => {
-      dbResolve = resolve;
-      dbReject = reject;
+      const openRequest = indexedDB.open(this.dbName, 1);
+      openRequest.onupgradeneeded = () => {
+        const db = openRequest.result;
+        const objectStore = db.createObjectStore(objectStoreName, {
+          autoIncrement: true,
+        });
+        objectStore.createIndex("docID", "docID", { unique: false });
+      };
+      openRequest.onsuccess = () => {
+        this.db = openRequest.result;
+        this.db.onerror = this.onError;
+        resolve(openRequest.result);
+      };
+      openRequest.onerror = (event) => {
+        this.onError(event);
+        reject(event);
+      };
     });
-
-    const openRequest = indexedDB.open(this.dbName, 1);
-    openRequest.onerror = (event) => {
-      this.onError(event);
-      dbReject(event);
-    };
-    openRequest.onupgradeneeded = () => {
-      const db = openRequest.result;
-      const objectStore = db.createObjectStore(objectStoreName, {
-        autoIncrement: true,
-      });
-      objectStore.createIndex("docID", "docID", { unique: false });
-    };
-    openRequest.onsuccess = () => {
-      this.db = openRequest.result;
-      this.db.onerror = this.onError;
-      dbResolve(openRequest.result);
-    };
   }
 
+  /**
+   * Closes our IndexedDB database connection.
+   *
+   * Any future methods calls or updates to subscribed docs will cause errors.
+   */
   close() {
-    void this.dbPromise.then((db) => db.close());
+    void (async () => {
+      try {
+        const db = await this.dbPromise;
+        db.close();
+      } catch (err) {
+        // The error is already sent to onError; no need to send it again
+        // or let the unhandled error spam the console.
+        return;
+      }
+    })();
   }
 
-  private onError = (event: Event) => {
-    this.emit("Error", { event });
+  private onError = (err: Event) => {
+    this.emit("Error", { err });
   };
 
   /**
@@ -144,12 +179,29 @@ export class IndxedDBDocStore extends EventEmitter<IndexedDBDocStoreEventsRecord
     return new Promise((resolve) => {
       tr.oncomplete = () => resolve(true);
       tr.onabort = () => resolve(false);
+      tr.onerror = () => resolve(false);
     });
   }
 
-  // Note: if this errors due to bad format / version update,
-  // it will corrupt the doc. Need to design your doc's receive/load
-  // to tolerate those errors instead.
+  // Implicit (not documented): works well with other tabs, but won't
+  // actively load their stored states - only checks at time of subscribe.
+  // Also, multiple tabs will duplicate checkpoints, increasing IndexedDB usage.
+  /**
+   * Subscribes `doc` to updates stored under `docID`.
+   *
+   * All existing updates under `docID` will be loaded into `doc`
+   * asynchronously, emitting a "Load" event when finished (including
+   * if there are no existing updates).
+   *
+   * Also, all new updates to `doc` will be saved under `docID`,
+   * emitting a "Save" event whenever the stored state is up-to-date with `doc`.
+   * This includes both local operations and updates from other sources.
+   *
+   * @param doc The document to subscribe.
+   * @param docID An arbitrary string that identifies which stored state to use.
+   * @throws If `doc` is already subscribed to a docID.
+   * @throws If another doc is subscribed to `docID`.
+   */
   subscribe(doc: AbstractDoc | CRuntime, docID: string): void {
     if (this.subs.has(doc)) {
       throw new Error("doc is already subscribed to a docID");
@@ -197,15 +249,22 @@ export class IndxedDBDocStore extends EventEmitter<IndexedDBDocStoreEventsRecord
       const tr = db.transaction([objectStoreName], "readonly");
       const objectStore = tr.objectStore(objectStoreName);
 
-      const request = objectStore.index("docID").openCursor(docID, "next");
+      const request = objectStore.index("docID").openCursor(docID);
       request.onsuccess = () => {
         const cursor = request.result;
         if (!cursor) return;
 
-        info.currentUpdates.add(cursor.primaryKey as string);
         const value = cursor.value as ValueType;
-        if (value.savedState !== undefined) savedStates.push(value.savedState);
-        if (value.message !== undefined) messages.push(value.message);
+        if (typeof value === "object") {
+          if (value.savedState !== undefined) {
+            savedStates.push(value.savedState);
+            info.currentUpdates.add(cursor.primaryKey as string);
+          }
+          if (value.message !== undefined) {
+            messages.push(value.message);
+            info.currentUpdates.add(cursor.primaryKey as string);
+          }
+        } // Else ignore (wrong type).
 
         cursor.continue();
       };
@@ -239,14 +298,19 @@ export class IndxedDBDocStore extends EventEmitter<IndexedDBDocStoreEventsRecord
     await this.checkpoint(doc, info);
   }
 
+  /**
+   * Unsubscribes `doc` from its subscribed `docID` (if any).
+   *
+   * Further updates to `doc` will not be saved.
+   */
   unsubscribe(doc: AbstractDoc | CRuntime) {
     const info = this.subs.get(doc);
     if (info === undefined) return;
 
-    if (info.off !== undefined) info.off();
     info.unsubscribed = true;
     this.subs.delete(doc);
     this.docsByID.delete(info.docID);
+    if (info.off !== undefined) info.off();
   }
 
   private onUpdate = (e: UpdateEvent, doc: Doc) => {
@@ -275,7 +339,8 @@ export class IndxedDBDocStore extends EventEmitter<IndexedDBDocStoreEventsRecord
     } else {
       // Since savedState updates are usually rare and large, do a
       // checkpoint instead of storing it.
-      // Do it in a separate task because we are on the critical path.
+      // Do it in a separate task because we are on the critical path
+      // for local ops.
       setTimeout(() => void this.checkpoint(doc, info), 0);
     }
   };
@@ -284,7 +349,7 @@ export class IndxedDBDocStore extends EventEmitter<IndexedDBDocStoreEventsRecord
     // We only register onUpdate after using db, so we don't need to
     // await this.dbPromise.
     const db = nonNull(this.db);
-    const tr = db.transaction([objectStoreName], "readonly");
+    const tr = db.transaction([objectStoreName], "readwrite");
     const objectStore = tr.objectStore(objectStoreName);
 
     const request = objectStore.add({ docID: info.docID, message });
@@ -297,8 +362,12 @@ export class IndxedDBDocStore extends EventEmitter<IndexedDBDocStoreEventsRecord
   }
 
   private async checkpoint(doc: Doc, info: DocInfo) {
+    if (info.unsubscribed) return;
+
+    // We only call checkpoint after using db, so we don't need to
+    // await this.dbPromise.
     const db = nonNull(this.db);
-    const tr = db.transaction([objectStoreName], "readonly");
+    const tr = db.transaction([objectStoreName], "readwrite");
     const objectStore = tr.objectStore(objectStoreName);
 
     // The updates definitely included in the following doc.save() call.
@@ -320,21 +389,25 @@ export class IndxedDBDocStore extends EventEmitter<IndexedDBDocStoreEventsRecord
       // In case of concurrent addUpdate/checkpoint calls, only delete the keys
       // we definitely included, instead of resetting currentUpdates entirely.
       for (const key of includedUpdates) info.currentUpdates.delete(key);
+
       // Add the new checkpoint's primary key.
       info.currentUpdates.add(addRequest.result as string);
       info.lastCheckpointTime = Date.now();
+
       this.emit("Save", { doc, docID: info.docID });
     }
   }
 
-  // Doc: If error, will throw that error here
-  // in addition to Error event.
+  /**
+   * Deletes `docID` from localStorage.
+   */
   async delete(docID: string): Promise<void> {
     const db = await this.dbPromise;
     const tr = db.transaction([objectStoreName], "readwrite");
     const objectStore = tr.objectStore(objectStoreName);
 
-    const request = objectStore.index("docID").openKeyCursor(docID, "next");
+    // Delete all values with the given docID.
+    const request = objectStore.index("docID").openKeyCursor(docID);
     await new Promise<void>((resolve, reject) => {
       request.onsuccess = () => {
         const cursor = request.result;
@@ -350,10 +423,14 @@ export class IndxedDBDocStore extends EventEmitter<IndexedDBDocStoreEventsRecord
     });
 
     if (!(await this.trFinish(tr))) {
+      // Throw the error here in addition to the Error event.
       throw nonNull(tr.error);
     }
   }
 
+  /**
+   * Deletes all documents in our database.
+   */
   async clear(): Promise<void> {
     const db = await this.dbPromise;
     const tr = db.transaction([objectStoreName], "readwrite");
@@ -362,34 +439,42 @@ export class IndxedDBDocStore extends EventEmitter<IndexedDBDocStoreEventsRecord
     objectStore.clear();
 
     if (!(await this.trFinish(tr))) {
+      // Throw the error here in addition to the Error event.
       throw nonNull(tr.error);
     }
   }
 
-  // All present docIDs.
+  /**
+   * Returns all `docID`s with updates stored in our database.
+   */
   async docIDs(): Promise<Set<string>> {
     const db = await this.dbPromise;
     const tr = db.transaction([objectStoreName], "readonly");
     const objectStore = tr.objectStore(objectStoreName);
 
+    const results = new Set<string>();
     const request = objectStore
       .index("docID")
       .openKeyCursor(null, "nextunique");
-    return new Promise((resolve, reject) => {
-      const results = new Set<string>();
+    await new Promise<void>((resolve, reject) => {
       request.onsuccess = () => {
         const cursor = request.result;
         if (!cursor) {
-          resolve(results);
+          resolve();
           return;
         }
 
+        // cursor.key is the *index* key (= docID), not the primary key.
         results.add(cursor.key as string);
         cursor.continue();
       };
       request.onerror = reject;
     });
 
-    // No need to await tr.complete since it's readonly.
+    if (!(await this.trFinish(tr))) {
+      // Throw the error here in addition to the Error event.
+      throw nonNull(tr.error);
+    }
+    return results;
   }
 }

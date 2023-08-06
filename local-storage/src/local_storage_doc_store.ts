@@ -18,16 +18,7 @@ function setBytes(key: string, value: Uint8Array) {
 function getBytes(key: string): Uint8Array | null {
   const value = window.localStorage.getItem(key);
   if (value === null) return null;
-  try {
-    return toByteArray(value);
-  } catch (err) {
-    console.error(
-      `localStorage value ${JSON.stringify(
-        value
-      )} at ${key} is not base64: ${err}`
-    );
-    return null;
-  }
+  return toByteArray(value);
 }
 
 /**
@@ -74,25 +65,23 @@ type Doc = AbstractDoc | CRuntime;
   like a database transaction log.
   Each update is stored immediately.
   Occasionally we trigger a checkpoint, which replaces all the uncompacted
-  updates with a single saved state; this is smaller
+  updates (& previous checkpoint) with a single saved state; this is smaller
   and loads faster than the raw update log.
   
   Checkpoints are stored under "<ourPrefix>.savedState<saveCounter>", where:
-  - <ourPrefix> is a localStorage key prefix specific to the docID & session (doc.replicaID).
+  - <ourPrefix> is a localStorage key prefix specific to the docID & session/doc.replicaID.
   - <saveCounter> is a counter for own checkpoints, used to
   ensure that each key is unique.
 
   Update storage:
   - Messages are stored under "<docPrefix>.message<trID>", where:
     - <docPrefix> is a localStorage key prefix specific to the 
-    docID but *not* the session. So tabs with the same docID open
+    docID but *not* the session. So tabs using the same docID
     share storage.
     - <trID> is a
   dot-escaped representation of the message's trID.
   - Saved states from updates are not stored incrementally; instead, they trigger
   an immediate checkpoint.
-
-  DocInfo.uncompactedKeys stores the uncompacted updates' keys.
 
   All values are immutable (only set to a single value - though possibly
   multiple times from different tabs). Thus it is safe to delete a key
@@ -123,55 +112,99 @@ interface DocInfo {
 
 export interface LocalStorageDocStoreEventsRecord {
   /**
-   * Emitted after all of doc's local changes are confirmed saved to localStorage.
+   * Emitted after doc's current state is confirmed saved to localStorage.
    */
   Save: { doc: AbstractDoc | CRuntime; docID: string };
   /**
    * Emitted after doc loads the store's current state.
    */
   Load: { doc: AbstractDoc | CRuntime; docID: string };
+  /**
+   * Emitted when localStorage emits an error, e.g., because it is out of space.
+   */
   Error: { err: unknown };
 }
 
 // Doc limits: LocalStorage limits; failures (event for it);
 // O(n) subscribe/op loops; temp 2x storage in checkpoints (single doc only).
-// Internal docs: format as update log + "checkpoints" (savedStates).
+
+/**
+ * Stores updates to Collabs documents in localStorage.
+ *
+ * To load existing state into a document (if any) and store future updates
+ * to that document, call [[subscribe]]. You will need to supply a `docID`
+ * that identifies which stored state to use.
+ *
+ * This class is designed to work seamlessly with other sources of updates,
+ * such as [@collabs/ws-client](https://www.npmjs.com/package/@collabs/ws-client).
+ * In particular, updates from those sources will be stored alongside local
+ * operations. TODO: exception: cross-tab stuff
+ *
+ * Warning: This class is subject to localStorage's small storage limit.
+ * Also, some methods (including [[subscribe]]) loop over all localStorage keys,
+ * which may be slow.
+ *
+ * See also: [@collabs/indexeddb](https://www.npmjs.com/package/@collabs/indexeddb),
+ * which stores updates in IndexedDB instead of localStorage.
+ */
 export class LocalStorageDocStore extends EventEmitter<LocalStorageDocStoreEventsRecord> {
+  /**
+   * The prefix for all of this class's localStorage keys,
+   * set in the constructor.
+   *
+   * Default: "@collabs/storage".
+   */
   readonly keyPrefix: string;
   private readonly keyPrefixDot: string;
-  private readonly suppressErrors: boolean;
 
   private subs = new Map<Doc, DocInfo>();
   private docsByID = new Map<string, Doc>();
 
-  constructor(
-    options: {
-      keyPrefix?: string;
-      // Doc: if true, won't let OOM errors propagate. Only do this if
-      // you have an Error event handler.
-      suppressErrors?: boolean;
-    } = {}
-  ) {
+  /**
+   * Constructs a LocalStorageDocStore.
+   *
+   * You typically only need one LocalStorageDocStore per app, since it
+   * can [[subscribe]] multiple documents.
+   *
+   * @param options.keyPrefix The prefix to use for all of this
+   * class's localStorage keys. Default: "@collabs/storage".
+   */
+  constructor(options: { keyPrefix?: string } = {}) {
     super();
 
     this.keyPrefix = options.keyPrefix ?? "@collabs/storage";
     this.keyPrefixDot = this.keyPrefix = ".";
-    this.suppressErrors = options.suppressErrors ?? false;
   }
 
-  // docPrefix: "@collabs/storage.<docID>"
+  /** docPrefix: "@collabs/storage.<docID>" */
   private getDocPrefix(docID: string): string {
     return this.keyPrefix + "." + escapeDots(docID);
   }
 
-  // ourPrefix: "@collabs/storage.<docID>.<replicaID>"
+  /** ourPrefix: "@collabs/storage.<docID>.<replicaID>" */
   private getOurPrefix(docID: string, doc: Doc) {
     return this.getDocPrefix(docID) + "." + escapeDots(doc.replicaID);
   }
 
-  // Note: if this errors due to bad format / version update,
-  // it will corrupt the doc. Need to design your doc's receive/load
-  // to tolerate those errors instead.
+  // Implicit (not documented): works well with other tabs, but won't
+  // actively load their stored states - only checks at time of subscribe.
+  // Also, multiple tabs will duplicate checkpoints, increasing localStorage usage.
+  /**
+   * Subscribes `doc` to updates stored under `docID`.
+   *
+   * All existing updates under `docID` will be loaded into `doc`
+   * asynchronously, emitting a "Load" event when finished (including
+   * if there are no existing updates).
+   *
+   * Also, all new updates to `doc` will be saved under `docID`,
+   * emitting a "Save" event whenever the stored state is up-to-date with `doc`.
+   * This includes both local operations and updates from other sources.
+   *
+   * @param doc The document to subscribe.
+   * @param docID An arbitrary string that identifies which stored state to use.
+   * @throws If `doc` is already subscribed to a docID.
+   * @throws If another doc is subscribed to `docID`.
+   */
   subscribe(doc: AbstractDoc | CRuntime, docID: string): void {
     if (this.subs.has(doc)) {
       throw new Error("doc is already subscribed to a docID");
@@ -213,18 +246,24 @@ export class LocalStorageDocStore extends EventEmitter<LocalStorageDocStoreEvent
         if (key !== null && key.startsWith(docPrefixDot)) {
           let lastDot = key.lastIndexOf(".");
           const suffix = key.slice(lastDot + 1);
-          if (suffix.startsWith("savedState")) {
-            const savedState = getBytes(key);
-            if (savedState !== null) {
-              savedStates.push(savedState);
-              info.currentUpdates.push(key);
+          try {
+            if (suffix.startsWith("savedState")) {
+              const savedState = getBytes(key);
+              if (savedState !== null) {
+                savedStates.push(savedState);
+                info.currentUpdates.push(key);
+              }
+            } else if (suffix.startsWith("message")) {
+              const message = getBytes(key);
+              if (message !== null) {
+                messages.push(message);
+                info.currentUpdates.push(key);
+              }
             }
-          } else if (suffix.startsWith("message")) {
-            const message = getBytes(key);
-            if (message !== null) {
-              messages.push(message);
-              info.currentUpdates.push(key);
-            }
+          } catch (err) {
+            // Problem with this value - e.g. not base64 formatted.
+            // Emit error and continue.
+            this.emit("Error", { err });
           }
         }
       }
@@ -257,14 +296,19 @@ export class LocalStorageDocStore extends EventEmitter<LocalStorageDocStoreEvent
     }, 0);
   }
 
+  /**
+   * Unsubscribes `doc` from its subscribed `docID` (if any).
+   *
+   * Further updates to `doc` will not be saved.
+   */
   unsubscribe(doc: AbstractDoc | CRuntime) {
     const info = this.subs.get(doc);
     if (info === undefined) return;
 
-    if (info.off !== undefined) info.off();
     info.unsubscribed = true;
     this.subs.delete(doc);
     this.docsByID.delete(info.docID);
+    if (info.off !== undefined) info.off();
   }
 
   private onUpdate = (e: UpdateEvent, doc: Doc) => {
@@ -294,7 +338,6 @@ export class LocalStorageDocStore extends EventEmitter<LocalStorageDocStoreEvent
           setBytes(key, e.update);
         } catch (err) {
           this.emit("Error", { err });
-          if (!this.suppressErrors) throw err;
           return;
         }
         info.currentUpdates.push(key);
@@ -303,18 +346,21 @@ export class LocalStorageDocStore extends EventEmitter<LocalStorageDocStoreEvent
     } else {
       // Since savedState updates are usually rare and large, do a
       // checkpoint instead of storing it.
-      // Do it in a separate task because we are on the critical path.
+      // Do it in a separate task because we are on the critical path
+      // for local ops.
       setTimeout(() => this.checkpoint(doc, info), 0);
     }
   };
 
   private checkpoint(doc: Doc, info: DocInfo) {
+    if (info.unsubscribed) return;
+
     const checkpointKey = info.ourPrefix + ".savedState" + info.saveCounter;
+    const savedState = doc.save();
     try {
-      setBytes(checkpointKey, doc.save());
+      setBytes(checkpointKey, savedState);
     } catch (err) {
       this.emit("Error", { err });
-      if (!this.suppressErrors) throw err;
       return;
     }
 
@@ -333,6 +379,9 @@ export class LocalStorageDocStore extends EventEmitter<LocalStorageDocStoreEvent
     this.emit("Save", { doc, docID: info.docID });
   }
 
+  /**
+   * Deletes `docID` from localStorage.
+   */
   delete(docID: string): void {
     // localStorage doesn't like concurrent iter/delete, so wait
     // to delete until the end.
@@ -349,6 +398,9 @@ export class LocalStorageDocStore extends EventEmitter<LocalStorageDocStoreEvent
     for (const key of toDelete) window.localStorage.removeItem(key);
   }
 
+  /**
+   * Deletes all documents under [[keyPrefix]] from localStorage.
+   */
   clear(): void {
     // localStorage doesn't like concurrent iter/delete, so wait
     // to delete until the end.
@@ -364,7 +416,9 @@ export class LocalStorageDocStore extends EventEmitter<LocalStorageDocStoreEvent
     for (const key of toDelete) window.localStorage.removeItem(key);
   }
 
-  // All present docIDs.
+  /**
+   * Returns all `docID`s with updates stored under our [[keyPrefix]].
+   */
   docIDs(): Set<string> {
     const docIDs = new Set<string>();
     for (let i = 0; i < window.localStorage.length; i++) {
