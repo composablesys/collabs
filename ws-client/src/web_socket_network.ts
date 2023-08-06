@@ -12,9 +12,11 @@ import { UpdateType, stringToEnum } from "./update_type";
 
 type Doc = AbstractDoc | CRuntime;
 
+/** Events record for [[WebSocketNetwork]]. */
 export interface WebSocketNetworkEventsRecord {
   Connect: {};
   Disconnect: {
+    // Doc: disconnect includes this.close() call. close is for if the WS closes itself somehow (?).
     cause: "close" | "error" | "disconnect";
     wsEvent: CloseEvent | Event | null;
   };
@@ -49,6 +51,18 @@ export class WebSocketNetwork extends EventEmitter<WebSocketNetworkEventsRecord>
   /** Inverse map docID -> Doc. */
   private readonly docsByID = new Map<string, Doc>();
 
+  private closed = false;
+
+  /**
+   * Constructs a WebSocketNetwork
+   *
+   * You typically only need one WebSocketNetwork per app, since it
+   * can [[subscribe]] multiple documents.
+   *
+   * @param url The WebSocket url to connect to.
+   * @param options.connect Set to false to skip connecting automatically.
+   * If so, you will need to call [[connect]] later.
+   */
   constructor(readonly url: string, options: { connect?: boolean } = {}) {
     super();
 
@@ -60,6 +74,7 @@ export class WebSocketNetwork extends EventEmitter<WebSocketNetworkEventsRecord>
   // E.g. net.on("Disconnect", () => setTimeout(net.connect(), 2000))
   // will (repeatedly) try to reconnect after a disconnection.
   connect() {
+    if (this.closed) throw new Error("Already closed");
     if (this.connected) return;
 
     const ws = new WebSocket(this.url);
@@ -132,10 +147,10 @@ export class WebSocketNetwork extends EventEmitter<WebSocketNetworkEventsRecord>
   }
 
   subscribe(doc: AbstractDoc | CRuntime, docID: string) {
+    if (this.closed) throw new Error("Already closed");
     if (this.subs.has(doc)) {
       throw new Error("doc is already subscribed to a docID");
     }
-
     if (this.docsByID.has(docID)) {
       throw new Error("Unsupported: multiple docs with same docID");
     }
@@ -154,9 +169,9 @@ export class WebSocketNetwork extends EventEmitter<WebSocketNetworkEventsRecord>
     const info = this.subs.get(doc);
     if (info === undefined) return;
 
-    if (info.off !== undefined) info.off();
     this.subs.delete(doc);
     this.docsByID.delete(info.docID);
+    if (info.off !== undefined) info.off();
     this.sendInternal({ unsubscribe: { docID: info.docID } });
   }
 
@@ -234,7 +249,11 @@ export class WebSocketNetwork extends EventEmitter<WebSocketNetworkEventsRecord>
         if (e.caller === this) return;
         // Skip updates delivered by other tabs; they should be sending
         // their updates to the server themselves.
-        // TODO
+        if (
+          typeof e.caller === "object" &&
+          (<any>e.caller).isTabSyncNetwork === true
+        )
+          return;
 
         // OPT: if it's a saved state, only send the delta on top of our
         // old state to the server (skipping the delta computation if disconnected).
@@ -298,5 +317,22 @@ export class WebSocketNetwork extends EventEmitter<WebSocketNetworkEventsRecord>
         },
       });
     }
+  }
+
+  /**
+   * Closes our WebSocket and unsubscribes all documents.
+   *
+   * Future method calls will throw an error.
+   */
+  close() {
+    if (this.closed) return;
+
+    this.closed = true;
+
+    // Unsubscribe all docs.
+    for (const doc of this.subs.keys()) this.unsubscribe(doc);
+
+    // Close our WebSocket.
+    this.disconnect();
   }
 }

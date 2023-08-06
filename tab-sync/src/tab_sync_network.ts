@@ -1,278 +1,237 @@
-import { AbstractDoc, CRuntime, EventEmitter } from "@collabs/collabs";
-import { nonNull } from "@collabs/core";
+import { AbstractDoc, CRuntime, ReplicaIDs } from "@collabs/collabs";
+import { EventEmitter, nonNull } from "@collabs/core";
 
 type Doc = AbstractDoc | CRuntime;
 
-export interface TabSyncNetworkEventsRecord {
-  Connect: {};
-  Disconnect: {
-    // TODO: only keep relevant causes
-    cause: "close" | "error" | "disconnect";
-    wsEvent: CloseEvent | Event | null;
-  };
-}
-
 interface DocInfo {
   readonly docID: string;
-  localCounter: number;
   off?: () => void;
-  subscribeDenied?: true;
+  unsubscribed?: true;
 }
 
+type Message =
+  | {
+      type: "update";
+      docID: string;
+      updateType: "message" | "savedState";
+      update: Uint8Array;
+    }
+  | { type: "join"; senderID: string; docID: string; savedState: Uint8Array }
+  | {
+      type: "joinReply";
+      targetID: string;
+      docID: string;
+      savedState: Uint8Array;
+    };
+
+/** Events record for [[TabSyncNetwork]]. */
+export interface TabSyncNetworkEventsRecord {
+  /**
+   * Emitted when there is an error, e.g., we fail to parse a message.
+   */
+  Error: { err: unknown };
+}
+
+/**
+ * Syncs updates to Collabs documents across different tabs for the same origin,
+ * using BroadcastChannel.
+ *
+ * By default, this only forwards *local* operations to other tabs. Updates from other sources (e.g., a remote server via
+ * [@collabs/ws-client](https://www.npmjs.com/package/@collabs/ws-client))
+ * are not sent over the BroadcastChannel, since we expect that other tabs will
+ * get a copy from their own sources. You can override this with the `allUpdates`
+ * constructor option.
+ */
 export class TabSyncNetwork extends EventEmitter<TabSyncNetworkEventsRecord> {
-  private bc: BroadcastChannel | null = null;
+  /**
+   * The name of this class's BroadcastChannel,
+   * set in the constructor.
+   *
+   * Default: "@collabs/tab-sync".
+   */
+  readonly bcName: string;
+  private readonly allUpdates: boolean;
+
+  private readonly bc: BroadcastChannel;
+  /** A random senderID for this object. */
+  private readonly objID: string;
 
   private readonly subs = new Map<Doc, DocInfo>();
   /** Inverse map docID -> Doc. */
   private readonly docsByID = new Map<string, Doc>();
 
-  constructor(options: { connect?: boolean } = {}) {
+  private closed = false;
+
+  readonly isTabSyncNetwork = true;
+
+  /**
+   * Constructs a TabSyncNetwork.
+   *
+   * You typically only need one TabSyncNetwork per app, since it
+   * can [[subscribe]] multiple documents.
+   *
+   * @param options.bcName The name of the BroadcastChannel to use.
+   * Default: "@collabs/tab-sync".
+   * @param options.allUpdates Set to true to forward all doc updates over
+   * the BroadcastChannel, not just local operations.
+   */
+  constructor(options: { bcName?: string; allUpdates?: boolean } = {}) {
     super();
 
-    if (options.connect ?? true) this.connect();
-  }
+    this.bcName = options.bcName ?? "@collabs/tab-sync";
+    this.allUpdates = options.allUpdates ?? false;
+    this.objID = ReplicaIDs.random();
 
-  // Doc: may call multiple times, e.g., reconnecting.
-  // Okay to call if already connected.
-  // E.g. net.on("Disconnect", () => setTimeout(net.connect(), 2000))
-  // will (repeatedly) try to reconnect after a disconnection. (TODO: is disconnect possible?)
-  connect() {
-    if (this.connected) return;
-
-    const bc = new BroadcastChannel(TODO);
-    this.bc = bc;
-    bc.addEventListener("open", () => {
-      if (bc !== this.bc) return;
-
-      // (Re-) subscribe to all docIDs.
-      if (this.docsByID.size !== 0) {
-        this.sendInternal({
-          subscribe: {
-            docIDs: [...this.docsByID.keys()],
-          },
-        });
-      }
-
-      // Emit event.
-      this.emit("Connect", {});
-    });
-    bc.addEventListener("message", (e) =>
-      this.wsReceive(e.data as ArrayBuffer)
+    this.bc = new BroadcastChannel(this.bcName);
+    this.bc.addEventListener("message", (e) =>
+      this.bcReceive(e.data as Message)
     );
-    bc.addEventListener("close", (e) => this.wsDisconnect(bc, "close", e));
-    bc.addEventListener("error", (e) => this.wsDisconnect(bc, "error", e));
+    this.bc.addEventListener("messageerror", (e) =>
+      this.emit("Error", { err: e })
+    );
   }
 
-  private wsDisconnect(
-    caller: TabSync,
-    cause: "close" | "error",
-    e: CloseEvent | Event
-  ) {
-    if (caller !== this.bc) return;
-
-    this.bc = null;
-
-    this.emit("Disconnect", { cause, wsEvent: e });
-  }
-
-  // Doc: Can call this and later reconnect.
-  disconnect() {
-    this.bc?.close();
-
-    // Note that changing this.ws right away will cause wsDisconnect to
-    // ignore the TabSync close event, which is dispatched async.
-    // We instead emit our own Disconnect event.
-    this.bc = null;
-
-    this.emit("Disconnect", { cause: "disconnect", wsEvent: null });
-  }
-
-  // Whether we have an active WS connection (connect was called, and we
-  // haven't had disconnect() or WS close/error). Note that the WS connection
-  // might not be ready (OPEN) yet.
-  get connected(): boolean {
-    return this.bc !== null;
+  private sendInternal(message: Message) {
+    this.bc.postMessage(message);
   }
 
   /**
-   * Sends the given message if the connection is open.
+   * Subscribes `doc` to updates for `docID`.
    *
-   * We do not guarantee eventual receipt - if the server is not open,
-   * or if sending fails, the message will not reach the server.
-   * So make sure to re-do message's effect on open.
+   * `doc` will send and receive updates with other tabs
+   * that are subscribed to `docID`. It will also sync initial states with
+   * other tabs, to ensure that they start up-to-date.
+   *
+   * @param doc The document to subscribe.
+   * @param docID An arbitrary string that identifies which updates to use.
+   * @throws If `doc` is already subscribed to a docID.
+   * @throws If another doc is subscribed to `docID`.
    */
-  private sendInternal(message: IWSMessage) {
-    if (this.bc != null && this.bc.readyState == TabSync.OPEN) {
-      this.bc.send(WSMessage.encode(message).finish());
-    }
-  }
-
   subscribe(doc: AbstractDoc | CRuntime, docID: string) {
+    if (this.closed) throw new Error("Already closed");
     if (this.subs.has(doc)) {
       throw new Error("doc is already subscribed to a docID");
     }
-
     if (this.docsByID.has(docID)) {
       throw new Error("Unsupported: multiple docs with same docID");
     }
 
-    // TODO: if you unsub & re-sub to a doc, old acks might trick you
-    // into thinking you're up-to-date.
-    this.subs.set(doc, { docID, localCounter: 0 });
+    const info: DocInfo = { docID };
+    this.subs.set(doc, { docID });
     this.docsByID.set(docID, doc);
-    this.sendInternal({ subscribe: { docIDs: [docID] } });
 
-    // Wait to subscribe to doc updates until after the first time
-    // we send our whole state (on Welcome).
+    // Call save() in a separate task, to match other networks
+    // (in particular, they don't block for long during subscribe()).
+    setTimeout(() => {
+      if (info.unsubscribed) return;
+
+      // Broadcast our current state.
+      this.sendInternal({
+        type: "join",
+        senderID: this.objID,
+        docID,
+        savedState: doc.save(),
+      });
+      // Subscribe to future updates.
+      info.off = doc.on("Update", (e) => {
+        // Skip updates that we delivered.
+        if (e.caller === this) return;
+
+        // Skip non-local updates unless allUpdates is true.
+        if (!(this.allUpdates || e.isLocalOp)) return;
+
+        this.sendInternal({
+          type: "update",
+          docID,
+          updateType: e.updateType,
+          update: e.update,
+        });
+      });
+    }, 0);
   }
 
+  /**
+   * Unsubscribes `doc` from its subscribed `docID` (if any).
+   *
+   * `doc` will no longer send or receive updates with other tabs.
+   */
   unsubscribe(doc: AbstractDoc | CRuntime) {
     const info = this.subs.get(doc);
     if (info === undefined) return;
 
-    if (info.off !== undefined) info.off();
+    info.unsubscribed = true;
     this.subs.delete(doc);
     this.docsByID.delete(info.docID);
-    this.sendInternal({ unsubscribe: { docID: info.docID } });
+    if (info.off !== undefined) info.off();
   }
 
-  private wsReceive(encoded: ArrayBuffer) {
-    const message = WSMessage.decode(new Uint8Array(encoded));
+  private bcReceive(message: Message) {
+    const doc = this.docsByID.get(message.docID);
+    if (doc === undefined) return;
+    const info = nonNull(this.subs.get(doc));
+
     switch (message.type) {
-      case "welcome":
-        this.onWelcome(message.welcome as Welcome);
-        break;
-      case "subscribeDenied":
-        this.onSubscribeDenied(message.subscribeDenied as SubscribeDenied);
-        break;
-      case "receive":
-        this.onReceive(message.receive as Receive);
-        break;
-      case "ack": {
-        this.onAck(message.ack as Ack);
-        break;
-      }
-      default:
-        throw new Error(
-          "Unexpected TabSyncNetwork message type: " + message.type
-        );
-    }
-  }
-
-  private onWelcome(message: Welcome): void {
-    const doc = this.docsByID.get(message.docID);
-    if (doc === undefined) return;
-    const info = nonNull(this.subs.get(doc));
-
-    const ourOldState = doc.save();
-
-    // Make us up-to-date with the server:
-    //   1. Load the welcome state.
-    if (protobufHas(message, "savedState")) {
-      doc.load(message.savedState, this);
-    }
-    //   2. Load the further updates.
-    for (let i = 0; i < message.updates.length; i++) {
-      const update = message.updates[i];
-      const updateType = message.updateTypes[i];
-      switch (updateType) {
-        case UpdateType.Message:
-          doc.receive(update, this);
-          break;
-        case UpdateType.SavedState:
-          doc.load(update, this);
-          break;
-        default:
-          throw new Error("Unrecognized UpdateType: " + updateType);
-      }
-    }
-
-    this.emit("Load", { doc, docID: message.docID });
-
-    // Make the server up-to-date with us.
-    // OPT: use a delta on top of ourOldState instead.
-    this.sendInternal({
-      send: {
-        docID: message.docID,
-        update: ourOldState,
-        updateType: UpdateType.SavedState,
-        localCounter: ++info.localCounter,
-      },
-    });
-
-    if (info.off === undefined) {
-      // Subscribe to future doc updates and forward them to the server.
-      // This includes both local operations and updates that we learn
-      // of from other network/storage tools.
-      const docID = message.docID;
-      info.off = doc.on("Update", (e) => {
-        // Skip updates that we delivered.
-        if (e.caller === this) return;
-        // Skip updates delivered by other tabs; they should be sending
-        // their updates to the server themselves.
-        // TODO
-
-        // OPT: if it's a saved state, only send the delta on top of our
-        // old state to the server (skipping the delta computation if disconnected).
+      case "join":
+        // Reply with our state.
+        // OPT: use a delta on top of the peer's state instead.
         this.sendInternal({
-          send: {
-            docID,
-            update: e.update,
-            updateType: stringToEnum(e.updateType),
-            localCounter: ++info.localCounter,
-          },
-        });
-      });
-    }
-  }
-
-  private onSubscribeDenied(message: SubscribeDenied): void {
-    const doc = this.docsByID.get(message.docID);
-    if (doc === undefined) return;
-    const info = nonNull(this.subs.get(doc));
-
-    if (info.subscribeDenied === undefined) {
-      // First we've heard of it.
-      this.emit("SubscribeDenied", { doc, docID: message.docID });
-      // If the server disconnects and reconnects, don't emit another event.
-      info.subscribeDenied = true;
-    }
-  }
-
-  private onReceive(message: Receive): void {
-    const doc = this.docsByID.get(message.docID);
-    if (doc === undefined) return;
-
-    // Note: we might get this update before the room Welcome.
-    // That is fine; if the update causally depends on existing state,
-    // doc will buffer it.
-    if (message.updateType === UpdateType.Message)
-      doc.receive(message.update, this);
-    else doc.load(message.update, this);
-  }
-
-  private onAck(message: Ack): void {
-    const doc = this.docsByID.get(message.docID);
-    if (doc === undefined) return;
-    const info = nonNull(this.subs.get(doc));
-
-    if (message.localCounter === info.localCounter) {
-      // The ack'd update is the last one we sent to the server.
-      // So doc's state is now completely saved.
-      this.emit("Save", { doc, docID: message.docID });
-    }
-
-    if (protobufHas(message, "checkpointRequest")) {
-      // The server requests that we send our current saved state.
-      // It will use this as a "checkpoint", replacing its message log
-      // (up to the point that we've saved).
-      this.sendInternal({
-        checkpointResponse: {
+          type: "joinReply",
+          targetID: message.senderID,
           docID: message.docID,
           savedState: doc.save(),
-          checkpointRequest: message.checkpointRequest,
-        },
-      });
+        });
+        // Merge the new peer's state into ours.
+        // Do it in a separate task to avoid blocking for too long.
+        setTimeout(() => {
+          if (info.unsubscribed) return;
+          doc.load(message.savedState);
+        });
+        break;
+
+      case "joinReply":
+        if (message.targetID !== this.objID) return;
+
+        // Merge the peer's state into ours.
+        doc.load(message.savedState);
+        break;
+
+      case "update":
+        // Apply the update.
+        switch (message.updateType) {
+          case "message":
+            doc.receive(message.update);
+            break;
+          case "savedState":
+            doc.load(message.update);
+            break;
+          default:
+            this.emit("Error", {
+              err: `Unrecognized message.updateType ${message.updateType} on ${message}`,
+            });
+        }
+        break;
+
+      default:
+        this.emit("Error", {
+          err: `Unrecognized message.type ${(<any>message).type} on ${message}`,
+        });
     }
+  }
+
+  /**
+   * Closes our BroadcastChannel and unsubscribes all documents.
+   *
+   * Future [[subscribe]] calls will throw an error.
+   */
+  close() {
+    if (this.closed) return;
+
+    this.closed = true;
+
+    // Unsubscribe all docs.
+    for (const doc of this.subs.keys()) this.unsubscribe(doc);
+
+    // Close our BroadcastChannel.
+    this.bc.close();
   }
 }

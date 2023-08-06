@@ -68,6 +68,7 @@ interface DocInfo {
   unsubscribed?: true;
 }
 
+/** Events record for [[IndexedDBDocStore]]. */
 export interface IndexedDBDocStoreEventsRecord {
   /**
    * Emitted after doc's current state is confirmed saved to IndexedDB.
@@ -93,7 +94,10 @@ export interface IndexedDBDocStoreEventsRecord {
  * This class is designed to work seamlessly with other sources of updates,
  * such as [@collabs/ws-client](https://www.npmjs.com/package/@collabs/ws-client).
  * In particular, updates from those sources will be stored alongside local
- * operations. TODO: exception: cross-tab stuff
+ * operations.
+ * - Exception: Updates from other tabs via
+ * [@collabs/tab-sync](https://www.npmjs.com/package/@collabs/tab-sync) are not
+ * saved, since the source tab should save them.
  *
  * See also: [@collabs/local-storage](https://www.npmjs.com/package/@collabs/local-storage),
  * which stores updates in localStorage instead of IndexedDB.
@@ -103,7 +107,7 @@ export class IndexedDBDocStore extends EventEmitter<IndexedDBDocStoreEventsRecor
    * The name of this class's IndexedDB database,
    * set in the constructor.
    *
-   * Default: "@collabs/storage".
+   * Default: "@collabs/indexeddb".
    */
   readonly dbName: string;
 
@@ -113,6 +117,8 @@ export class IndexedDBDocStore extends EventEmitter<IndexedDBDocStoreEventsRecor
   private subs = new Map<Doc, DocInfo>();
   private docsByID = new Map<string, Doc>();
 
+  private closed = false;
+
   /**
    * Constructs an IndexedDBDocStore.
    *
@@ -120,12 +126,12 @@ export class IndexedDBDocStore extends EventEmitter<IndexedDBDocStoreEventsRecor
    * can [[subscribe]] multiple documents.
    *
    * @param options.dbName The name of the database to use.
-   * Default: "@collabs/storage".
+   * Default: "@collabs/indexeddb".
    */
   constructor(options: { dbName?: string } = {}) {
     super();
 
-    this.dbName = options.dbName ?? "@collabs/storage";
+    this.dbName = options.dbName ?? "@collabs/indexeddb";
 
     this.dbPromise = new Promise<IDBDatabase>((resolve, reject) => {
       const openRequest = indexedDB.open(this.dbName, 1);
@@ -146,24 +152,6 @@ export class IndexedDBDocStore extends EventEmitter<IndexedDBDocStoreEventsRecor
         reject(event);
       };
     });
-  }
-
-  /**
-   * Closes our IndexedDB database connection.
-   *
-   * Any future methods calls or updates to subscribed docs will cause errors.
-   */
-  close() {
-    void (async () => {
-      try {
-        const db = await this.dbPromise;
-        db.close();
-      } catch (err) {
-        // The error is already sent to onError; no need to send it again
-        // or let the unhandled error spam the console.
-        return;
-      }
-    })();
   }
 
   private onError = (err: Event) => {
@@ -203,10 +191,10 @@ export class IndexedDBDocStore extends EventEmitter<IndexedDBDocStoreEventsRecor
    * @throws If another doc is subscribed to `docID`.
    */
   subscribe(doc: AbstractDoc | CRuntime, docID: string): void {
+    if (this.closed) throw new Error("Already closed");
     if (this.subs.has(doc)) {
       throw new Error("doc is already subscribed to a docID");
     }
-
     if (this.docsByID.has(docID)) {
       throw new Error("Unsupported: multiple docs with same docID");
     }
@@ -221,7 +209,7 @@ export class IndexedDBDocStore extends EventEmitter<IndexedDBDocStoreEventsRecor
     this.docsByID.set(docID, doc);
 
     // Load existing state into the doc and subscribe to future
-    // changes, asynchronously.
+    // updates, asynchronously.
     void this.subscribeAsync(doc, docID, info);
   }
 
@@ -318,7 +306,11 @@ export class IndexedDBDocStore extends EventEmitter<IndexedDBDocStoreEventsRecor
     if (e.caller === this) return;
     // Skip updates delivered by other tabs; they should be storing
     // their own updates themselves.
-    // TODO
+    if (
+      typeof e.caller === "object" &&
+      (<any>e.caller).isTabSyncNetwork === true
+    )
+      return;
 
     const info = this.subs.get(doc);
     if (info === undefined) return;
@@ -399,9 +391,37 @@ export class IndexedDBDocStore extends EventEmitter<IndexedDBDocStoreEventsRecor
   }
 
   /**
+   * Closes our IndexedDB database connection and unsubscribes all documents.
+   *
+   * Future method calls will throw an error.
+   */
+  close() {
+    if (this.closed) return;
+
+    this.closed = true;
+
+    // Unsubscribe all docs.
+    for (const doc of this.subs.keys()) this.unsubscribe(doc);
+
+    // Close our DB connection.
+    void (async () => {
+      try {
+        const db = await this.dbPromise;
+        db.close();
+      } catch (err) {
+        // The error is already sent to onError; no need to send it again
+        // or let the unhandled error spam the console.
+        return;
+      }
+    })();
+  }
+
+  /**
    * Deletes `docID` from localStorage.
    */
   async delete(docID: string): Promise<void> {
+    if (this.closed) throw new Error("Already closed");
+
     const db = await this.dbPromise;
     const tr = db.transaction([objectStoreName], "readwrite");
     const objectStore = tr.objectStore(objectStoreName);
@@ -432,6 +452,8 @@ export class IndexedDBDocStore extends EventEmitter<IndexedDBDocStoreEventsRecor
    * Deletes all documents in our database.
    */
   async clear(): Promise<void> {
+    if (this.closed) throw new Error("Already closed");
+
     const db = await this.dbPromise;
     const tr = db.transaction([objectStoreName], "readwrite");
     const objectStore = tr.objectStore(objectStoreName);
@@ -448,6 +470,8 @@ export class IndexedDBDocStore extends EventEmitter<IndexedDBDocStoreEventsRecor
    * Returns all `docID`s with updates stored in our database.
    */
   async docIDs(): Promise<Set<string>> {
+    if (this.closed) throw new Error("Already closed");
+
     const db = await this.dbPromise;
     const tr = db.transaction([objectStoreName], "readonly");
     const objectStore = tr.objectStore(objectStoreName);

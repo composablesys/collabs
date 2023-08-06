@@ -123,6 +123,11 @@ export type UpdateEvent =
            * - `redundant.get(senderID) < senderCounter <= vectorClock.get(senderID)`.
            */
           redundant: Map<string, number>;
+          /**
+           * Whether the message is for a local transaction, i.e., it results
+           * from calling [[Collab]] methods on this replica.
+           */
+          isLocalOp: false;
         }
     );
 
@@ -624,6 +629,7 @@ export class CRuntime
         updateType: "savedState",
         vectorClock,
         redundant,
+        isLocalOp: false,
       });
 
       this.buffer.check();

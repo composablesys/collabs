@@ -110,6 +110,7 @@ interface DocInfo {
   unsubscribed?: true;
 }
 
+/** Events record for [[LocalStorageDocStore]]. */
 export interface LocalStorageDocStoreEventsRecord {
   /**
    * Emitted after doc's current state is confirmed saved to localStorage.
@@ -125,9 +126,6 @@ export interface LocalStorageDocStoreEventsRecord {
   Error: { err: unknown };
 }
 
-// Doc limits: LocalStorage limits; failures (event for it);
-// O(n) subscribe/op loops; temp 2x storage in checkpoints (single doc only).
-
 /**
  * Stores updates to Collabs documents in localStorage.
  *
@@ -138,7 +136,10 @@ export interface LocalStorageDocStoreEventsRecord {
  * This class is designed to work seamlessly with other sources of updates,
  * such as [@collabs/ws-client](https://www.npmjs.com/package/@collabs/ws-client).
  * In particular, updates from those sources will be stored alongside local
- * operations. TODO: exception: cross-tab stuff
+ * operations.
+ * - Exception: Updates from other tabs via
+ * [@collabs/tab-sync](https://www.npmjs.com/package/@collabs/tab-sync) are not
+ * saved, since the source tab should save them.
  *
  * Warning: This class is subject to localStorage's small storage limit.
  * Also, some methods (including [[subscribe]]) loop over all localStorage keys,
@@ -152,13 +153,15 @@ export class LocalStorageDocStore extends EventEmitter<LocalStorageDocStoreEvent
    * The prefix for all of this class's localStorage keys,
    * set in the constructor.
    *
-   * Default: "@collabs/storage".
+   * Default: "@collabs/local-storage".
    */
   readonly keyPrefix: string;
   private readonly keyPrefixDot: string;
 
   private subs = new Map<Doc, DocInfo>();
   private docsByID = new Map<string, Doc>();
+
+  private closed = false;
 
   /**
    * Constructs a LocalStorageDocStore.
@@ -167,21 +170,21 @@ export class LocalStorageDocStore extends EventEmitter<LocalStorageDocStoreEvent
    * can [[subscribe]] multiple documents.
    *
    * @param options.keyPrefix The prefix to use for all of this
-   * class's localStorage keys. Default: "@collabs/storage".
+   * class's localStorage keys. Default: "@collabs/local-storage".
    */
   constructor(options: { keyPrefix?: string } = {}) {
     super();
 
-    this.keyPrefix = options.keyPrefix ?? "@collabs/storage";
+    this.keyPrefix = options.keyPrefix ?? "@collabs/local-storage";
     this.keyPrefixDot = this.keyPrefix = ".";
   }
 
-  /** docPrefix: "@collabs/storage.<docID>" */
+  /** docPrefix: "<keyPrefix>.<docID>" */
   private getDocPrefix(docID: string): string {
     return this.keyPrefix + "." + escapeDots(docID);
   }
 
-  /** ourPrefix: "@collabs/storage.<docID>.<replicaID>" */
+  /** ourPrefix: "<keyPrefix>.<docID>.<replicaID>" */
   private getOurPrefix(docID: string, doc: Doc) {
     return this.getDocPrefix(docID) + "." + escapeDots(doc.replicaID);
   }
@@ -206,6 +209,7 @@ export class LocalStorageDocStore extends EventEmitter<LocalStorageDocStoreEvent
    * @throws If another doc is subscribed to `docID`.
    */
   subscribe(doc: AbstractDoc | CRuntime, docID: string): void {
+    if (this.closed) throw new Error("Already closed");
     if (this.subs.has(doc)) {
       throw new Error("doc is already subscribed to a docID");
     }
@@ -316,7 +320,11 @@ export class LocalStorageDocStore extends EventEmitter<LocalStorageDocStoreEvent
     if (e.caller === this) return;
     // Skip updates delivered by other tabs; they should be storing
     // their own updates themselves.
-    // TODO
+    if (
+      typeof e.caller === "object" &&
+      (<any>e.caller).isTabSyncNetwork === true
+    )
+      return;
 
     const info = this.subs.get(doc);
     if (info === undefined) return;
@@ -377,6 +385,20 @@ export class LocalStorageDocStore extends EventEmitter<LocalStorageDocStoreEvent
     info.lastCheckpointTime = Date.now();
 
     this.emit("Save", { doc, docID: info.docID });
+  }
+
+  /**
+   * Unsubscribes all documents.
+   *
+   * Future [[subscribe]] calls will throw an error.
+   */
+  close() {
+    if (this.closed) return;
+
+    this.closed = true;
+
+    // Unsubscribe all docs.
+    for (const doc of this.subs.keys()) this.unsubscribe(doc);
   }
 
   /**
