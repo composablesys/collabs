@@ -1,5 +1,4 @@
 import { CRuntime, CValueMap, MultiValueMapItem } from "@collabs/collabs";
-import { LocalStorageDocStore } from "@collabs/local-storage";
 import { WebSocketNetwork } from "@collabs/ws-client";
 import $ from "jquery";
 
@@ -164,14 +163,10 @@ wsNetwork.on("Disconnect", (e) => {
 });
 wsNetwork.subscribe(doc, docID);
 
-// Change to true to store a copy of the doc locally in IndexedDB.
-// We disable this for our demos because the server frequently resets
-// the doc's state. Disabling is also useful during development.
-if (false) {
-  // TODO: change to IndexedDB.
-  const docStore = new LocalStorageDocStore();
-  docStore.subscribe(doc, docID);
-}
+// In a real app, you would probably also add on-device storage
+// (@collabs/indexeddb or @collabs/local-storage)
+// and cross-tab sync (@collabs/tab-sync).
+// See the [Guide](TODO) for an example.
 
 // --- "Connected" checkbox for testing concurrency ---
 

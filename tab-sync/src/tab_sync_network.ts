@@ -126,6 +126,8 @@ export class TabSyncNetwork extends EventEmitter<TabSyncNetworkEventsRecord> {
       if (info.unsubscribed) return;
 
       // Broadcast our current state.
+      // We will get a reply from each other peer with their current
+      // state, bringing us up-to-date.
       this.sendInternal({
         type: "join",
         senderID: this.objID,
@@ -147,6 +149,10 @@ export class TabSyncNetwork extends EventEmitter<TabSyncNetworkEventsRecord> {
           update: e.update,
         });
       });
+
+      // Note: the above pattern (initial state-based sync followed by
+      // update forwarding) is a good strategy for peer-to-peer
+      // networks in general.
     }, 0);
   }
 
