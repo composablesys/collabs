@@ -1,0 +1,18 @@
+message ValueListInsertMessage {
+  // The created positions' waypoint's counter.
+  required uint32 counter = 1;
+  // The first created position's valueIndex.
+  optional uint32 valueIndex = 2 [default = 0];
+  oneof data {
+    bytes value = 3;
+    bytes valueArray = 4;
+  }
+}
+
+message ValueListMessage {
+  oneof op {
+    ValueListInsertMessage insert = 1;
+    // The deleted Position.
+    string delete = 2;
+  }
+}

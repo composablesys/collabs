@@ -15,6 +15,7 @@ export interface MessengerEvent<M> extends CollabEvent {
    * The received message.
    */
   message: M;
+  meta: MessageMeta;
 }
 
 /**
