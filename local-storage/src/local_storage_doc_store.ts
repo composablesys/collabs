@@ -1,5 +1,9 @@
-import { AbstractDoc, CRuntime, EventEmitter } from "@collabs/collabs";
-import { UpdateEvent } from "@collabs/crdts";
+import {
+  AbstractDoc,
+  CRuntime,
+  EventEmitter,
+  UpdateEvent,
+} from "@collabs/collabs";
 import { fromByteArray, toByteArray } from "base64-js";
 
 /** How many updates before we consider a checkpoint. */
@@ -193,16 +197,17 @@ export class LocalStorageDocStore extends EventEmitter<LocalStorageDocStoreEvent
     this.subs.set(doc, info);
     this.docsByID.set(docID, doc);
 
-    // 2. Load existing state into the doc.
-    // Do it in a separate task to match other doc stores
-    // (e.g., in case you add Transaction listeners after calling subscribe).
+    // 2. Read existing state from localStorage.
+    // Do this (& especially step 3) in a separate task to match
+    // other doc stores' behaviors:
+    // - Subscribe returns quickly.
+    // - Update listeners added later in the same task see our updates.
     setTimeout(() => {
       // Skip if we've been unsubscribed already.
       if (info.unsubscribed) return;
 
       const savedStates: Uint8Array[] = [];
       const messages: Uint8Array[] = [];
-      const loadedKeys: string[] = [];
       for (let i = 0; i < window.localStorage.length; i++) {
         const key = window.localStorage.key(i);
         if (key !== null && key.startsWith(docPrefixDot)) {
@@ -212,17 +217,19 @@ export class LocalStorageDocStore extends EventEmitter<LocalStorageDocStoreEvent
             const savedState = getBytes(key);
             if (savedState !== null) {
               savedStates.push(savedState);
-              loadedKeys.push(key);
+              info.currentUpdates.push(key);
             }
           } else if (suffix.startsWith("message")) {
             const message = getBytes(key);
             if (message !== null) {
               messages.push(message);
-              loadedKeys.push(key);
+              info.currentUpdates.push(key);
             }
           }
         }
       }
+
+      // 3. Load the updates into doc.
 
       // Load saved states first, to reduce causal buffering of updates.
       for (const savedState of savedStates) {
@@ -233,18 +240,19 @@ export class LocalStorageDocStore extends EventEmitter<LocalStorageDocStoreEvent
       }
       this.emit("Load", { doc, docID });
 
-      // 3. Store doc's current state and delete the loadedKeys that it incorporates.
-      // Do it in a separate task to avoid blocking for too long.
+      // Do the next part's save() in a separate task to avoid blocking
+      // for too long.
       setTimeout(() => {
         // Skip if we've been unsubscribed already.
         if (info.unsubscribed) return;
 
-        // Just before calling doc.save() (in checkpoint), add a listener for
+        // 3. Just before calling doc.save() (in checkpoint), add a listener for
         // future updates to the doc - local or received from other sources.
         info.off = doc.on("Update", this.onUpdate);
 
+        // 4. Save the loaded state as a checkpoint.
+        // That will also deleted the loaded keys (info.currentUpdates).
         this.checkpoint(doc, info);
-        for (const key of loadedKeys) localStorage.removeItem(key);
       });
     }, 0);
   }
@@ -279,7 +287,7 @@ export class LocalStorageDocStore extends EventEmitter<LocalStorageDocStoreEvent
         // for local ops.
         setTimeout(() => this.checkpoint(doc, info), 0);
       } else {
-        // Append the update to the log.
+        // Append the message to the log.
         const trID = escapeDots(`${e.senderCounter},${e.senderID}`);
         const key = info.docPrefix + ".message" + trID;
         try {

@@ -1,6 +1,10 @@
-import { AbstractDoc, CRuntime, EventEmitter } from "@collabs/collabs";
+import {
+  AbstractDoc,
+  CRuntime,
+  EventEmitter,
+  UpdateEvent,
+} from "@collabs/collabs";
 import { nonNull } from "@collabs/core";
-import { UpdateEvent } from "@collabs/crdts";
 
 /** How many updates before we consider a checkpoint. */
 const updatesBeforeCheckpoint = 100;
@@ -11,17 +15,65 @@ const objectStoreName = "updates";
 
 type Doc = AbstractDoc | CRuntime;
 
-interface DocInfo {
+/*
+  # Storage format
+
+  Stored state is divided into "checkpoints" and "uncompacted updates",
+  like a database transaction log.
+  Each update is stored immediately.
+  Occasionally we trigger a checkpoint, which replaces all the uncompacted
+  updates with a single saved state; this is smaller
+  and loads faster than the raw update log.
+  
+  Checkpoints are stored as objects of the form
+  {
+    docID: string;
+    savedState: Uint8Array;
+  }
+  under an auto-generated primary key. We store our own last checkpoint's primary
+  key so we know to delete it at our next checkpoint.
+
+  Update storage:
+  - Messages are stored as objects of the form
+    {
+      docID: string;
+      message: Uint8Array;
+    }
+    under an auto-generated primary key.
+    We store all of our own messages' primary keys so we know to delete them
+    at our next checkpoint.
+  - Saved states from updates are not stored incrementally; instead, they trigger
+  an immediate checkpoint.
+
+  All values are immutable (a given primary key is 
+  only set once). Thus it is safe to delete a key
+  from a different tab; you don't have to worry about overwriting a
+  concurrent change.
+*/
+
+type ValueType = {
   docID: string;
-  /** The number of updates since our last checkpoint. */
-  uncompactedCount: number;
+  savedState?: Uint8Array;
+  message?: Uint8Array;
+};
+
+interface DocInfo {
+  readonly docID: string;
+  off?: () => void;
+  /**
+   * The keys of all of our saved and not-yet-deleted updates, including
+   * the last checkpoint.
+   *
+   * They will be deleted at our next checkpoint.
+   */
+  currentUpdates: Set<string>;
   lastCheckpointTime: number;
-  readonly off: () => void;
+  unsubscribed?: true;
 }
 
 export interface IndexedDBDocStoreEventsRecord {
   /**
-   * Emitted after all of doc's local changes are confirmed saved to the server.
+   * Emitted after all of doc's local changes are confirmed saved to IndexedDB.
    */
   Save: { doc: AbstractDoc | CRuntime; docID: string };
   /**
@@ -31,7 +83,6 @@ export interface IndexedDBDocStoreEventsRecord {
   Error: { event: Event };
 }
 
-// Internal docs: format as update log + "checkpoints" (savedStates).
 export class IndxedDBDocStore extends EventEmitter<IndexedDBDocStoreEventsRecord> {
   readonly dbName: string;
 
@@ -68,14 +119,11 @@ export class IndxedDBDocStore extends EventEmitter<IndexedDBDocStoreEventsRecord
         autoIncrement: true,
       });
       objectStore.createIndex("docID", "docID", { unique: false });
-      objectStore.createIndex("docID, replicaID", ["docID", "replicaID"], {
-        unique: false,
-      });
     };
     openRequest.onsuccess = () => {
       this.db = openRequest.result;
+      this.db.onerror = this.onError;
       dbResolve(openRequest.result);
-      openRequest.result.onerror = this.onError;
     };
   }
 
@@ -86,6 +134,18 @@ export class IndxedDBDocStore extends EventEmitter<IndexedDBDocStoreEventsRecord
   private onError = (event: Event) => {
     this.emit("Error", { event });
   };
+
+  /**
+   * Waits for tr to finish, returning whether it succeeded.
+   *
+   * Errors are suppressed (not thrown) since they are already reported to this.onError.
+   */
+  private trFinish(tr: IDBTransaction): Promise<boolean> {
+    return new Promise((resolve) => {
+      tr.oncomplete = () => resolve(true);
+      tr.onabort = () => resolve(false);
+    });
+  }
 
   // Note: if this errors due to bad format / version update,
   // it will corrupt the doc. Need to design your doc's receive/load
@@ -99,183 +159,218 @@ export class IndxedDBDocStore extends EventEmitter<IndexedDBDocStoreEventsRecord
       throw new Error("Unsupported: multiple docs with same docID");
     }
 
-    // 1. Immediately store future updates to the doc, local & remote.
-    // Occasional these trigger a "checkpoint" where we replace the updates
-    // (& previous savedState) with a new savedState.
-    const off = doc.on("Transaction", this.onTransaction);
+    // Store subscription info.
     const info: DocInfo = {
       docID,
-      uncompactedCount: 0,
+      currentUpdates: new Set(),
       lastCheckpointTime: 0,
-      off,
     };
-
-    // 2. Store subscription info.
     this.subs.set(doc, info);
     this.docsByID.set(docID, doc);
 
-    // 3. Load existing state into the doc.
+    // Load existing state into the doc and subscribe to future
+    // changes, asynchronously.
+    void this.subscribeAsync(doc, docID, info);
+  }
 
-    // TODO: remove setTimeouts, except around doc.save().
-    setTimeout(() => {
-      const savedStates: Uint8Array[] = [];
-      const updates: Uint8Array[] = [];
-      const loadedKeys: string[] = [];
-      for (let i = 0; i < window.localStorage.length; i++) {
-        const key = window.localStorage.key(i);
-        if (key !== null && key.startsWith(docPrefixDot)) {
-          let lastDot = key.lastIndexOf(".");
-          const suffix = key.slice(lastDot + 1);
-          if (suffix.startsWith("savedState")) {
-            const savedState = getBytes(key);
-            if (savedState !== null) {
-              savedStates.push(savedState);
-              loadedKeys.push(key);
-            }
-          } else if (suffix.startsWith("update")) {
-            const update = getBytes(key);
-            if (update !== null) {
-              updates.push(update);
-              loadedKeys.push(key);
-            }
-          }
-        }
-      }
+  private async subscribeAsync(
+    doc: Doc,
+    docID: string,
+    info: DocInfo
+  ): Promise<void> {
+    let db: IDBDatabase;
+    try {
+      db = await this.dbPromise;
+    } catch (err) {
+      // The error is already sent to onError; no need to send it again
+      // or let the unhandled error spam the console.
+      return;
+    }
 
-      // TODO: can we tell doc to group these into a single Change event?
-      // Yjs uses transact for that, but I found it confusing.
-      // I guess alt is to wait until Load event to display the state.
-      // Load saved states first, to avoid temp causal buffering of updates.
-      for (const savedState of savedStates) {
-        doc.load(savedState, this);
-      }
-      // TODO: sort updates by number within each user, so they start mostly causally ordered.
-      for (const update of updates) {
-        doc.receive(update, this);
-      }
+    // Skip if we've been unsubscribed already.
+    if (info.unsubscribed) return;
 
-      // Emit a Load event even if nothing was loaded, to signal that loading
-      // is done regardless.
-      this.emit("Load", { doc, docID });
+    // 1. Read existing state from IndexedDB.
+    const savedStates: Uint8Array[] = [];
+    const messages: Uint8Array[] = [];
+    {
+      const tr = db.transaction([objectStoreName], "readonly");
+      const objectStore = tr.objectStore(objectStoreName);
 
-      // 4. Store doc's current state and delete the loadedKeys that it incorporates.
-      // Do this in a separate transaction (hence task) to avoid blocking for too long.
-      // TODO: remove setTimeout.
-      setTimeout(() => {
-        // Skip saving if we happen to do so before the timeout.
-        if (info.saveCounter === 0) this.checkpoint(doc, info, db);
-        for (const key of loadedKeys) localStorage.removeItem(key);
-      });
-    });
+      const request = objectStore.index("docID").openCursor(docID, "next");
+      request.onsuccess = () => {
+        const cursor = request.result;
+        if (!cursor) return;
+
+        info.currentUpdates.add(cursor.primaryKey as string);
+        const value = cursor.value as ValueType;
+        if (value.savedState !== undefined) savedStates.push(value.savedState);
+        if (value.message !== undefined) messages.push(value.message);
+
+        cursor.continue();
+      };
+
+      if (!(await this.trFinish(tr))) return;
+    }
+    if (info.unsubscribed) return;
+
+    // 3. Load the updates into doc.
+
+    // Load saved states first, to reduce causal buffering of updates.
+    for (const savedState of savedStates) {
+      doc.load(savedState, this);
+    }
+    for (const message of messages) {
+      doc.receive(message, this);
+    }
+    this.emit("Load", { doc, docID });
+
+    // Do the next part's save() in a separate task to avoid blocking
+    // for too long.
+    await new Promise((resolve) => setTimeout(resolve, 0));
+    if (info.unsubscribed) return;
+
+    // 3. Just before calling doc.save() (in checkpoint), add a listener for
+    // future updates to the doc - local or received from other sources.
+    info.off = doc.on("Update", this.onUpdate);
+
+    // 4. Save the loaded state as a checkpoint.
+    // That will also deleted the loaded keys (info.currentUpdates).
+    await this.checkpoint(doc, info);
   }
 
   unsubscribe(doc: AbstractDoc | CRuntime) {
     const info = this.subs.get(doc);
     if (info === undefined) return;
 
-    info.off();
+    if (info.off !== undefined) info.off();
+    info.unsubscribed = true;
     this.subs.delete(doc);
     this.docsByID.delete(info.docID);
   }
 
-  private onTransaction = (e: UpdateEvent, doc: Doc) => {
+  private onUpdate = (e: UpdateEvent, doc: Doc) => {
+    // Skip updates that we delivered.
+    if (e.caller === this) return;
+    // Skip updates delivered by other tabs; they should be storing
+    // their own updates themselves.
+    // TODO
+
     const info = this.subs.get(doc);
     if (info === undefined) return;
 
-    // onTransaction is only registered after a doc is loaded (TODO), which requires
-    // this.db to be set.
-    const db = nonNull(this.db);
-
-    if (e.meta.updateType === "message") {
+    if (e.updateType === "message") {
       if (
-        info.uncompactedCount >= updatesBeforeCheckpoint &&
+        info.currentUpdates.size >= updatesBeforeCheckpoint &&
         Date.now() >= info.lastCheckpointTime + checkpointInterval
       ) {
         // Time for a checkpoint.
-        // Do it in a separate task because we are on the critical path.
-        setTimeout(() => this.checkpoint(doc, info, db), 0);
+        // Do it in a separate task because we are on the critical path
+        // for local ops.
+        setTimeout(() => void this.checkpoint(doc, info), 0);
       } else {
-        // Append the update.
-        setBytes(info.ourPrefix + ".update" + info.updateCounter, e.update);
-        info.updateCounter++;
-        this.emit("Save", { doc, docID: info.docID });
+        // Append the message to the log.
+        void this.appendMessage(doc, info, e.update);
       }
     } else {
       // Since savedState updates are usually rare and large, do a
       // checkpoint instead of storing it.
-      // That also lets us avoid distinguishing messages vs savedStates
-      // in the update log.
       // Do it in a separate task because we are on the critical path.
-      setTimeout(() => this.checkpoint(doc, info, db), 0);
+      setTimeout(() => void this.checkpoint(doc, info), 0);
     }
   };
 
-  private checkpoint(doc: Doc, info: DocInfo, db: IDBDatabase) {
-    setBytes(info.ourPrefix + ".savedState" + info.saveCounter, doc.save());
+  private async appendMessage(doc: Doc, info: DocInfo, message: Uint8Array) {
+    // We only register onUpdate after using db, so we don't need to
+    // await this.dbPromise.
+    const db = nonNull(this.db);
+    const tr = db.transaction([objectStoreName], "readonly");
+    const objectStore = tr.objectStore(objectStoreName);
 
-    // Delete dominated updates and the last checkpoint.
-    // Note: setting the savedState before deleting the old one effectively
-    // doubles our memory usage, which could overflow the storage space.
-    // But the alternative could lose data in a crash.
-    if (info.saveCounter !== 0) {
-      localStorage.removeItem(
-        info.ourPrefix + ".savedState" + (info.saveCounter - 1)
-      );
+    const request = objectStore.add({ docID: info.docID, message });
+
+    if (await this.trFinish(tr)) {
+      // Add the update's primary key to currentUpdates.
+      info.currentUpdates.add(request.result as string);
+      this.emit("Save", { doc, docID: info.docID });
     }
-    for (let i = info.lastSaveUpdates; i < info.updateCounter; i++) {
-      localStorage.removeItem(info.ourPrefix + ".update" + i);
-    }
-
-    info.saveCounter++;
-    info.lastSaveUpdates = info.updateCounter;
-    info.lastCheckpointTime = Date.now();
-
-    this.emit("Save", { doc, docID: info.docID });
   }
 
-  // Doc: If db open errored, will throw that error here
-  // (in addition to Error event, I think - check that all errors go
-  // there even if handled at request level).
+  private async checkpoint(doc: Doc, info: DocInfo) {
+    const db = nonNull(this.db);
+    const tr = db.transaction([objectStoreName], "readonly");
+    const objectStore = tr.objectStore(objectStoreName);
+
+    // The updates definitely included in the following doc.save() call.
+    const includedUpdates = [...info.currentUpdates];
+
+    const addRequest = objectStore.add({
+      docID: info.docID,
+      savedState: doc.save(),
+    });
+    // Delete includedUpdates, which have been incorporated into our new checkpoint.
+    // Since we do this in the save tr as addRequest, we don't
+    // have to worry about accidentally deleting these but failing to
+    // set the checkpoint.
+    for (const key of includedUpdates) {
+      objectStore.delete(key);
+    }
+
+    if (await this.trFinish(tr)) {
+      // In case of concurrent addUpdate/checkpoint calls, only delete the keys
+      // we definitely included, instead of resetting currentUpdates entirely.
+      for (const key of includedUpdates) info.currentUpdates.delete(key);
+      // Add the new checkpoint's primary key.
+      info.currentUpdates.add(addRequest.result as string);
+      info.lastCheckpointTime = Date.now();
+      this.emit("Save", { doc, docID: info.docID });
+    }
+  }
+
+  // Doc: If error, will throw that error here
+  // in addition to Error event.
   async delete(docID: string): Promise<void> {
     const db = await this.dbPromise;
-    const objectStore = db
-      .transaction([objectStoreName], "readwrite")
-      .objectStore(objectStoreName);
+    const tr = db.transaction([objectStoreName], "readwrite");
+    const objectStore = tr.objectStore(objectStoreName);
 
     const request = objectStore.index("docID").openKeyCursor(docID, "next");
-    return new Promise((resolve, reject) => {
+    await new Promise<void>((resolve, reject) => {
       request.onsuccess = () => {
         const cursor = request.result;
         if (!cursor) {
           resolve();
           return;
         }
+
         objectStore.delete(cursor.primaryKey);
         cursor.continue();
       };
       request.onerror = reject;
     });
+
+    if (!(await this.trFinish(tr))) {
+      throw nonNull(tr.error);
+    }
   }
 
   async clear(): Promise<void> {
     const db = await this.dbPromise;
-    const objectStore = db
-      .transaction([objectStoreName], "readwrite")
-      .objectStore(objectStoreName);
+    const tr = db.transaction([objectStoreName], "readwrite");
+    const objectStore = tr.objectStore(objectStoreName);
 
-    const request = objectStore.clear();
-    await new Promise<void>((resolve, reject) => {
-      request.onsuccess = () => resolve();
-      request.onerror = reject;
-    });
+    objectStore.clear();
+
+    if (!(await this.trFinish(tr))) {
+      throw nonNull(tr.error);
+    }
   }
 
   // All present docIDs.
   async docIDs(): Promise<Set<string>> {
     const db = await this.dbPromise;
-    const objectStore = db
-      .transaction([objectStoreName], "readonly")
-      .objectStore(objectStoreName);
+    const tr = db.transaction([objectStoreName], "readonly");
+    const objectStore = tr.objectStore(objectStoreName);
 
     const request = objectStore
       .index("docID")
@@ -288,10 +383,13 @@ export class IndxedDBDocStore extends EventEmitter<IndexedDBDocStoreEventsRecord
           resolve(results);
           return;
         }
+
         results.add(cursor.key as string);
         cursor.continue();
       };
       request.onerror = reject;
     });
+
+    // No need to await tr.complete since it's readonly.
   }
 }
