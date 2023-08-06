@@ -48,19 +48,22 @@ function makeInitialSave(): Uint8Array {
 }
 
 const doc = new CRuntime();
-
 const text = doc.registerCollab(
   "text",
   (init) => new CRichText(init, { noGrowAtEnd })
-);
-const presence = doc.registerCollab(
-  "presence",
-  (init) => new CPresence<PresenceState>(init)
 );
 // "Set the initial state"
 // (a single "\n", matching Quill's initial state) by
 // loading it from a separate doc.
 doc.load(makeInitialSave());
+
+// Store presence in a separate document so that its heartbeats
+// don't cause us to re-save the text doc, which could be large.
+const presenceDoc = new CRuntime();
+const presence = presenceDoc.registerCollab(
+  "presence",
+  (init) => new CPresence<PresenceState>(init)
+);
 
 const quill = new Quill("#editor", {
   theme: "snow",
@@ -208,21 +211,30 @@ presence.setOurs({ name, color, selection: null });
 
 const quillCursors = quill.getModule("cursors") as QuillCursors;
 function moveCursor(replicaID: string): void {
-  if (replicaID === doc.replicaID) return;
+  if (replicaID === presenceDoc.replicaID) return;
   const value = presence.get(replicaID);
   if (value === undefined) return;
   else if (value.selection === null) quillCursors.removeCursor(replicaID);
   else {
-    const anchorIndex = Cursors.toIndex(value.selection.anchor, text);
-    const headIndex = Cursors.toIndex(value.selection.head, text);
-    quillCursors.moveCursor(replicaID, {
-      index: anchorIndex,
-      length: headIndex - anchorIndex,
-    });
+    try {
+      const anchorIndex = Cursors.toIndex(value.selection.anchor, text);
+      const headIndex = Cursors.toIndex(value.selection.head, text);
+      quillCursors.moveCursor(replicaID, {
+        index: anchorIndex,
+        length: headIndex - anchorIndex,
+      });
+    } catch (err) {
+      // Since presence is in a separate doc from text, its possible
+      // that we could get a Cursor before text receives the corresponding
+      // Position, causing an error.
+      // For now, just ignore the cursor movement.
+      // See https://github.com/composablesys/collabs/issues/262
+      console.error("Error updating shared cursor:", err);
+    }
   }
 }
 presence.on("Set", (e) => {
-  if (e.key === doc.replicaID) return;
+  if (e.key === presenceDoc.replicaID) return;
   if (e.value.selection === null) quillCursors.removeCursor(e.key);
   else {
     quillCursors.createCursor(e.key, e.value.name, e.value.color);
@@ -262,6 +274,7 @@ window.addEventListener("beforeunload", () => presence.disconnect());
 // --- Network/storage setup ---
 
 const docID = "rich-text";
+const presenceDocID = "rich-text.presence";
 
 // Connect to the server over WebSocket.
 const wsURL = location.origin.replace(/^http/, "ws");
@@ -284,6 +297,7 @@ wsNetwork.on("Disconnect", (e) => {
   }, 2000);
 });
 wsNetwork.subscribe(doc, docID);
+wsNetwork.subscribe(presenceDoc, presenceDocID);
 
 // In a real app, you would probably also add on-device storage
 // (@collabs/indexeddb or @collabs/local-storage)
