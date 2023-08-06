@@ -1,0 +1,56 @@
+{
+  "name": "@collabs/tab-sync",
+  "version": "0.12.0",
+  "description": "Collabs cross-tab synchronization using BroadcastChannel",
+  "author": "Collabs contributors",
+  "license": "Apache-2.0",
+  "bugs": {
+    "url": "https://github.com/composablesys/collabs/issues"
+  },
+  "homepage": "https://github.com/composablesys/collabs/tree/master/tab-sync#readme",
+  "repository": {
+    "type": "git",
+    "url": "git+https://github.com/composablesys/collabs.git"
+  },
+  "keywords": [
+    "Collabs",
+    "collaboration",
+    "local-first",
+    "BroadcastChannel"
+  ],
+  "module": "build/esm/src/index.js",
+  "browser": "build/esm/src/index.js",
+  "types": "build/esm/src/index.d.ts",
+  "main": "build/commonjs/src/index.js",
+  "files": [
+    "/build",
+    "/src"
+  ],
+  "directories": {
+    "lib": "src"
+  },
+  "publishConfig": {
+    "access": "public"
+  },
+  "sideEffects": false,
+  "dependencies": {
+    "@collabs/collabs": "0.12.0",
+    "base64-js": "^1.5.1"
+  },
+  "devDependencies": {
+    "npm-run-all": "^4.1.5",
+    "prettier": "^2.2.1",
+    "rimraf": "^2.7.1",
+    "typescript": "^4.3.5"
+  },
+  "scripts": {
+    "prepack": "npm run clean && npm run build && npm run test",
+    "build": "npm-run-all build:*",
+    "build:ts": "tsc -p tsconfig.json && tsc -p tsconfig.commonjs.json",
+    "test": "npm-run-all test:*",
+    "test:format": "prettier --check .",
+    "fix": "npm-run-all fix:*",
+    "fix:format": "prettier --write .",
+    "clean": "rimraf build"
+  }
+}

@@ -10,6 +10,7 @@ API
    indexeddb/index
    local-storage/index
    matrix-widget/index
+   tab-sync/index
    ws-client/index
    ws-server/index
    @collabs/core (subset of @collabs/collabs) <core/index>

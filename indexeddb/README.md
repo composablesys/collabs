@@ -1,4 +1,4 @@
-# `@collabs/storage`
+# `@collabs/indexeddb`
 
 Part of the Collabs library. Main package: [@collabs/collabs](https://www.npmjs.com/package/@collabs/collabs).
 
@@ -12,4 +12,4 @@ TODO
 
 See [https://collabs.readthedocs.io/](https://collabs.readthedocs.io/)
 
-[API](https://collabs.readthedocs.io/en/latest/api/storage)
+[API](https://collabs.readthedocs.io/en/latest/api/indexeddb)

@@ -1,4 +1,4 @@
-# `@collabs/local-storage`
+# `@collabs/tab-sync`
 
 Part of the Collabs library. Main package: [@collabs/collabs](https://www.npmjs.com/package/@collabs/collabs).
 
@@ -12,4 +12,4 @@ TODO
 
 See [https://collabs.readthedocs.io/](https://collabs.readthedocs.io/)
 
-[API](https://collabs.readthedocs.io/en/latest/api/local-storage)
+[API](https://collabs.readthedocs.io/en/latest/api/tab-sync)

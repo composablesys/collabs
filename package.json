@@ -12,6 +12,7 @@
     "collabs",
     "local-storage",
     "indexeddb",
+    "tab-sync",
     "ws-client",
     "ws-server",
     "matrix-widget",
@@ -37,6 +38,7 @@
       "collabs",
       "storage",
       "indexeddb",
+      "tab-sync",
       "ws-client",
       "ws-server",
       "matrix-widget"
