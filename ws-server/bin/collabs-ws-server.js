@@ -4,7 +4,7 @@ const http = require("http");
 const { WebSocketServer } = require("ws");
 const {
   WebSocketNetworkServer,
-} = require("../build/src/web_socket_network_server");
+} = require("../build/commonjs/src/web_socket_network_server");
 
 const hostname = process.env.HOSTNAME || "localhost";
 const port = process.env.PORT || 3000;

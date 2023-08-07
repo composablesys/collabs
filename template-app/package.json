@@ -1,14 +1,16 @@
 {
   "dependencies": {
     "@collabs/collabs": "0.12.x",
+    "@collabs/indexeddb": "0.12.x",
+    "@collabs/tab-sync": "0.12.x",
     "@collabs/ws-client": "0.12.x",
-    "@collabs/ws-server": "0.12.x"
+    "@collabs/ws-server": "0.12.x",
+    "webpack-dev-server": "^4.15.1"
   },
   "devDependencies": {
     "@types/node": "^15.6.1",
     "@types/webpack": "^5.28.0",
     "@types/webpack-env": "^1.16.2",
-    "cross-env": "^7.0.3",
     "html-webpack-plugin": "^5.3.2",
     "rimraf": "^2.7.1",
     "source-map-loader": "^3.0.0",
@@ -19,9 +21,11 @@
     "webpack-cli": "^4.8.0"
   },
   "scripts": {
-    "dev": "cross-env TS_NODE_PROJECT='tsconfig-for-webpack-config.json' webpack",
-    "build": "cross-env TS_NODE_PROJECT='tsconfig-for-webpack-config.json' webpack --mode production --devtool nosources-source-map",
-    "start": "ts-node server/testing_server.ts",
+    "dev": "TS_NODE_PROJECT='tsconfig.webpack-config.json' webpack",
+    "build": "TS_NODE_PROJECT='tsconfig.webpack-config.json' webpack --mode production --devtool source-map",
+    "start": "npm run start:ws-server & npm run start:webpack",
+    "start:ws-server": "PORT=3001 collabs-ws-server",
+    "start:webpack": "TS_NODE_PROJECT='tsconfig.webpack-config.json' webpack-dev-server",
     "clean": "rimraf dist"
   }
 }

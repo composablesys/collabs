@@ -24,10 +24,7 @@ Build the app from `src/`, in [production mode](https://webpack.js.org/guides/pr
 
 Run the testing server. Open [http://localhost:3000/](http://localhost:3000/) to view your app. Use multiple browser windows at once to test collaboration.
 
-Options:
-
-- `npm start -- --https` (or `npm start -- -s`): run in https mode, using a fake (not secret, self-signed) certificate. Useful for testing `MatrixWidgetNetwork` apps (see below).
-- Set the `PORT` environment variable to change the port to something besides 3000.
+TODO: uses webpack-dev-server
 
 ### `npm run clean`
 
