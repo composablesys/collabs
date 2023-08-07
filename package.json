@@ -36,7 +36,7 @@
       "core",
       "crdts",
       "collabs",
-      "storage",
+      "local-storage",
       "indexeddb",
       "tab-sync",
       "ws-client",

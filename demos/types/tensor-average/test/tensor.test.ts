@@ -1,14 +1,12 @@
-import { Collab, CRuntime, TestingRuntimes } from "@collabs/collabs";
+import { CRuntime, TestingRuntimes } from "@collabs/collabs";
 import * as tf from "@tensorflow/tfjs-node";
 import { assert } from "chai";
 import {
   conversions,
   TensorAverageCollab,
   TensorCounterCollab,
-  TensorCounterEventsRecord,
   TensorGCounterCollab,
 } from "../src/";
-import { debug } from "./debug";
 
 describe("tensor", () => {
   let runtimeGen: TestingRuntimes;
@@ -69,17 +67,6 @@ describe("tensor", () => {
     );
   }
 
-  function addEventListeners(
-    crdt: Collab<TensorCounterEventsRecord>,
-    name: string
-  ): void {
-    crdt.on("Add", (event) =>
-      console.log(
-        `${name}: ${event.meta.senderID} added ${event.valueAdded.toString()}`
-      )
-    );
-  }
-
   describe("conversions", () => {
     it("converts tensors back to their original value", () => {
       const tensor1 = tf.zeros([2, 2], "float32").add(1);
@@ -105,10 +92,6 @@ describe("tensor", () => {
         "counterId",
         (init) => new TensorGCounterCollab(init, shape, "float32")
       );
-      if (debug) {
-        addEventListeners(aliceCounter, "Alice");
-        addEventListeners(bobCounter, "Bob");
-      }
     });
 
     it("is initially all zero", () => {
@@ -269,10 +252,6 @@ describe("tensor", () => {
         "counterId",
         (init) => new TensorCounterCollab(init, shape, "float32")
       );
-      if (debug) {
-        addEventListeners(aliceCounter, "Alice");
-        addEventListeners(bobCounter, "Bob");
-      }
     });
 
     it("is initially all zero", () => {
@@ -395,10 +374,6 @@ describe("tensor", () => {
         "avgId",
         (init) => new TensorAverageCollab(init, shape, "float32")
       );
-      if (debug) {
-        addEventListeners(aliceAvg, "Alice");
-        addEventListeners(bobAvg, "Bob");
-      }
     });
 
     it("initially returns a tensor containing NaN", () => {
