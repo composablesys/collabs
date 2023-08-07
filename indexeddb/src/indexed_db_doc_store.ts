@@ -75,7 +75,7 @@ export interface IndexedDBDocStoreEventsRecord {
    */
   Save: { doc: AbstractDoc | CRuntime; docID: string };
   /**
-   * Emitted after doc loads the store's current state.
+   * Emitted after doc loads IndexedDB's current state.
    */
   Load: { doc: AbstractDoc | CRuntime; docID: string };
   /**
@@ -182,7 +182,7 @@ export class IndexedDBDocStore extends EventEmitter<IndexedDBDocStoreEventsRecor
    * if there are no existing updates).
    *
    * Also, all new updates to `doc` will be saved under `docID`,
-   * emitting a "Save" event whenever the stored state is up-to-date with `doc`.
+   * emitting a "Save" event whenever the IndexedDB state becomes up-to-date with `doc`.
    * This includes both local operations and updates from other sources.
    *
    * @param doc The document to subscribe.
@@ -467,7 +467,7 @@ export class IndexedDBDocStore extends EventEmitter<IndexedDBDocStoreEventsRecor
   }
 
   /**
-   * Returns all `docID`s with updates stored in our database.
+   * Returns all `docID`s with state stored in our database.
    */
   async docIDs(): Promise<Set<string>> {
     if (this.closed) throw new Error("Already closed");

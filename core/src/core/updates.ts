@@ -1,3 +1,6 @@
+/**
+ * Metadata for a message passed to [[Collab.receive]].
+ */
 export interface MessageMeta {
   /**
    * The update's type.
@@ -25,6 +28,9 @@ export interface MessageMeta {
   readonly runtimeExtra: unknown;
 }
 
+/**
+ * Metadata for a saved state passed to [[Collab.load]].
+ */
 export interface SavedStateMeta {
   /**
    * The update's type.

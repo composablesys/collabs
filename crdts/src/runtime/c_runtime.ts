@@ -155,7 +155,7 @@ export interface RuntimeEventsRecord {
    * is a good time to rerender the GUI.
    *
    * Specifically, this event is emitted in a new microtask
-   * scheduled at the end of the set's first update.
+   * scheduled at the end of the first update.
    */
   Change: object;
 }

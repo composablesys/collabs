@@ -479,7 +479,7 @@ wsNetwork.on("Connect", () => console.log("Connected to the server."));
 wsNetwork.on("Disconnect", (e) => {
   // After a disconnection, try to reconnect every 2 seconds, unless
   // we deliberately called wsNetwork.disconnect().
-  if (e.cause === "disconnect") return;
+  if (e.cause === "manual") return;
   console.error("WebSocket disconnected due to", e.cause, e.wsEvent);
   setTimeout(() => {
     console.log("Reconnecting...");

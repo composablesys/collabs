@@ -117,7 +117,7 @@ export interface LocalStorageDocStoreEventsRecord {
    */
   Save: { doc: AbstractDoc | CRuntime; docID: string };
   /**
-   * Emitted after doc loads the store's current state.
+   * Emitted after doc loads localStorage's current state.
    */
   Load: { doc: AbstractDoc | CRuntime; docID: string };
   /**
@@ -200,7 +200,7 @@ export class LocalStorageDocStore extends EventEmitter<LocalStorageDocStoreEvent
    * if there are no existing updates).
    *
    * Also, all new updates to `doc` will be saved under `docID`,
-   * emitting a "Save" event whenever the stored state is up-to-date with `doc`.
+   * emitting a "Save" event whenever the localStorage state becomes up-to-date with `doc`.
    * This includes both local operations and updates from other sources.
    *
    * @param doc The document to subscribe.
@@ -439,7 +439,7 @@ export class LocalStorageDocStore extends EventEmitter<LocalStorageDocStoreEvent
   }
 
   /**
-   * Returns all `docID`s with updates stored under our [[keyPrefix]].
+   * Returns all `docID`s that have state stored under our [[keyPrefix]].
    */
   docIDs(): Set<string> {
     const docIDs = new Set<string>();

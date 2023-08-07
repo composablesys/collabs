@@ -14,10 +14,27 @@ type Doc = AbstractDoc | CRuntime;
 
 /** Events record for [[WebSocketNetwork]]. */
 export interface WebSocketNetworkEventsRecord {
+  /**
+   * Emitted when we connect to the server.
+   */
   Connect: {};
+  /**
+   * Emitted when we disconnect from the server.
+   *
+   * This is also emitted if we fail to connect to the server.
+   */
   Disconnect: {
-    // Doc: disconnect includes this.close() call. close is for if the WS closes itself somehow (?).
-    cause: "close" | "error" | "disconnect";
+    /**
+     * The reason for the disconnection:
+     * - "close": A WebSocket "close" event.
+     * - "error": A WebSocket "error" event.
+     * - "manual": A call to [[WebSocketNetwork.disconnect]] or
+     * [[WebSocketNetwork.close]].
+     */
+    cause: "close" | "error" | "manual";
+    /**
+     * The WebSocket event, if [[cause]] is "close" or "error" (else null).
+     */
     wsEvent: CloseEvent | Event | null;
   };
   /**
@@ -44,6 +61,20 @@ interface DocInfo {
   subscribeDenied?: true;
 }
 
+/**
+ * Syncs updates to Collabs documents via a server over
+ * WebSockets.
+ *
+ * The server is in package [@collabs/ws-server](https://www.npmjs.com/package/@collabs/ws-server).
+ *
+ * This class is designed to work seamlessly with other sources of updates,
+ * such as [@collabs/indexeddb](https://www.npmjs.com/package/@collabs/indexeddb).
+ * In particular, updates from those sources will be synced to the server
+ * alongside local operations.
+ * - Exception: Updates from other tabs via
+ * [@collabs/tab-sync](https://www.npmjs.com/package/@collabs/tab-sync) are not
+ * sent, since the source tab should send them.
+ */
 export class WebSocketNetwork extends EventEmitter<WebSocketNetworkEventsRecord> {
   private ws: WebSocket | null = null;
 
@@ -54,16 +85,16 @@ export class WebSocketNetwork extends EventEmitter<WebSocketNetworkEventsRecord>
   private closed = false;
 
   /**
-   * Constructs a WebSocketNetwork
+   * Constructs a WebSocketNetwork.
    *
    * You typically only need one WebSocketNetwork per app, since it
    * can [[subscribe]] multiple documents.
    *
    * @param url The WebSocket url to connect to.
-   * @param options.connect Set to false to skip connecting automatically.
+   * @param options.connect Set to false to skip connecting in the constructor.
    * If so, you will need to call [[connect]] later.
    */
-  constructor(readonly url: string, options: { connect?: boolean } = {}) {
+  constructor(private readonly url: string, options: { connect?: boolean } = {}) {
     super();
 
     if (options.connect ?? true) this.connect();
@@ -73,7 +104,22 @@ export class WebSocketNetwork extends EventEmitter<WebSocketNetworkEventsRecord>
   // Okay to call if already connected.
   // E.g. net.on("Disconnect", () => setTimeout(net.connect(), 2000))
   // will (repeatedly) try to reconnect after a disconnection.
-  connect() {
+  /**
+   * Connects to the server.
+   *
+   * Once connected, all subscribed docs sync their current states with
+   * the server, then send and receive further updates as they occur.
+   *
+   * If we disconnect due to a network error, you will need to call this method
+   * again to reconnect. E.g., to try to reconnect every 2 seconds after
+   * a disconnection:
+   * ```ts
+   * wsNetwork.on("Disconnect", () => setTimeout(wsNetwork.connect(), 2000));
+   * ```
+   * (Since failed connection attempts also emit a "Disconnect" event, this will
+   * repeat until a connection succeeds.)
+   */
+  connect(): void {
     if (this.closed) throw new Error("Already closed");
     if (this.connected) return;
 
@@ -114,7 +160,11 @@ export class WebSocketNetwork extends EventEmitter<WebSocketNetworkEventsRecord>
     this.emit("Disconnect", { cause, wsEvent: e });
   }
 
-  // Doc: Can call this and later reconnect.
+  /**
+   * Disconnects from the server or aborts an in-progress connection attempt.
+   *
+   * You may reconnect later by calling [[connect]].
+   */
   disconnect() {
     this.ws?.close();
 
@@ -123,12 +173,14 @@ export class WebSocketNetwork extends EventEmitter<WebSocketNetworkEventsRecord>
     // We instead emit our own Disconnect event.
     this.ws = null;
 
-    this.emit("Disconnect", { cause: "disconnect", wsEvent: null });
+    this.emit("Disconnect", { cause: "manual", wsEvent: null });
   }
 
-  // Whether we have an active WS connection (connect was called, and we
-  // haven't had disconnect() or WS close/error). Note that the WS connection
-  // might not be ready (OPEN) yet.
+  /**
+   * Whether we have an active WebSocket connection to the server.
+   *
+   * Note that this returns true even if the connection's readyState is not yet OPEN.
+   */
   get connected(): boolean {
     return this.ws !== null;
   }
@@ -146,6 +198,18 @@ export class WebSocketNetwork extends EventEmitter<WebSocketNetworkEventsRecord>
     }
   }
 
+  /**
+   * Subscribes `doc` to updates for `docID`.
+   *
+   * `doc` will send and receive updates with the server's copy of `docID`.
+   * It will also sync initial states with
+   * the server, to ensure that `doc` and the server start up-to-date.
+   *
+   * @param doc The document to subscribe.
+   * @param docID An arbitrary string that identifies which updates to use.
+   * @throws If `doc` is already subscribed to a docID.
+   * @throws If another doc is subscribed to `docID`.
+   */
   subscribe(doc: AbstractDoc | CRuntime, docID: string) {
     if (this.closed) throw new Error("Already closed");
     if (this.subs.has(doc)) {
@@ -165,6 +229,11 @@ export class WebSocketNetwork extends EventEmitter<WebSocketNetworkEventsRecord>
     // we send our whole state (on Welcome).
   }
 
+  /**
+   * Unsubscribes `doc` from its subscribed `docID` (if any).
+   *
+   * `doc` will no longer send or receive updates with the server.
+   */
   unsubscribe(doc: AbstractDoc | CRuntime) {
     const info = this.subs.get(doc);
     if (info === undefined) return;

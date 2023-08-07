@@ -7,7 +7,7 @@ const updatesBeforeCheckpoint = 100;
 const checkpointInterval = 10000;
 
 interface StoredDoc {
-  savedState: Uint8Array | null;
+  checkpoint: Uint8Array | null;
   /** Updates not included in savedState (the last checkpoint). */
   updates: Uint8Array[];
   updateTypes: UpdateType[];
@@ -19,6 +19,14 @@ interface StoredDoc {
   lastCheckpointRequestTime: number | null;
 }
 
+/**
+ * Simple implementation of [[ServerDocStore]] for demonstration purposes.
+ *
+ * It stores all of its documents in memory only, hence is not reliable.
+ * But you can use
+ * [its source code](https://github.com/composablesys/collabs/blob/master/ws-server/src/in_memory_doc_store.ts)
+ * for guidance when implementing a proper, persistent ServerDocStore.
+ */
 export class InMemoryDocStore implements ServerDocStore {
   /** Maps docID -> stored info. */
   private docs = new Map<string, StoredDoc>();
@@ -27,7 +35,7 @@ export class InMemoryDocStore implements ServerDocStore {
     let info = this.docs.get(docID);
     if (info === undefined) {
       info = {
-        savedState: null,
+        checkpoint: null,
         updates: [],
         updateTypes: [],
         lastCheckpointCounter: 0,
@@ -38,17 +46,17 @@ export class InMemoryDocStore implements ServerDocStore {
     return info;
   }
 
-  async load(
-    docID: string
-  ): Promise<
-    [
-      savedState: Uint8Array | null,
-      updates: Uint8Array[],
-      updateTypes: UpdateType[]
-    ]
-  > {
+  async load(docID: string): Promise<{
+    checkpoint: Uint8Array | null;
+    updates: Uint8Array[];
+    updateTypes: UpdateType[];
+  }> {
     const info = this.getInfo(docID);
-    return [info.savedState, info.updates.slice(), info.updateTypes.slice()];
+    return {
+      checkpoint: info.checkpoint,
+      updates: info.updates.slice(),
+      updateTypes: info.updateTypes.slice(),
+    };
   }
 
   async addUpdate(
@@ -95,7 +103,7 @@ export class InMemoryDocStore implements ServerDocStore {
 
     // The number of updates in the current log that are included in savedState.
     const dominated = updateCount - info.lastCheckpointCounter;
-    info.savedState = savedState;
+    info.checkpoint = savedState;
     info.updates = info.updates.slice(dominated);
     info.updateTypes = info.updateTypes.slice(dominated);
     info.lastCheckpointCounter = updateCount;

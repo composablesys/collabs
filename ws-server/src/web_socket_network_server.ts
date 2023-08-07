@@ -16,6 +16,27 @@ interface RoomInfo {
 
 const defaultHeartbeatIntervalMS = 30000;
 
+/**
+ * Server for [@collabs/ws-client](https://www.npmjs.com/package/@collabs/ws-client)'s
+ * WebSocketNetwork.
+ *
+ * You can start the server by calling the constructor in a Node.js program
+ * or by using the `collabs-ws-server` command.
+ * 
+ * This server is only minimally configurable; for advanced uses, consider
+ * copying and modifying
+ * [its source code](https://github.com/composablesys/collabs/blob/master/ws-server/src/web_socket_network_server.ts)
+ * directly.
+ * 
+ * However, you can configure:
+ * - Document storage (constructor's `docStore` argument).
+ * - Client/docID authentication (constructor's `authenticate` argument).
+ *   - To correlate WebSockets with users, listen on your WebSocketServer's `"upgrade"` event;
+ * see https://www.npmjs.com/package/ws#client-authentication .
+ * - Error handling/logging, by listening on your WebSocketServer's
+ * "error" and "connection" events (registering a per-WebSocket error handler in
+ * the latter).
+ */
 export class WebSocketNetworkServer {
   /** Maps docID to set of clients in that room. */
   private rooms = new Map<string, RoomInfo>();
@@ -24,11 +45,18 @@ export class WebSocketNetworkServer {
 
   private readonly heartbeatInterval: number;
 
-  // Doc: to know who ws is for authenticate, intercept wss.on('upgrade') as
-  // shown in https://www.npmjs.com/package/ws#client-authentication .
-  // Then store ws mapped to its permissions in a WeakMap.
-  // Doc: can log errors using own wss "error" & "connection" listeners.
-  // Doc: heartbeatInterval 0 to disable, else ms.
+  /**
+   * Constructs a WebSocketNetworkServer.
+   *
+   * @param wss The WebSocketServer (package [ws](https://www.npmjs.com/package/ws)) to run on top of.
+   * @param docStore ServerDocStore, for persisting document states.
+   * Default: [[InMemoryDocStore]], for demonstration purposes.
+   * @param authenticate Callback that returns whether a given client (`ws`)
+   * is allowed to read and write `docID`.
+   * Default: Always true (all docs are public), for demonstration purposes.
+   * @param options.heartbeatIntervalMS How often to send WebSocket pings, in ms.
+   * Set to 0 to disable pings.
+   */
   constructor(
     readonly wss: WebSocketServer,
     readonly docStore: ServerDocStore = new InMemoryDocStore(),
@@ -141,13 +169,13 @@ export class WebSocketNetworkServer {
       // Note that we may already think ws is subscribed to a room.
       // Re-send the state anyway, in case they were offline and missed some
       // messages.
-      const [savedState, updates, updateTypes] = await this.docStore.load(
+      const { checkpoint, updates, updateTypes } = await this.docStore.load(
         docID
       );
       this.sendInternal(ws, {
         welcome: {
           docID,
-          savedState,
+          savedState: checkpoint,
           updates,
           updateTypes,
         },
