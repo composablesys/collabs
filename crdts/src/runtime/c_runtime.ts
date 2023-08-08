@@ -49,8 +49,7 @@ export interface SendEvent {
 }
 
 /**
- * Event emitted by [[CRuntime]] or [[AbstractDoc]]
- * after applying an update of type "message".
+ * [[UpdateEvent]] sub-type emitted for updates of type "message".
  */
 export interface MessageEvent {
   // For fields shared with SavedStateEvent, we use the same typedoc
@@ -99,8 +98,7 @@ export interface MessageEvent {
 }
 
 /**
- * Event emitted by [[CRuntime]] or [[AbstractDoc]]
- * after applying an update of type "savedState".
+ * [[UpdateEvent]] sub-type emitted for updates of type "savedState".
  */
 export interface SavedStateEvent {
   /**
@@ -156,6 +154,12 @@ export interface SavedStateEvent {
 }
 
 /**
+ * Event emitted by [[CRuntime]] or [[AbstractDoc]]
+ * after applying an update.
+ */
+export type UpdateEvent = MessageEvent | SavedStateEvent;
+
+/**
  * Events record for [[CRuntime]] and [[AbstractDoc]].
  */
 export interface RuntimeEventsRecord {
@@ -173,7 +177,7 @@ export interface RuntimeEventsRecord {
    * The update may be a local message, remote message,
    * or saved state. Note that it may consist of multiple transactions.
    */
-  Update: MessageEvent | SavedStateEvent;
+  Update: UpdateEvent;
   /**
    * Emitted after applying a synchronous set of updates. This
    * is a good time to rerender the GUI.
@@ -231,7 +235,7 @@ export interface RuntimeOptions {
    * want to test whether loading is idempotent.
    *
    * A saved state "appears to be redundant" if all of its vector clock
-   * entries are <= our own. In that case, [[UpdateEvent]]'s `vectorClock`
+   * entries are <= our own. In that case, [[SavedStateEvent]]'s `vectorClock`
    * and `redundant` fields are deep-equal.
    */
   allowRedundantLoads?: boolean;
@@ -499,7 +503,8 @@ export class CRuntime
    * are acceptable. Two replicas will be in the same
    * state once they have the same set of received (or sent) messages.
    *
-   * @param caller Optionally, a value to use as the [[UpdateEvent.caller]] field.
+   * @param caller Optionally, a value to use as the "Update" event's
+   * [[MessageEvent.caller]] field.
    * A caller can use that field to distinguish its own updates from updates
    * delivered by other sources.
    */
@@ -589,7 +594,8 @@ export class CRuntime
    * but it is typically much more efficient.
    *
    * @param savedState Saved state from another replica's [[save]] call.
-   * @param caller Optionally, a value to use as the [[UpdateEvent.caller]] field.
+   * @param caller Optionally, a value to use as the "Update" event's
+   * [[SavedStateEvent.caller]] field.
    * A caller can use that field to distinguish its own updates from updates
    * delivered by other sources.
    */
