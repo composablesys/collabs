@@ -18,7 +18,7 @@
     "build": "",
     "dev": "",
     "test": "npm-run-all test:*",
-    "test:server-tsc": "tsc",
+    "test:tsc": "tsc",
     "test:format": "prettier --check .",
     "fix": "npm-run-all fix:*",
     "fix:format": "prettier --write .",

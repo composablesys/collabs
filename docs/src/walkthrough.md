@@ -1,6 +1,6 @@
 # Walkthrough
 
-In this page, we will walk through the [Quick Start](./quick_start.html)'s finished app. Its code is [here](https://github.com/composablesys/collabs/tree/master/demos/apps/counter) and a live demo is [here](https://collabs-demos.herokuapp.com/web_socket.html?container=demos/counter/dist/counter.html). This shows you the general structure of a Collabs app, which you can use as a basis for your own apps. We assume you have read [What is Collabs?](./what_is_collabs.html).
+In this page, we will walk through the [Quick Start](./quick_start.html)'s finished app (TODO: it's also template-app's starter code). Its code is [here](https://github.com/composablesys/collabs/tree/master/demos/apps/counter) and a live demo is [here](https://collabs-demos.herokuapp.com/web_socket.html?container=demos/counter/dist/counter.html). This shows you the general structure of a Collabs app, which you can use as a basis for your own apps. We assume you have read [What is Collabs?](./what_is_collabs.html).
 
 ## Project Setup
 

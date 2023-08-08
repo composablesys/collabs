@@ -1,8 +1,12 @@
 # Counter Demo
 
-A collaborative counter, as a [Collabs container](https://github.com/composablesys/collabs/blob/master/collabs/docs/containers.md).
+A collaborative counter, using [@collabs/ws-client](https://www.npmjs.com/package/@collabs/ws-client) and [@collabs/ws-server](https://www.npmjs.com/package/@collabs/ws-server) to connect users over a WebSocket server.
 
-Except for the readme, this folder is identical to the result of following the [Quick Start](https://collabs.readthedocs.io/en/latest/quick_start.html).
+This is the same collaborative app described in the [Quick Start](https://collabs.readthedocs.io/en/latest/quick_start.html), but with a different network/storage setup:
+
+- The app (`src/main.ts`) omits IndexedDB storage and cross-tab sync, to make it easier to see that the server is doing something.
+- The app adds a "Connected" checkmark for testing concurrency.
+- The server (`bin/server.ts`) runs both `express` and `@collabs/ws-server` in the same script (& port), instead of using the separate commands `webpack-dev-server` and `collabs-ws-server`.
 
 ## Installation
 
@@ -12,22 +16,18 @@ First, install [Node.js](https://nodejs.org/). Then run `npm i`.
 
 ### `npm run dev`
 
-Build the container from `src/`, in [development mode](https://webpack.js.org/guides/development/).
+Build the app from `src/`, in [development mode](https://webpack.js.org/guides/development/).
 
 ### `npm run build`
 
-Build the container from `src/`, in [production mode](https://webpack.js.org/guides/production/) (smaller output files; longer build time; source maps have line numbers only).
+Build the app from `src/`, in [production mode](https://webpack.js.org/guides/production/).
 
 ### `npm start`
 
-Run the testing server. Open [http://localhost:3000/](http://localhost:3000/) to view your container. Use multiple browser windows at once to test collaboration.
+Run the testing server on [http://localhost:3000/](http://localhost:3000/). Use multiple browser windows at once to test collaboration.
 
-See [container-testing-server](https://www.npmjs.com/package/@collabs/container-testing-server) for usage info.
+To change the port, set the `$PORT` environment variable.
 
 ### `npm run clean`
 
 Delete `dist/`.
-
-## Deployment
-
-See [Deployment](https://collabs.readthedocs.io/en/latest/guide/containers.html#deployment) for deployment options. The container's built HTML file is placed in `dist/` when you run `npm run dev` or `npm run build`.

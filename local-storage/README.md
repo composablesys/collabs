@@ -2,9 +2,9 @@
 
 Part of the Collabs library. Main package: [@collabs/collabs](https://www.npmjs.com/package/@collabs/collabs).
 
-TODO
+**@collabs/local-storage** contains the `LocalStorageDocStore` class. It stores updates to Collabs documents (`AbstractDoc` / `CRuntime`) in localStorage. That way, apps can load a document quickly, even without network access.
 
-**@collabs/ws-client** contains the `WebSocketNetwork` class. It connects a `CRuntime` to a [@collabs/ws-server](https://www.npmjs.com/package/@collabs/ws-server) server using a WebSocket.
+See also: [@collabs/indexeddb](https://www.npmjs.com/package/@collabs/indexeddb), which stores updates in IndexedDB instead of localStorage.
 
 ## Docs
 

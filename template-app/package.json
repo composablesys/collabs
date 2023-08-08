@@ -23,8 +23,8 @@
     "dev": "TS_NODE_PROJECT='tsconfig.webpack-config.json' webpack",
     "build": "TS_NODE_PROJECT='tsconfig.webpack-config.json' webpack --mode production --devtool source-map",
     "start": "npm run start:ws-server & npm run start:webpack",
-    "start:ws-server": "collabs-ws-server",
     "start:webpack": "TS_NODE_PROJECT='tsconfig.webpack-config.json' webpack-dev-server",
+    "start:ws-server": "collabs-ws-server",
     "clean": "rm -rf dist"
   }
 }

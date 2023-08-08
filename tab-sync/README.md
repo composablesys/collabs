@@ -2,9 +2,7 @@
 
 Part of the Collabs library. Main package: [@collabs/collabs](https://www.npmjs.com/package/@collabs/collabs).
 
-TODO
-
-**@collabs/ws-client** contains the `WebSocketNetwork` class. It connects a `CRuntime` to a [@collabs/ws-server](https://www.npmjs.com/package/@collabs/ws-server) server using a WebSocket.
+**@collabs/tab-sync** contains the `TabSyncNetwork` class. It syncs updates to Collabs documents (`AbstractDoc` / `CRuntime`) across tabs using BroadcastChannel. That way, a user with multiple tabs open sees their changes sync quickly, even without network access.
 
 ## Docs
 

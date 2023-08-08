@@ -1,10 +1,10 @@
 # Collabs App Starter Template
 
-Template for a generic Collabs app, using the [CRuntime](https://collabs.readthedocs.io/en/latest/api/collabs/classes/CRuntime.html) [entry point](https://collabs.readthedocs.io/en/latest/guide/entry_points.html).
+Template for a generic Collabs app, using [@collabs/ws-client](https://www.npmjs.com/package/@collabs/ws-client) and [@collabs/ws-server](https://www.npmjs.com/package/@collabs/ws-server) to connect users over a WebSocket server.
+
+[Walkthrough of this template](https://collabs.readthedocs.io/en/latest/quick_start.html)
 
 [Collabs Docs](https://collabs.readthedocs.io/en/latest/)
-
-[@collabs/collabs API](https://collabs.readthedocs.io/en/latest/api/collabs/index.html)
 
 ## Installation
 
@@ -12,19 +12,28 @@ First, install [Node.js](https://nodejs.org/). Then run `npm i`.
 
 ## Commands
 
+### `npm start`
+
+Runs both servers for testing for the app:
+
+- `webpack-dev-server` on [http://localhost:3000/](http://localhost:3000/), to serve static files.
+- `collabs-ws-server` on [http://localhost:3001/](http://localhost:3001/), to connect users over a WebSocket server.
+
+Open [http://localhost:3000/](http://localhost:3000/) to try it out. Use multiple browser windows at once to test collaboration.
+
+You can run the servers separately with `npm run start:webpack` and `npm run start:ws-server`.
+
 ### `npm run dev`
 
 Build the app from `src/`, in [development mode](https://webpack.js.org/guides/development/).
 
+> `webpack-dev-server` will build for you, so you do not need to do this until you start serving files yourself.
+
 ### `npm run build`
 
-Build the app from `src/`, in [production mode](https://webpack.js.org/guides/production/) (smaller output files; longer build time; no source maps).
+Build the app from `src/`, in [production mode](https://webpack.js.org/guides/production/).
 
-### `npm start`
-
-Run the testing server. Open [http://localhost:3000/](http://localhost:3000/) to view your app. Use multiple browser windows at once to test collaboration.
-
-TODO: uses webpack-dev-server
+> `webpack-dev-server` will build for you, so you do not need to do this until you start serving files yourself.
 
 ### `npm run clean`
 
@@ -32,21 +41,6 @@ Delete `dist/`.
 
 ## Starter Files
 
-- `src/`: Client-side app source files. If you rename the files in here, also rename their uses in `webpack.config.ts` and `server/static/index.html`.
-- `webpack.config.ts`: Webpack config for the client-side app.
-- `tsconfig.json`: TypeScript config for the client-side app.
-- `server/`: Source for the testing server used by `npm start`.
-
-## Changing the Network
-
-The template uses `Collabs-ws-client`'s `WebSocketNetwork` on the client and `Collabs-ws-server` on the testing server. So, all communication happens through the testing server, which clients connect to using WebSockets.
-
-While the starter server is convenient for testing, it is not appropriate for actual deployments: all users on the site are collaborators, and the state is not saved, except as an ever-growing message log in the server's memory. You should instead customize the app's networking to integrate with your own server, or use one of our premade networks (e.g., `MatrixWidgetNetwork` from [@collabs/matrix-widget](https://www.npmjs.com/package/@collabs/matrix-widget)). You should also set up [saving and loading](https://github.com/composablesys/collabs/tree/master/collabs/docs/saving_and_loading.md) in the client app.
-
-You can easily modify the testing server for testing with these other premade networks:
-
-- `MatrixWidgetNetwork` from [@collabs/matrix-widget](https://www.npmjs.com/package/@collabs/matrix-widget):
-
-  1. Remove the call to `startWebSocketServer` in `server/testing_server.ts`.
-  2. Start the server in https mode (`npm start -- --https`).
-  3. In a widget-capable Matrix client (e.g., [Element web](https://app.element.io/)), type `/addwidget https://localhost:3000/dist/app.html` into a chat, then open the widget. You can test the app with multiple users by opening multiple clients on the same machine (the widget will not work on other machines due to the localhost address).
+- `src/index.html`: App HTML.
+- `src/main.ts`: App TypeScript code.
+- `webpack.config.ts`: Wepback config.

@@ -7,7 +7,7 @@ import { WebSocketServer } from "ws";
 
 const port = process.env.PORT || 3000;
 
-// Using express, server:
+// Using express, serve:
 // - server/src/site at "/"
 // - Each demo's dist/ folder at "/<demo name>/"
 const app = express();

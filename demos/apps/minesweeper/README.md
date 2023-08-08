@@ -1,10 +1,8 @@
 # Minesweeper Demo
 
-Collaborative Minesweeper, as a [Collabs container](https://github.com/composablesys/collabs/blob/master/collabs/docs/containers.md).
+Collaborative Minesweeper, using [@collabs/ws-client](https://www.npmjs.com/package/@collabs/ws-client) and [@collabs/ws-server](https://www.npmjs.com/package/@collabs/ws-server) to connect users over a WebSocket server.
 
 Authors: Ignacio Maronna and Matthew Weidner.
-
-Based off of [template-container](https://github.com/composablesys/collabs/tree/master/template-container).
 
 ## Installation
 
@@ -14,22 +12,18 @@ First, install [Node.js](https://nodejs.org/). Then run `npm i`.
 
 ### `npm run dev`
 
-Build the container from `src/`, in [development mode](https://webpack.js.org/guides/development/).
+Build the app from `src/`, in [development mode](https://webpack.js.org/guides/development/).
 
 ### `npm run build`
 
-Build the container from `src/`, in [production mode](https://webpack.js.org/guides/production/) (smaller output files; longer build time; no source maps).
+Build the app from `src/`, in [production mode](https://webpack.js.org/guides/production/).
 
 ### `npm start`
 
-Run the testing server. Open [http://localhost:3000/](http://localhost:3000/) to view. Use multiple browser windows at once to test collaboration.
+Run the testing server on [http://localhost:3000/](http://localhost:3000/). Use multiple browser windows at once to test collaboration.
 
-See [@collabs/container-testing-server](https://www.npmjs.com/package/@collabs/container-testing-server) for usage info.
+To change the port, set the `$PORT` environment variable.
 
 ### `npm run clean`
 
 Delete `dist/`.
-
-## Deployment
-
-`dist/minesweeper.html` is the compiled container. It can used in any container host.
