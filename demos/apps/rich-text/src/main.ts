@@ -258,7 +258,8 @@ quill.on("editor-change", () => {
   }
 
   // Move everyone else's cursors locally.
-  // TODO: is this necessary? Will Quill OT it for us?
+  // (I guess Quill would OT this for us, though not necessarily with the
+  // exact same indices for all clients. We do it ourselves just in case.)
   for (const replicaID of presence.keys()) moveCursor(replicaID);
 });
 

@@ -103,9 +103,6 @@ export interface CollabEventsRecord {
  * - [[PrimitiveCRDT]]: CRDT variant of CPrimitive that provides
  * CRDT-specific features.
  *
- * <!-- For information on the Collab abstraction and implementing custom
- * Collabs, see TODO (in docs/ folder). (Look at old docs on this file.) -->
- *
  * @typeParam Events Events record indicating the names and types of
  * events emitted by this Collab.
  */

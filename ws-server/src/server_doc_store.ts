@@ -50,7 +50,6 @@ export interface ServerDocStore {
   load(docID: string): Promise<{
     checkpoint: Uint8Array | null;
     updates: Uint8Array[];
-    // TODO: need to export this type (from ws-server only? I.e. re-export).
     updateTypes: UpdateType[];
   }>;
 
