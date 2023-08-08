@@ -320,6 +320,8 @@ export abstract class MultipleSemidirectProduct<
 {
   readonly state: MultipleSemidirectState<S>;
 
+  private isUsed = false;
+
   /**
    * TODO
    * @param historyMetas=false        [description]
@@ -392,6 +394,8 @@ export abstract class MultipleSemidirectProduct<
     if (messageStack.length === 0) {
       throw new Error("Unexpected message");
     }
+
+    this.isUsed = true;
 
     const crdtMeta = <CRDTMessageMeta>meta.runtimeExtra;
 
@@ -478,6 +482,15 @@ export abstract class MultipleSemidirectProduct<
    */
   load(savedStateTree: SavedStateTree | null, meta: SavedStateMeta): void {
     if (savedStateTree === null) return;
+
+    if (this.isUsed) {
+      console.log(
+        "Skipping load that would require state-based merging. " +
+          "You may see inconsistent states from missing operations."
+      );
+      return;
+    }
+    this.isUsed = true;
 
     for (const [name, savedState] of savedStateTree.children!) {
       if (savedState !== null) {

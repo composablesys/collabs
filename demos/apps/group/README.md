@@ -4,7 +4,7 @@ A demo of the [semidirect product of CRDTs](https://docs.google.com/presentation
 
 Author: Ria Pradeep.
 
-> Note: The app's CRDT is purely operation-based; it does not support merging saved states (unlike Collabs's built-in CRDTs). Instead, `CRuntime.load` can only be called in the initial state. The demo is setup to respect this rule; adding storage or cross-tab sync would break it.
+> Note: The app's CRDT is purely operation-based; it does not support state-based merging (unlike Collabs's built-in CRDTs). Since disconnecting and reconnecting the server does use state-based merging, **this demo is currently not working** (TODO).
 
 ## Installation
 
