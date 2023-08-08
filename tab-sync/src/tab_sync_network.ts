@@ -117,7 +117,7 @@ export class TabSyncNetwork extends EventEmitter<TabSyncNetworkEventsRecord> {
     }
 
     const info: DocInfo = { docID };
-    this.subs.set(doc, { docID });
+    this.subs.set(doc, info);
     this.docsByID.set(docID, doc);
 
     // Call save() in a separate task, to match other networks
@@ -190,7 +190,7 @@ export class TabSyncNetwork extends EventEmitter<TabSyncNetworkEventsRecord> {
         // Do it in a separate task to avoid blocking for too long.
         setTimeout(() => {
           if (info.unsubscribed) return;
-          doc.load(message.savedState);
+          doc.load(message.savedState, this);
         });
         break;
 
@@ -198,17 +198,17 @@ export class TabSyncNetwork extends EventEmitter<TabSyncNetworkEventsRecord> {
         if (message.targetID !== this.objID) return;
 
         // Merge the peer's state into ours.
-        doc.load(message.savedState);
+        doc.load(message.savedState, this);
         break;
 
       case "update":
         // Apply the update.
         switch (message.updateType) {
           case "message":
-            doc.receive(message.update);
+            doc.receive(message.update, this);
             break;
           case "savedState":
-            doc.load(message.update);
+            doc.load(message.update, this);
             break;
           default:
             this.emit("Error", {

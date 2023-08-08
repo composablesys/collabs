@@ -56,9 +56,11 @@ export interface WebSocketNetworkEventsRecord {
 
 interface DocInfo {
   readonly docID: string;
-  localCounter: number;
+  /** The WebSocketNetwork.localCounter value of our last sent message. */
+  lastSent: number;
   off?: () => void;
   subscribeDenied?: true;
+  unsubscribed?: true;
 }
 
 /**
@@ -77,6 +79,8 @@ interface DocInfo {
  */
 export class WebSocketNetwork extends EventEmitter<WebSocketNetworkEventsRecord> {
   private ws: WebSocket | null = null;
+  /** A counter for our sent messages across all docs. */
+  private localCounter = 0;
 
   private readonly subs = new Map<Doc, DocInfo>();
   /** Inverse map docID -> Doc. */
@@ -94,7 +98,10 @@ export class WebSocketNetwork extends EventEmitter<WebSocketNetworkEventsRecord>
    * @param options.connect Set to false to skip connecting in the constructor.
    * If so, you will need to call [[connect]] later.
    */
-  constructor(private readonly url: string, options: { connect?: boolean } = {}) {
+  constructor(
+    private readonly url: string,
+    options: { connect?: boolean } = {}
+  ) {
     super();
 
     if (options.connect ?? true) this.connect();
@@ -177,12 +184,10 @@ export class WebSocketNetwork extends EventEmitter<WebSocketNetworkEventsRecord>
   }
 
   /**
-   * Whether we have an active WebSocket connection to the server.
-   *
-   * Note that this returns true even if the connection's readyState is not yet OPEN.
+   * Whether we have an open WebSocket connection to the server.
    */
   get connected(): boolean {
-    return this.ws !== null;
+    return this.ws !== null && this.ws.readyState === WebSocket.OPEN;
   }
 
   /**
@@ -219,9 +224,7 @@ export class WebSocketNetwork extends EventEmitter<WebSocketNetworkEventsRecord>
       throw new Error("Unsupported: multiple docs with same docID");
     }
 
-    // TODO: if you unsub & re-sub to a doc, old acks might trick you
-    // into thinking you're up-to-date.
-    this.subs.set(doc, { docID, localCounter: 0 });
+    this.subs.set(doc, { docID, lastSent: 0 });
     this.docsByID.set(docID, doc);
     this.sendInternal({ subscribe: { docIDs: [docID] } });
 
@@ -238,6 +241,7 @@ export class WebSocketNetwork extends EventEmitter<WebSocketNetworkEventsRecord>
     const info = this.subs.get(doc);
     if (info === undefined) return;
 
+    info.unsubscribed = true;
     this.subs.delete(doc);
     this.docsByID.delete(info.docID);
     if (info.off !== undefined) info.off();
@@ -274,42 +278,9 @@ export class WebSocketNetwork extends EventEmitter<WebSocketNetworkEventsRecord>
 
     const ourOldState = doc.save();
 
-    // Make us up-to-date with the server:
-    //   1. Load the welcome state.
-    if (protobufHas(message, "savedState")) {
-      doc.load(message.savedState, this);
-    }
-    //   2. Load the further updates.
-    for (let i = 0; i < message.updates.length; i++) {
-      const update = message.updates[i];
-      const updateType = message.updateTypes[i];
-      switch (updateType) {
-        case UpdateType.Message:
-          doc.receive(update, this);
-          break;
-        case UpdateType.SavedState:
-          doc.load(update, this);
-          break;
-        default:
-          throw new Error("Unrecognized UpdateType: " + updateType);
-      }
-    }
-
-    this.emit("Load", { doc, docID: message.docID });
-
-    // Make the server up-to-date with us.
-    // OPT: use a delta on top of ourOldState instead.
-    this.sendInternal({
-      send: {
-        docID: message.docID,
-        update: ourOldState,
-        updateType: UpdateType.SavedState,
-        localCounter: ++info.localCounter,
-      },
-    });
-
     if (info.off === undefined) {
-      // Subscribe to future doc updates and forward them to the server.
+      // Subscribe to future doc updates (not included in ourOldState)
+      // and forward them to the server.
       // This includes both local operations and updates that we learn
       // of from other network/storage tools.
       const docID = message.docID;
@@ -331,11 +302,54 @@ export class WebSocketNetwork extends EventEmitter<WebSocketNetworkEventsRecord>
             docID,
             update: e.update,
             updateType: stringToEnum(e.updateType),
-            localCounter: ++info.localCounter,
+            localCounter: ++this.localCounter,
           },
         });
+        info.lastSent = this.localCounter;
       });
     }
+
+    // After the above save(), do the load() in a separate task, to avoid
+    // blocking for too long.
+    setTimeout(() => {
+      // Skip if we've been unsubscribed already.
+      if (info.unsubscribed) return;
+
+      // Make us up-to-date with the server:
+      //   1. Load the welcome state.
+      if (protobufHas(message, "savedState")) {
+        doc.load(message.savedState, this);
+      }
+      //   2. Load the further updates.
+      for (let i = 0; i < message.updates.length; i++) {
+        const update = message.updates[i];
+        const updateType = message.updateTypes[i];
+        switch (updateType) {
+          case UpdateType.Message:
+            doc.receive(update, this);
+            break;
+          case UpdateType.SavedState:
+            doc.load(update, this);
+            break;
+          default:
+            throw new Error("Unrecognized UpdateType: " + updateType);
+        }
+      }
+
+      this.emit("Load", { doc, docID: message.docID });
+
+      // Make the server up-to-date with us.
+      // OPT: use a delta on top of ourOldState instead.
+      this.sendInternal({
+        send: {
+          docID: message.docID,
+          update: ourOldState,
+          updateType: UpdateType.SavedState,
+          localCounter: ++this.localCounter,
+        },
+      });
+      info.lastSent = this.localCounter;
+    }, 0);
   }
 
   private onSubscribeDenied(message: SubscribeDenied): void {
@@ -368,7 +382,7 @@ export class WebSocketNetwork extends EventEmitter<WebSocketNetworkEventsRecord>
     if (doc === undefined) return;
     const info = nonNull(this.subs.get(doc));
 
-    if (message.localCounter === info.localCounter) {
+    if (message.localCounter === info.lastSent) {
       // The ack'd update is the last one we sent to the server.
       // So doc's state is now completely saved.
       this.emit("Save", { doc, docID: message.docID });

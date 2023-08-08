@@ -22,12 +22,12 @@ const defaultHeartbeatIntervalMS = 30000;
  *
  * You can start the server by calling the constructor in a Node.js program
  * or by using the `collabs-ws-server` command.
- * 
+ *
  * This server is only minimally configurable; for advanced uses, consider
  * copying and modifying
  * [its source code](https://github.com/composablesys/collabs/blob/master/ws-server/src/web_socket_network_server.ts)
  * directly.
- * 
+ *
  * However, you can configure:
  * - Document storage (constructor's `docStore` argument).
  * - Client/docID authentication (constructor's `authenticate` argument).

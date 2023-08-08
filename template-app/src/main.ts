@@ -35,13 +35,6 @@ const docID = "counter";
 // Connect to the server over WebSocket.
 const wsURL = "ws://localhost:3001/";
 const wsNetwork = new WebSocketNetwork(wsURL);
-wsNetwork.on("Load", (e) => {
-  console.log(`Loaded doc "${e.docID}" from the server.`);
-});
-wsNetwork.on("Save", (e) => {
-  console.log(`Saved all local updates to doc "${e.docID}" to the server`);
-});
-wsNetwork.on("Connect", () => console.log("Connected to the server."));
 wsNetwork.on("Disconnect", (e) => {
   // After a disconnection, try to reconnect every 2 seconds, unless
   // we deliberately called wsNetwork.disconnect().
@@ -57,12 +50,6 @@ wsNetwork.subscribe(doc, docID);
 
 // Add on-device storage in IndexedDB, so the app is closer to "local-first".
 const docStore = new IndexedDBDocStore();
-docStore.on("Load", (e) => {
-  console.log(`Loaded doc "${e.docID}" from IndexedDB.`);
-});
-docStore.on("Save", (e) => {
-  console.log(`Saved all updates to doc "${e.docID}" to IndexedDB`);
-});
 docStore.on("Error", (e) => {
   console.error("IndexedDBDocStore error:", e.err);
 });

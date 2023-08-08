@@ -176,7 +176,7 @@ export class LocalStorageDocStore extends EventEmitter<LocalStorageDocStoreEvent
     super();
 
     this.keyPrefix = options.keyPrefix ?? "@collabs/local-storage";
-    this.keyPrefixDot = this.keyPrefix = ".";
+    this.keyPrefixDot = this.keyPrefix + ".";
   }
 
   /** docPrefix: "<keyPrefix>.<docID>" */

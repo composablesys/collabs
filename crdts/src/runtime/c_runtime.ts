@@ -50,86 +50,110 @@ export interface SendEvent {
 
 /**
  * Event emitted by [[CRuntime]] or [[AbstractDoc]]
- * after applying an update.
+ * after applying an update of type "message".
  */
-export type UpdateEvent =
-  | {
-      /**
-       * The serialized update.
-       *
-       * Specifically, this is:
-       * - For a local message, its [[SendEvent.message]].
-       * - For a remote message, the `message` passed to [[receive]].
-       * - For a loaded state, the `savedState` passed to [[load]].
-       */
-      update: Uint8Array;
-      /**
-       * The caller who triggered this update.
-       *
-       * Specifically, this is:
-       * - For a local message, `undefined`.
-       * - For a remote message, the `caller` passed to [[receive]].
-       * - For a loaded state, the `caller` passed to [[load]].
-       * - For a remote message delivered as part of a loaded state
-       * (due to unmet causal dependencies), the `caller` passed to [[load]].
-       */
-      caller: unknown | undefined;
-    } & (
-      | {
-          /**
-           * The update's type.
-           */
-          updateType: "message";
-          /**
-           * The replicaID that sent the message.
-           */
-          senderID: string;
-          /**
-           * A 1-indexed counter for senderID's transactions.
-           *
-           * The pair `(senderID, senderCounter)` uniquely
-           * identifies the message's transaction. It is sometimes called a *causal dot*.
-           */
-          senderCounter: number;
-          /**
-           * Whether the message is for a local transaction, i.e., it results
-           * from calling [[Collab]] methods on this replica.
-           */
-          isLocalOp: boolean;
-        }
-      | {
-          /**
-           * The update's type.
-           */
-          updateType: "savedState";
-          /**
-           * The vector clock for this saved state, mapping each replicaID
-           * to the number of included transactions from that replicaID.
-           *
-           * This saved state includes precisely the transactions
-           * with ID `(senderID, senderCounter)` where
-           * `senderCounter <= (vectorClock.get(senderID) ?? 0)`.
-           */
-          vectorClock: Map<string, number>;
-          /**
-           * For each replicaID in [[vectorClock]]'s keys, the number of
-           * transactions from that sender that were redundant
-           * (i.e., we had already applied them), possibly 0.
-           *
-           * The effect of this saved state on our state was to
-           * apply precisely the transactions with ID `(senderID, senderCounter)`
-           * where:
-           * - `vectorClock.has(senderID)`
-           * - `redundant.get(senderID) < senderCounter <= vectorClock.get(senderID)`.
-           */
-          redundant: Map<string, number>;
-          /**
-           * Whether the message is for a local transaction, i.e., it results
-           * from calling [[Collab]] methods on this replica.
-           */
-          isLocalOp: false;
-        }
-    );
+export interface MessageEvent {
+  // For fields shared with SavedStateEvent, we use the same typedoc
+  // on both, so that they show up nicely in IDE tooltips when you have
+  // an Update event of type MessageEvent | SavedStateEvent.
+  /**
+   * The serialized update.
+   *
+   * Specifically, this is:
+   * - For a local message, its [[SendEvent.message]].
+   * - For a remote message, the `message` passed to [[receive]].
+   * - For a loaded state, the `savedState` passed to [[load]].
+   */
+  update: Uint8Array;
+  /**
+   * The caller who triggered this update.
+   *
+   * Specifically, this is:
+   * - For a local message, `undefined`.
+   * - For a remote message, the `caller` passed to [[receive]].
+   * - For a loaded state, the `caller` passed to [[load]].
+   * - For a remote message delivered as part of a loaded state
+   * (due to unmet causal dependencies), the `caller` passed to [[load]].
+   */
+  caller: unknown | undefined;
+  /**
+   * The update's type.
+   */
+  updateType: "message";
+  /**
+   * The replicaID that sent the message.
+   */
+  senderID: string;
+  /**
+   * A 1-indexed counter for senderID's transactions.
+   *
+   * The pair `(senderID, senderCounter)` uniquely
+   * identifies the message's transaction. It is sometimes called a *causal dot*.
+   */
+  senderCounter: number;
+  /**
+   * Whether the message is for a local transaction, i.e., it results
+   * from calling [[Collab]] methods on this replica.
+   */
+  isLocalOp: boolean;
+}
+
+/**
+ * Event emitted by [[CRuntime]] or [[AbstractDoc]]
+ * after applying an update of type "savedState".
+ */
+export interface SavedStateEvent {
+  /**
+   * The serialized update.
+   *
+   * Specifically, this is:
+   * - For a local message, its [[SendEvent.message]].
+   * - For a remote message, the `message` passed to [[receive]].
+   * - For a loaded state, the `savedState` passed to [[load]].
+   */
+  update: Uint8Array;
+  /**
+   * The caller who triggered this update.
+   *
+   * Specifically, this is:
+   * - For a local message, `undefined`.
+   * - For a remote message, the `caller` passed to [[receive]].
+   * - For a loaded state, the `caller` passed to [[load]].
+   * - For a remote message delivered as part of a loaded state
+   * (due to unmet causal dependencies), the `caller` passed to [[load]].
+   */
+  caller: unknown | undefined;
+  /**
+   * The update's type.
+   */
+  updateType: "savedState";
+  /**
+   * The vector clock for this saved state, mapping each replicaID
+   * to the number of included transactions from that replicaID.
+   *
+   * This saved state includes precisely the transactions
+   * with ID `(senderID, senderCounter)` where
+   * `senderCounter <= (vectorClock.get(senderID) ?? 0)`.
+   */
+  vectorClock: Map<string, number>;
+  /**
+   * For each replicaID in [[vectorClock]]'s keys, the number of
+   * transactions from that sender that were redundant
+   * (i.e., we had already applied them), possibly 0.
+   *
+   * The effect of this saved state on our state was to
+   * apply precisely the transactions with ID `(senderID, senderCounter)`
+   * where:
+   * - `vectorClock.has(senderID)`
+   * - `redundant.get(senderID) < senderCounter <= vectorClock.get(senderID)`.
+   */
+  redundant: Map<string, number>;
+  /**
+   * Whether the message is for a local transaction, i.e., it results
+   * from calling [[Collab]] methods on this replica.
+   */
+  isLocalOp: false;
+}
 
 /**
  * Events record for [[CRuntime]] and [[AbstractDoc]].
@@ -149,7 +173,7 @@ export interface RuntimeEventsRecord {
    * The update may be a local message, remote message,
    * or saved state. Note that it may consist of multiple transactions.
    */
-  Update: UpdateEvent;
+  Update: MessageEvent | SavedStateEvent;
   /**
    * Emitted after applying a synchronous set of updates. This
    * is a good time to rerender the GUI.
