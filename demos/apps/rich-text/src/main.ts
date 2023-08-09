@@ -303,7 +303,8 @@ wsNetwork.subscribe(presenceDoc, presenceDocID);
 // In a real app, you would probably also add on-device storage
 // (@collabs/indexeddb or @collabs/local-storage)
 // and cross-tab sync (@collabs/tab-sync).
-// See the [Guide](TODO) for an example.
+// See the [Quick Start](https://collabs.readthedocs.io/en/latest/quick_start.html)
+// for an example.
 
 // --- "Connected" checkbox for testing concurrency ---
 

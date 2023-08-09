@@ -16,7 +16,7 @@ Our ultimate goal is to make collaborative apps **easier for programmers to writ
 
 A collaborative app that delegates all collaboration to Collabs's collaborative data structures automatically gets two nice properties:
 
-1. It is network-agnostic, capable of running on top of any broadcast network (especially if it is a [Container](../guide/containers.html)).
+1. It is network-agnostic, capable of running on top of any network that eventually delivers updates to all collaborators.
 2. All data and logic is stored on users' devices, where it can be saved and used forever, even when offline.
 
 These properties free developers from the need to deploy dedicated servers for each collaborative app - you can instead deploy an app using just a static site, or even by handing out a single file.
@@ -33,6 +33,6 @@ While there already exist collaborative data structure libraries, including netw
 
 - **Keep your data model and type safety:** You can organize your collaborative state using reusable, strongly-typed classes.
 - **Flexible and extensible:** You can create new collaborative data structures, instead of just using the ones we provide. So, if a cool new CRDT algorithm appears, like a [list with move operation](https://dl.acm.org/doi/10.1145/3380787.3393677), you don't have to create a new library to use it. (Don't worry, we already implement this move operation in [`CList`](../api/collabs/classes/CList.html).) Or, if our performance is inadequate for your app, you can make your own optimized data structures, or even create wrappers around other libraries' better implementations.
-- **Composable:** We provide composition techniques that let you create new collaborative data structures from existing ones, instead of starting from scratch each time. Built-in techniques include the mutable collection types and [`CObject`](../api/collabs/classes/CObject.html), which let you create new collaborative data structures from existing ones, instead of starting from scratch each time. You can also create new composition techniques, e.g., by subclassing [`Collab`](../api/collabs/classes/Collab.html) directly.
+- **Composable:** We provide composition techniques that let you create new collaborative data structures from existing ones, instead of starting from scratch each time. Built-in techniques include the mutable collection types and [`CObject`](../api/collabs/classes/CObject.html), which let you create new collaborative data structures from existing ones, instead of starting from scratch each time. You can also create new composition techniques, e.g., by subclassing [Collab](../api/collabs/classes/Collab.html) directly.
 
 Considered together, these features are unique among prior work. Of course, which library you should use depends on your precise programming style and app. Each library has its own characteristics, and in particular, its own data model (how you must represent your data to make it collaborative).

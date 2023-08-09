@@ -1,6 +1,6 @@
 # Initial Values
 
-After [initialization](../guide/initialization.html) and before performing any operations, each `Collab` has a default initial value. For example, collection types are empty, [`CCounter`](../api/collabs/classes/CCounter.html) is 0, and [`CBoolean`](../api/collabs/classes/CBoolean.html) is false.
+After [initialization](../guide/initialization.html) and before performing any operations, each Collab has a default initial value. For example, collection types are empty, [`CCounter`](../api/collabs/classes/CCounter.html) is 0, and [`CBoolean`](../api/collabs/classes/CBoolean.html) is false.
 
 Sometimes, you need to customize this initial value. For example, the Quill rich text editor's starting text is `"\n"`. If you try to sync its state to a default [`CRichText`](../api/collabs/classes/CRichText.html), which starts as the empty string, then you will get index out-of-bounds errors.
 
@@ -10,11 +10,11 @@ Below are some techniques and non-techniques for customizing initial values.
 
 ### Constructor Options
 
-A few `Collab`s take the initial value as a constructor option: [`CVar`](../api/collabs/classes/CVar.html), [`CBoolean`](../api/collabs/classes/CBoolean.html), [`CCounter`](../api/collabs/classes/CCounter.html).
+A few Collabs take the initial value as a constructor option: [`CVar`](../api/collabs/classes/CVar.html), [`CBoolean`](../api/collabs/classes/CBoolean.html), [`CCounter`](../api/collabs/classes/CCounter.html).
 
-### `Collab` Creator Operations
+### Collab Creator Operations
 
-For a [dynamically-created `Collab`](../guide/initialization.html#dynamically-created-collabs), you can perform operations that set the initial value just after creating it. For example, if you have a `myTextSet: CSet<CText, ...>` where each `CText` needs initial value `"\n"`, you can do:
+For a [dynamically-created Collab](../guide/initialization.html#dynamically-created-collabs), you can perform operations that set the initial value just after creating it. For example, if you have a `myTextSet: CSet<CText, ...>` where each `CText` needs initial value `"\n"`, you can do:
 
 ```ts
 // After calling add, also set newText's initial value.
@@ -22,17 +22,17 @@ const newText = myTextSet.add(...);
 newText.insert(0, "\n");
 ```
 
-Observe that the initial value operations are performed by the same user who created the `Collab`, and _not_ any other users. That way, the operations are only performed once across all collaborators.
+Observe that the initial value operations are performed by the same user who created the Collab, and _not_ any other users. That way, the operations are only performed once across all collaborators.
 
 ### Document Creator Operations
 
-Similar to [`Collab` creator operations](#collab-creator-operations), if entire collaborative _documents_ are created by a specific user, that user can perform operations to set the document's initial state just after creating it, before sharing it with others. Note that the "user" might be a central server.
+Similar to [Collab creator operations](#collab-creator-operations), if entire collaborative _documents_ are created by a specific user, that user can perform operations to set the document's initial state just after creating it, before sharing it with others. Note that the "user" might be a central server.
 
 ### Loading a Base State
 
-Finally, sometimes neither `Collab`s nor documents have a specific creator. For example, our [rich text demo](https://github.com/composablesys/collabs/blob/master/demos/apps/rich-text/src/rich_text.ts) features a single document that always exists, with a single [global variable](../guide/initialization.html#global-variable-collabs) `text: CRichText` synced to Quill.
+Finally, sometimes neither Collabs nor documents have a specific creator. For example, our [rich text demo](https://github.com/composablesys/collabs/blob/master/demos/apps/rich-text/src/rich_text.ts) features a single document that always exists, with a single [global variable](../guide/initialization.html#global-variable-collabs) `text: CRichText` synced to Quill.
 
-To the set the initial value of such a document's `Collab`s, you can create an identical "base" saved state on all users, then load that state before performing any operations (but after registering Collabs). For example:
+To the set the initial value of such a document's Collabs, you can create an identical "base" saved state on all users, then load that state before performing any operations (but after registering Collabs). For example:
 
 ```ts
 function makeInitialSave(): Uint8Array {
@@ -79,7 +79,7 @@ However, this will have unintended consequences:
 
 ### Operations in `valueConstructor`
 
-For a [dynamically-created `Collab`](../guide/initialization.html#dynamically-created-collabs), you might try to perform setup operations in the `valueConstructor`. For example:
+For a [dynamically-created Collab](../guide/initialization.html#dynamically-created-collabs), you might try to perform setup operations in the `valueConstructor`. For example:
 
 ```ts
 function valueConstructor(valueInit: collabs.InitToken) {
@@ -101,4 +101,4 @@ However, you'll get errors at runtime if try this:
 Error: CRuntime.send called during a receive/load call; did you try to perform an operation in an event handler?
 ```
 
-The issue is that you are performing a collaborative operation on _every_ user's device, in response to the original `myTextSet.add` operation. This would duplicate the operation (# users) times, which is usually a mistake, hence `CRuntime` won't let you. Instead, use [`Collab` Creator Operations](#collab-creator-operations).
+The issue is that you are performing a collaborative operation on _every_ user's device, in response to the original `myTextSet.add` operation. This would duplicate the operation (# users) times, which is usually a mistake, hence `CRuntime` won't let you. Instead, use [Collab Creator Operations](#collab-creator-operations).

@@ -2,7 +2,7 @@
 
 TODO: change to "More on Events" or similar? Has more info like also-works-on-load, advice about when to listen, repeat valueConstructor advice. Link back to Events, Collections.
 
-`Collab`s use _events_ to notify you when they change, due to either a local or remote operation. Typically, you will act on these events by updating the view (UI).
+Collabs use _events_ to notify you when they change, due to either a local or remote operation. Typically, you will act on these events by updating the view (UI).
 
 ## Quick Start
 
@@ -19,10 +19,10 @@ This works because a `CRuntime` "Change" event is dispatched whenever the local 
 
 ## API
 
-See [`EventEmitter`](../api/collabs/classes/EventEmitter.html). `Collab` (hence all collaborative data structures) and `CRuntime` have `EventEmitter` as a superclass/superinterface, hence they have the following methods:
+See [`EventEmitter`](../api/collabs/classes/EventEmitter.html). he [Collab](TODO) base class (hence all Collabs), CRuntime, and AbstractDoc have EventEmitter as a superclass, hence they have the following methods:
 
 - `on` adds an event listener. Calling `on`'s return value removes the listener.
-- `emit` (protected) emits an event. Call this from within a custom `Collab` to emit your own events.
+- `emit` (protected) emits an event. Call this from within a custom Collab to emit your own events.
 
 Each class's allowed events are typed using the `Events` type parameter. This has the form of an interface mapping `string` event names to their event type:
 
@@ -36,15 +36,15 @@ interface MyEventsRecord {
 
 When calling the `EventEmitter` methods, TypeScript will force you to use a valid event name, and it will then infer the corresponding event type. In particular, your IDE should show you the proper event type in the method signature once you type the event name.
 
-## Using `Collab` Events
+## Using Collab Events
 
-All events emitted by `Collab`s extend [`CollabEvent`](../api/collabs/interfaces/CollabEvent.html). This means that they have a `meta` field of type [`UpdateMeta`](../api/collabs/modules.html#UpdateMeta). When listening on events, you can use `meta.isLocalOp` to filter out events from the local user.
+All events emitted by Collabs extend [`CollabEvent`](../api/collabs/interfaces/CollabEvent.html). This means that they have a `meta` field of type [`UpdateMeta`](../api/collabs/modules.html#UpdateMeta). When listening on events, you can use `meta.isLocalOp` to filter out events from the local user.
 
-Also, all `Collab`s have an "Any" event of type `CollabEvent`, from [`CollabEventsRecord`](../api/collabs/interfaces/CollabEventsRecord). This event is emitted after any other event. Thus if you just want to know when a `Collab` is changed, but you don't care about the specific change (e.g., because you are planning to just refresh your whole view of the structure), then you can listen on "Any" events instead of listening on every event specifically.
+Also, all Collabs have an "Any" event of type `CollabEvent`, from [`CollabEventsRecord`](../api/collabs/interfaces/CollabEventsRecord). This event is emitted after any other event. Thus if you just want to know when a Collab is changed, but you don't care about the specific change (e.g., because you are planning to just refresh your whole view of the structure), then you can listen on "Any" events instead of listening on every event specifically.
 
-When listening on a `Collab`'s events, you should register event listeners as soon as possible - usually in the same thread as the structure is constructed. For example, to listen on child events in a `CObject`, you should register listeners in the constructor. This ensures that you don't miss any events.
+When listening on a Collab's events, you should register event listeners as soon as possible - usually in the same thread as the structure is constructed. For example, to listen on child events in a `CObject`, you should register listeners in the constructor. This ensures that you don't miss any events.
 
-When listening on events from a `Collab` that is created dynamically in a collection (e.g., `CLazyMap`), you should register event listeners within the `valueConstructor` callback. So typically this callback will create the new value, register event listeners, then return the value. You should not wait until the collection's "Add"/"Set"/"Insert" event to register listeners. This is because some collections destroy and recreate their values independently of any operations; when a value is recreated in this way, `valueConstructor` will be called, but no event will be emitted, and so you would miss registering event listeners.
+When listening on events from a Collab that is created dynamically in a collection (e.g., `CLazyMap`), you should register event listeners within the `valueConstructor` callback. So typically this callback will create the new value, register event listeners, then return the value. You should not wait until the collection's "Add"/"Set"/"Insert" event to register listeners. This is because some collections destroy and recreate their values independently of any operations; when a value is recreated in this way, `valueConstructor` will be called, but no event will be emitted, and so you would miss registering event listeners.
 
 Events are emitted as usual during loading ([CRuntime.load](../api/collabs/classes/CRuntime.html#load)) - both when loading saved state at the beginning of a session, and if you call `CRuntime.load` during a session to merge in saved state. In both cases, you'll get incremental events describing the exact changes as they occur, just like for operations.
 
@@ -92,7 +92,7 @@ If you are publishing a custom type as a third-party library, we recommend that 
 
 See [`CollabEventsRecord`](../api/collabs/interfaces/CollabEventsRecord) for guidelines on what events to include. Note that each of our interfaces (`ISet`, etc.) has a corresponding events records that you must extend if you are implementing that interface; you should then emit those events.
 
-> **Aside:** For custom types that you only plan to use in your own application, you might not need to emit events. It can be easier for the GUI to just listen on events dispatched by internal `Collab`s, or to just listen on `CRuntime`'s "Change" event.
+> **Aside:** For custom types that you only plan to use in your own application, you might not need to emit events. It can be easier for the GUI to just listen on events dispatched by internal Collabs, or to just listen on `CRuntime`'s "Change" event.
 
 <!-- TODOs:
 - [ ]  Should be “live” (immediately after change & in sync with current version)

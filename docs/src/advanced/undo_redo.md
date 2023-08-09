@@ -16,7 +16,7 @@ A local operation's inverse should undo that operation's effects from the local 
 4. Delete a text character -> Insert the same character at the index where its `Position` would be, with help from `getPosition` and `indexOfPosition(pos, "right")`.
 5. Delete a value from a [`CSet`](../api/collabs/classes/CSet.html) -> Add a new value using the same [`CSet.add`](../api/collabs/classes/CSet.html#add) arguments, then perform operations to make the value's state look like the deleted state.
 
-Note that these undo operations are approximate; they do not give the exact same result as if the operation never happened. For example, in (5), the value is a different `Collab` instance; other users' concurrent operations on the deleted value will be lost.
+Note that these undo operations are approximate; they do not give the exact same result as if the operation never happened. For example, in (5), the value is a different Collab instance; other users' concurrent operations on the deleted value will be lost.
 
 > **Aside:** To avoid (5)'s issue, consider "archiving" values instead of deleting them. That is, use a separate "presence" [`CValueSet`](../api/collabs/classes/CValueSet.html) to store which values are present/archived, call that `CValueSet`'s [`delete`](../api/collabs/classes/CValueSet.html#delete) instead of `CSet.delete`, and use [`CValueSet.add`](../api/collabs/classes/CValueSet.html#add) to undo. Be warned that this will use more memory long-term, unless you eventually call `CSet.delete`.
 
@@ -34,4 +34,4 @@ More complicated forms of undo include:
 
 The paper [A CRDT supporting selective undo for collaborative text editing (Yu, André, and Ignat 2015)](https://members.loria.fr/CIgnat/files/pdf/YuDAIS15.pdf) discusses these in a CRDT context.
 
-We do not plan to support these directly in Collabs, but if you are ambitious, you could implement them in a custom `Collab`.
+We do not plan to support these directly in Collabs, but if you are ambitious, you could implement them in a custom Collab.

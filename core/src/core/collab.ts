@@ -96,7 +96,7 @@ export interface CollabEventsRecord {
  * but are public for technical reasons; these are marked "Internal use only".
  *
  * To implement a custom Collab, you will usually extend one of the following
- * classes instead of `Collab` itself:
+ * classes instead of Collab itself:
  * - [[CObject]]: For object-oriented composition of existing Collabs.
  * - [[CPrimitive]]: For a "primitive" Collab that sends its own messages
  * over the network.

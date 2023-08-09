@@ -10,7 +10,7 @@ All in-sync copies of a Collab must be initialized identically. In particular:
 
 1. All copies of a document must make the same calls to [CRuntime.registerCollab](../api/collabs/classes/CRuntime.html#registerCollab), with the same names, Collab classes, and Collab constructor arguments (in the `init` callback)
 2. Likewise for calls to `registerCollab` within a `CObject`.
-3. Constructor arguments, and the logic inside `Collab` constructors or `valueConstructor` callbacks, must not depend on values that can differ across users - e.g., the user's current time, fresh random values, or [CRuntime.replicaID](TODO).
+3. Constructor arguments, and the logic inside Collab constructors or `valueConstructor` callbacks, must not depend on values that can differ across users - e.g., the user's current time, fresh random values, or [CRuntime.replicaID](TODO).
 
 So long as all users are running the same code, 1 and 2 should be automatic.
 
@@ -56,7 +56,7 @@ console.log(set.size); // 1
 
 ## Treating Events as Consistent
 
-Although the _state_ of a `Collab` is eventually consistent, the _events_ that it emits are not. Each user emits events according to its own view of how the state changed over time; this can differ across users if they receive updates in different orders.
+Although the _state_ of a Collab is eventually consistent, the _events_ that it emits are not. Each user emits events according to its own view of how the state changed over time; this can differ across users if they receive updates in different orders.
 
 Examples:
 

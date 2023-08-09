@@ -67,7 +67,7 @@ import { TabSyncNetwork } from "@collabs/tab-sync";
 import { WebSocketNetwork } from "@collabs/ws-client";
 ```
 
-- [@collabs/collabs](TODO) is Collabs's main package. It contains all of the collaborative data structures, such as [CCounter](TODO). It also contains [CRuntime](TODO), which you use to make a Collabs _document_: a group of Collabs that are shared together.
+- [@collabs/collabs](TODO) is Collabs's main package. It contains all of the library's collaborative data structures, such as [CCounter](TODO). It also contains [CRuntime](TODO), which you use to make a Collabs _document_: a group of Collabs that are shared together.
 - The other packages are optional [network and storage providers](TODO), described [below](#network-and-storage-providers). These help you sync Collabs documents with remote collaborators and store them locally.
 
 #### Collaborative Counter

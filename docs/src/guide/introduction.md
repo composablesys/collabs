@@ -18,13 +18,13 @@ class CCounter {
 
 But unlike an ordinary number, when one user calls `counter.add(1)`, 1 is added to _every_ user's `counter.value`, not just theirs. If multiple users call `counter.add(1)` at the same time, all of their additions go through, increasing their shared value by the total number of calls. In this way, everyone eventually ends up seeing the same `counter.value`, as you'd expect.
 
-You can try this out in the [live demo](https://collabs-demos.herokuapp.com/web_socket.html?container=demos/counter/dist/counter.html): open it in multiple tabs, then watch how incrementing the value in one tab also increments the value in the other. This also works if you open the tabs on different devices, since they are connected through our demo server.
+You can try this out in the [live demo](https://collabs-demos.herokuapp.com/counter/): open it in multiple tabs, then watch how incrementing the value in one tab also increments the value in the other. This also works if you open the tabs on different devices, since they are connected through our demo server.
 
 You can also try disconnecting one tab by unchecking the box at the top. Verify that if you disconnect one tab, increment both tabs, then reconnect the first tab, they get both increments.
 
 ## Example: Whiteboard
 
-Our [whiteboard demo](https://collabs-demos.herokuapp.com/web_socket.html?container=demos/whiteboard/dist/whiteboard.html) uses a map Collab to store the board state. Specifically, it uses an [`CValueMap`](../api/collabs/classes/CValueMap.html) that maps each coordinate `[x, y]` to its color:
+Our [whiteboard demo](https://collabs-demos.herokuapp.com/whiteboard/) uses a map Collab to store the board state. Specifically, it uses an [`CValueMap`](../api/collabs/classes/CValueMap.html) that maps each coordinate `[x, y]` to its color:
 
 ```ts
 const boardState: CValueMap<[x: number, y: number], Color>;

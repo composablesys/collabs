@@ -19,7 +19,7 @@ Of course, from the library's perspective, there is no difference. Indeed, many 
 We recommend creating collaborative data models using the following general process:
 
 1. Create a single-user (non-collaborative) version of your data model, using ES6 classes and strong typing.
-2. Replace collection types (`Set`, etc.) and primitive types (`boolean`, etc.) with collaborative versions, following the advice in [Built In Collabs](./built_in_collabs.html).
+2. Replace collection types (`Set`, etc.) and primitive types (`boolean`, etc.) with Collab versions, following the advice in [Built-in Collabs](./built_in_collabs.html).
 3. Replace your custom classes with subclasses of [`CObject`](../api/collabs/classes/CObject.html), whose children are their instance variables.
 
 We illustrate this process with examples below.
@@ -27,7 +27,7 @@ We illustrate this process with examples below.
 Notes:
 
 - In practice, steps 2 and 3 are not sequential, but instead are a back-and-forth. Don't expect your program to compile until you have finished both of them together.
-- You may find that you need to revise your choice of collaborative data structures or your class structure, in order to support the right operations or obtain the right semantics (see [Built In Collabs](./built_in_collabs.html) for some common choice points).
+- You may find that you need to revise your choice of Collabs or your class structure, in order to support the right operations or obtain the right semantics (see [Built-in Collabs](./built_in_collabs.html) for some common choice points).
 - You don't need to replace variables with collaborative versions if they are never mutated after being set (`readonly`/`const` and internally immutable).
 <!-- - TODO: For advanced scenarios, like supporting new primitive types or novel behavior in the face of concurrent operations, you may need to use more advanced techniques for creating [Custom Types](./custom_types.md). -->
 
@@ -72,7 +72,7 @@ class Pair<T, U> {
 }
 ```
 
-**Collaborative data model:** We now give a collaborative version in the form of a custom `Collab` that is called `CPair`, which can hold a pair collaboratively.
+**Collaborative data model:** We now give a collaborative version in the form of a custom Collab that is called `CPair`, which can hold a pair collaboratively.
 
 ```ts
 class CPair<T, U> extends CObject {
@@ -231,7 +231,7 @@ The app's top-level state is a variable `currentGame: Minesweeper | null`. When 
 Per step 2, we should replace `Tile`'s properties with collaborative versions:
 
 - `revealed: boolean`: This should start `false`, and once it becomes `true`, it should stay that way forever - you can't "un-reveal" a tile (especially a mine!). `CBoolean` with the default options satisfies these conditions, so we use that.
-- `flag: FlagStatus`: Recall that `FlagStatus` is a custom enum. As an opaque immutable type, the table in [Collaborative Data Structures](./built_in_collabs.html) suggests `CVar<FlagStatus>`. In case of concurrent changes to the flag, this will pick one arbitrarily, which seems fine from the users' perspective.
+- `flag: FlagStatus`: Recall that `FlagStatus` is a custom enum. As an opaque immutable type, the table in [Built-in Collabs](./built_in_collabs.html) suggests `CVar<FlagStatus>`. In case of concurrent changes to the flag, this will pick one arbitrarily, which seems fine from the users' perspective.
 - `readonly isMine: boolean;`, `readonly number: number;`: Since these are fixed, we actually don't need to make them collaborative. We can just set them in the constructor as usual.
 
 Also, per step 3, we should replace `Tile` with a subclass of `CObject`. That leads to the class `CTile` below:
@@ -264,7 +264,7 @@ We must likewise transform the `Minesweeper` class. This deviates from the usual
 
 First, we cannot use randomness in the constructor: per [Documents](./documents.html#using-cruntime), the constructor must behave identically when called on different users with the same arguments. Instead, we use a PRNG, and pass its seed as a constructor argument. The seed will be randomly set by whichever user starts a new game, so that the board is still random.
 
-Second, even though `tiles` has type `Tile[][]` and the table maps `Array` to `CList` or `CValueList`, there is actually no need for us to use a list here. Indeed, we don't plan to mutate the arrays themselves after the constructor, just the tiles inside them. Instead, we treat each `Tile` as its own property with its own name, using the arrays only as a convenient way to store them. (See Arrays vs `CLists` in [Collaborative Data Structures](./built_in_collabs.html).)
+Second, even though `tiles` has type `Tile[][]` and the table maps `Array` to `CList` or `CValueList`, there is actually no need for us to use a list here. Indeed, we don't plan to mutate the arrays themselves after the constructor, just the tiles inside them. Instead, we treat each `Tile` as its own property with its own name, using the arrays only as a convenient way to store them. (See Arrays vs `CLists` in [Built-in Collabs](./built_in_collabs.html). TODO: out-of-date section title)
 
 ```ts
 class CMinesweeper extends collabs.CObject {
