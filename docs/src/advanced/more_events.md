@@ -1,4 +1,6 @@
-# Events
+# More on Events
+
+TODO: change to "More on Events" or similar? Has more info like also-works-on-load, advice about when to listen, repeat valueConstructor advice. Link back to Events, Collections.
 
 `Collab`s use _events_ to notify you when they change, due to either a local or remote operation. Typically, you will act on these events by updating the view (UI).
 
@@ -91,3 +93,9 @@ If you are publishing a custom type as a third-party library, we recommend that 
 See [`CollabEventsRecord`](../api/collabs/interfaces/CollabEventsRecord) for guidelines on what events to include. Note that each of our interfaces (`ISet`, etc.) has a corresponding events records that you must extend if you are implementing that interface; you should then emit those events.
 
 > **Aside:** For custom types that you only plan to use in your own application, you might not need to emit events. It can be easier for the GUI to just listen on events dispatched by internal `Collab`s, or to just listen on `CRuntime`'s "Change" event.
+
+<!-- TODOs:
+- [ ]  Should be “live” (immediately after change & in sync with current version)
+- [ ]  update advice in docs to include all info, for ease and in case things get delayed (can see what the event actually did)
+- [ ]  Also during loading/merging - same status as normal ops.
+-->

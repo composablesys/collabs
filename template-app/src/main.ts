@@ -14,7 +14,7 @@ const doc = new CRuntime();
 const counter = doc.registerCollab("counter", (init) => new CCounter(init));
 
 // Refresh the display when the Collabs state changes, possibly
-// due to a message from another replica.
+// due to a message from another user.
 const display = document.getElementById("display")!;
 function refreshDisplay() {
   display.innerHTML = counter.value.toString();
@@ -24,9 +24,7 @@ doc.on("Change", refreshDisplay);
 // Change counter's value on button clicks.
 // Note that we don't need to refresh the display here, since Change
 // events are also triggered by local operations.
-document.getElementById("increment")!.onclick = () => {
-  counter.add(1);
-};
+document.getElementById("increment")!.onclick = () => counter.add(1);
 
 // --- Network/storage setup ---
 
@@ -48,14 +46,6 @@ wsNetwork.on("Disconnect", (e) => {
 
 wsNetwork.subscribe(doc, docID);
 
-// Add on-device storage in IndexedDB, so the app is closer to "local-first".
-const docStore = new IndexedDBDocStore();
-docStore.on("Error", (e) => {
-  console.error("IndexedDBDocStore error:", e.err);
-});
-
-docStore.subscribe(doc, docID);
-
 // Add cross-tab sync, so that local tabs share updates quickly,
 // even when offline.
 const tabSync = new TabSyncNetwork();
@@ -64,3 +54,11 @@ tabSync.on("Error", (e) => {
 });
 
 tabSync.subscribe(doc, docID);
+
+// Add on-device storage in IndexedDB, so the app is closer to "local-first".
+const docStore = new IndexedDBDocStore();
+docStore.on("Error", (e) => {
+  console.error("IndexedDBDocStore error:", e.err);
+});
+
+docStore.subscribe(doc, docID);

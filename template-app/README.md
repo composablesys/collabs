@@ -41,6 +41,11 @@ Delete `dist/`.
 
 ## Starter Files
 
-- `src/index.html`: App HTML.
-- `src/main.ts`: App TypeScript code.
-- `webpack.config.ts`: Wepback config.
+- Code:
+  - `src/index.html`: The app's HTML.
+  - `src/main.ts`: The app's TypeScript code.
+- Configuration:
+  - `package.json`: npm install file.
+  - `tsconfig.json`: TypeScript configuration for the app.
+  - `webpack.config.ts`: Wepback configuration.
+  - `tsconfig.webpack-config.json`: TypeScript configuration that lets us write `webpack.config.ts` in TypeScript instead of JavaScript.

@@ -142,7 +142,7 @@ boardState.set([x, y], color);
 **Collaborative data model:** Next, we convert the above data model into a collaborative one. Per step 2, we should replace the `Map<[x: number, y: number], Color>` with a collaborative version. The table in [Types] asks us to consider whether the value type `Color` is immutable or mutable. Here, we treat it as immutable: the color strings cannot be edited in-place, only set to a value. Thus our collaborative replacement is a `CValueMap<[x: number, y: number], Color>`:
 
 ```ts
-const boardState = container.registerCollab(
+const boardState = doc.registerCollab(
   "whiteboard",
   (init) => new collabs.CValueMap<[x: number, y: number], Color>(init)
 );
@@ -262,7 +262,7 @@ class CTile extends collabs.CObject {
 
 We must likewise transform the `Minesweeper` class. This deviates from the usual process in two ways.
 
-First, we cannot use randomness in the constructor: per [Initialization](./initialization.html), the constructor must behave identically when called on different users with the same arguments. Instead, we use a PRNG, and pass its seed as a constructor argument. The seed will be randomly set by whichever user starts a new game, so that the board is still random.
+First, we cannot use randomness in the constructor: per [Documents](./documents.html#using-cruntime), the constructor must behave identically when called on different users with the same arguments. Instead, we use a PRNG, and pass its seed as a constructor argument. The seed will be randomly set by whichever user starts a new game, so that the board is still random.
 
 Second, even though `tiles` has type `Tile[][]` and the table maps `Array` to `CList` or `CValueList`, there is actually no need for us to use a list here. Indeed, we don't plan to mutate the arrays themselves after the constructor, just the tiles inside them. Instead, we treat each `Tile` as its own property with its own name, using the arrays only as a convenient way to store them. (See Arrays vs `CLists` in [Collaborative Data Structures](./built_in_collabs.html).)
 
@@ -315,7 +315,7 @@ Finally, we need to convert the variable `currentGame: Minesweeper | null` that 
 2. A variable holding a _reference_ to the current game (or `null`). In general, Collabs uses a [CollabID](../api/collabs/modules.html#CollabID) to store a reference to a Collab in another collection. So, we use a `CVar<CollabID<CMinesweeper> | null>`.
 
 ```ts
-const gameFactory = container.registerCollab(
+const gameFactory = doc.registerCollab(
   "gameFactory",
   (init) =>
     new CSet(
@@ -340,7 +340,7 @@ const gameFactory = container.registerCollab(
         )
     )
 );
-const currentGame = container.registerCollab(
+const currentGame = doc.registerCollab(
   "currentGame",
   (init) => new CVar<CollabID<CMinesweeper> | null>(init, null)
 );
@@ -363,53 +363,8 @@ currentGame.value = gameFactory.idOf(newGame);
 This completes our data model. To actually use this data model, we also have to integrate it with the view, by updating the view in response to [Events](../advanced/events.html) (either from the local user or other collaborators). An easy (though inefficient) way to do this is to refresh the entire view whenever anything changes:
 
 ```ts
-runtime.on("Change", () => {
+doc.on("Change", () => {
   // Refresh the whole view so that it displays currentGame.
   // ...
 });
 ```
-
-<!-- ### Spreadsheet
-
-TODO
-
-Point out variables general usefulness (again), for spreadsheet cell.
-
-
-### Sorted Set
-
-TODO: Views (example with sorted set): not directly replicated, but still EC so long as you do events right. Load/save.
-
-### Rich Text (Quill)
-
-TODO: rich text? To point out need for adjusting the original data model to fit the known operations (no good "split" op on IList, which you'd need to match Quill's exact data model). -->
-
-## AbstractDoc
-
-Once you have your data model, you may want to encapsulate the whole thing - the `CRuntime` and all [global variable Collabs](./initialization.html#global-variable-collabs) - into a single, reusable document. `AbstractDoc` makes this easy.
-
-To use `AbstractDoc`, extend it and register Collabs in your constructor, like with `CObject`. For example, to encapsulate the [Minesweeper example's](#minesweeper) Collabs, we could define:
-
-```ts
-import { AbstractDoc } from "@collabs/collabs";
-
-class MyMinesweeperDoc extends AbstractDoc {
-  readonly gameFactory: CSet<CMinesweeper>;
-  readonly currentGame: CVar<CollabID<CMinesweeper> | null>;
-
-  constructor() {
-    super();
-
-    this.gameFactory = this.runtime.registerCollab(
-      "gameFactory",
-      (init) => ...
-    );
-    this.currentGame = this.runtime.registerCollab(
-      "currentGame",
-      (init) => new CVar<CollabID<CMinesweeper> | null>(init, null)
-    );
-  }
-}
-```
-
-Then in your app, you can create a `new MyMinesweeperDoc()`, [send/receive/load/save like with `CRuntime`](./entry_points.html#cruntime), and access its Collabs. The single `MyMinesweeperDoc` object is easy to pass around (e.g. as a React prop), and you can easily create multiple instances (e.g. multiple games shared by different groups of players).

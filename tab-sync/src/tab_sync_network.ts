@@ -41,6 +41,10 @@ export interface TabSyncNetworkEventsRecord {
  * are not sent over the BroadcastChannel, since we expect that other tabs will
  * get a copy from their own sources. You can override this with the `allUpdates`
  * constructor option.
+ *
+ * Likewise, our other providers do not forward or store
+ * operations from TabSyncNetwork. Instead, it is expected that
+ * each tab sets up its own providers to forward/store updates.
  */
 export class TabSyncNetwork extends EventEmitter<TabSyncNetworkEventsRecord> {
   /**

@@ -141,7 +141,7 @@ export interface LocalStorageDocStoreEventsRecord {
  * [@collabs/tab-sync](https://www.npmjs.com/package/@collabs/tab-sync) are not
  * saved, since the source tab should save them.
  *
- * Warning: This class is subject to localStorage's small storage limit.
+ * Warning: This class is subject to localStorage's small storage quotas.
  * Also, some methods (including [[subscribe]]) loop over all localStorage keys,
  * which may be slow.
  *

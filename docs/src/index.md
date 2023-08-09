@@ -27,7 +27,7 @@ api/index
 
 Using [npm](https://docs.npmjs.com/cli/v8/commands/npm): `npm i --save @collabs/collabs`
 
-Collabs is written in TypeScript and should work in any JavaScript environment (browser, NodeJS, etc.).
+Collabs is written in TypeScript and should work in any JavaScript environment (browser, Node.js, etc.).
 
 ## Demos
 

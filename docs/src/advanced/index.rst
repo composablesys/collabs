@@ -6,6 +6,7 @@ Advanced Topics
    :maxdepth: 1
    :caption: Contents:
 
-   events
+   more_events
+   updates
    initial_values
    undo_redo
