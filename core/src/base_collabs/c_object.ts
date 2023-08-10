@@ -17,8 +17,8 @@ import { nonNull } from "../util/assertions";
  * Base class for a collaborative object, containing
  * properties that are themselves [[Collab]]s.
  *
- * See [Data Modeling](../../../guide/data_modeling.html) for a guide and
- * examples of how to extend this class.
+ * See [Data Modeling](https://collabs.readthedocs.io/en/latest/guide/data_modeling.html)
+ * for a guide and examples of how to extend this class.
  *
  * Extending CObject lets you create a reusable object-oriented
  * unit out of one or more existing Collabs.
@@ -72,8 +72,9 @@ export class CObject<Events extends CollabEventsRecord = CollabEventsRecord>
    * ```ts
    * this.foo = this.registerCollab("foo", (init) => new FooClass(init, constructor args...));
    * ```
-   * where `readonly foo: FooClass;` is a Collab property.
-   * See [Data Modeling](../../../guide/data_modeling.html) for examples.
+   * where `readonly foo: FooClass;` is a Collab property. See
+   * [Data Modeling](https://collabs.readthedocs.io/en/latest/guide/data_modeling.html)
+   * for examples.
    *
    * Registrations must be identical across all replicas.
    *

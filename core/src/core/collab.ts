@@ -148,7 +148,7 @@ export abstract class Collab<
   /**
    * Emits an event, which triggers all the registered event handlers.
    *
-   * See [Events](../../../advanced/events.html) for advice
+   * See [[CollabEventsRecord]] for advice
    * on what events to emit.
    *
    * This is a wrapper around [[EventEmitter.emit]]

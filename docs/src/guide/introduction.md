@@ -6,7 +6,7 @@ We call each collaborative data structure a **Collab**, for short.
 
 ## Example: Counter
 
-The [Quick Start](../quick_start.html) uses a [`CCounter`](../api/collabs/classes/CCounter.html) Collab. This is an object with a simple numeric API:
+The [Quick Start](../quick_start.html) uses a [CCounter](../api/collabs/classes/CCounter.html) Collab. This is an object with a simple numeric API:
 
 ```ts
 class CCounter {
@@ -24,7 +24,7 @@ You can also try disconnecting one tab by unchecking the box at the top. Verify 
 
 ## Example: Whiteboard
 
-Our [whiteboard demo](https://collabs-demos.herokuapp.com/whiteboard/) uses a map Collab to store the board state. Specifically, it uses an [`CValueMap`](../api/collabs/classes/CValueMap.html) that maps each coordinate `[x, y]` to its color:
+Our [whiteboard demo](https://collabs-demos.herokuapp.com/whiteboard/) uses a map Collab to store the board state. Specifically, it uses a [CValueMap](../api/collabs/classes/CValueMap.html) that maps each coordinate `[x, y]` to its color:
 
 ```ts
 const boardState: CValueMap<[x: number, y: number], Color>;

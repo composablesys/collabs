@@ -6,20 +6,20 @@ This page gives an overview of the library's built-in collaborative data structu
 
 The table below suggests which Collab `C(U)` to use for various TypeScript types `U`.
 
-| Ordinary type `U`                                          | Collaborative version `C(U)`                                                                                             |
-| ---------------------------------------------------------- | ------------------------------------------------------------------------------------------------------------------------ |
-| Any immutable `T`                                          | [`CVar<T>`](../api/collabs/classes/CVar.html)                                                                            |
-| `boolean`                                                  | [`CBoolean`](../api/collabs/classes/CBoolean.html)                                                                       |
-| `number` (for counting or adding)                          | [`CCounter`](../api/collabs/classes/CCounter.html)                                                                       |
-| `string` (as plain text in a text box)                     | [`CText`](../api/collabs/classes/CText.html)                                                                             |
-| Rich text                                                  | [`CRichText`](../api/collabs/classes/CRichText.html)                                                                     |
-| `Set<T>`, `T` [immutable](#immutable-value-collections)    | [`CValueSet<T>`](../api/collabs/classes/CValueSet.html)                                                                  |
-| `Set<T>`, `T` [mutable](#mutable-value-collections)        | [`CSet<C(T), ...>`](../api/collabs/classes/CSet.html)                                                                    |
-| `Map<K, V>`, `V` [immutable](#immutable-value-collections) | [`CValueMap<K, V>`](../api/collabs/classes/CValueMap.html)                                                               |
-| `Map<K, V>`, `V` [mutable](#mutable-value-collections)     | [`CMap<K, C(V), ...>`](../api/collabs/classes/CMap.html) or [`CLazyMap<K, C(V)>`](../api/collabs/classes/CLazyMap.html)  |
-| `Array<T>`, `T` [immutable](#immutable-value-collections)  | [`CValueList<T>`](../api/collabs/classes/CValueList.html)                                                                |
-| `Array<T>`, `T` [mutable](#mutable-value-collections)      | [`CList<T, ...>`](../api/collabs/classes/CList.html)                                                                     |
-| Class with fixed properties                                | [`CObject`](../api/collabs/classes/CObject.html) subclass (see [data modeling](./data_modeling.html) later in the Guide) |
+| Ordinary type `U`                                          | Collaborative version `C(U)`                                                                                            |
+| ---------------------------------------------------------- | ----------------------------------------------------------------------------------------------------------------------- |
+| Any immutable `T`                                          | [`CVar<T>`](../api/collabs/classes/CVar.html)                                                                           |
+| `boolean`                                                  | [CBoolean](../api/collabs/classes/CBoolean.html)                                                                        |
+| `number` (for counting or adding)                          | [CCounter](../api/collabs/classes/CCounter.html)                                                                        |
+| `string` (as plain text in a text box)                     | [CText](../api/collabs/classes/CText.html)                                                                              |
+| Rich text                                                  | [CRichText](../api/collabs/classes/CRichText.html)                                                                      |
+| `Set<T>`, `T` [immutable](#immutable-value-collections)    | [`CValueSet<T>`](../api/collabs/classes/CValueSet.html)                                                                 |
+| `Set<T>`, `T` [mutable](#mutable-value-collections)        | [`CSet<C(T), ...>`](../api/collabs/classes/CSet.html)                                                                   |
+| `Map<K, V>`, `V` [immutable](#immutable-value-collections) | [`CValueMap<K, V>`](../api/collabs/classes/CValueMap.html)                                                              |
+| `Map<K, V>`, `V` [mutable](#mutable-value-collections)     | [`CMap<K, C(V), ...>`](../api/collabs/classes/CMap.html) or [`CLazyMap<K, C(V)>`](../api/collabs/classes/CLazyMap.html) |
+| `Array<T>`, `T` [immutable](#immutable-value-collections)  | [`CValueList<T>`](../api/collabs/classes/CValueList.html)                                                               |
+| `Array<T>`, `T` [mutable](#mutable-value-collections)      | [`CList<T, ...>`](../api/collabs/classes/CList.html)                                                                    |
+| Class with fixed properties                                | [CObject](../api/collabs/classes/CObject.html) subclass (see [data modeling](./data_modeling.html) later in the Guide)  |
 
 ## Good to Know
 

@@ -9,7 +9,7 @@ Collabs is designed to make collaboration "just work". However, it's possible to
 All in-sync copies of a Collab must be initialized identically. In particular:
 
 1. All copies of a document must make the same calls to [CRuntime.registerCollab](../api/collabs/classes/CRuntime.html#registerCollab), with the same names, Collab classes, and Collab constructor arguments (in the `init` callback)
-2. Likewise for calls to `registerCollab` within a `CObject`.
+2. Likewise for calls to `registerCollab` within a CObject.
 3. Constructor arguments, and the logic inside Collab constructors or `valueConstructor` callbacks, must not depend on values that can differ across users - e.g., the user's current time, fresh random values, or [CRichText](../api/collabs/classes/CRuntime.html#replicaID).
 
 So long as all users are running the same code, 1 and 2 should be automatic.
@@ -20,7 +20,7 @@ So long as all users are running the same code, 1 and 2 should be automatic.
 
 All of a document's [CRuntime.registerCollab](../api/collabs/classes/CRuntime.html#registerCollab) calls must happen before you use that document in any way: connecting providers, performing collaborative operations on its Collabs, or calling other CRuntime/AbstractDoc methods. To ensure this, you should make all CRuntime.registerCollab calls right after constructing the CRuntime. (In an AbstractDoc subclass, make all calls in its constructor.)
 
-Likewise, within a `CObject`, you should make all calls to `registerCollab` within the constructor. If you need to add children dynamically, you should instead use a collection of Collabs, e.g., [CSet](../api/collabs/classes/CSet.html).
+Likewise, within a CObject, you should make all calls to `registerCollab` within the constructor. If you need to add children dynamically, you should instead use a collection of Collabs, e.g., [CSet](../api/collabs/classes/CSet.html).
 
 ## Non-unique Names
 
@@ -89,7 +89,7 @@ Do not make your own [InitToken](../api/collabs/classes/InitToken.html)s (the `i
 
 Only use a given InitToken once, in the way intended by its creator. E.g., a collection's [`valueConstructor`](./collections.html#1-valueconstructor) must return the Collab created using its `init` parameter.
 
-In a custom Collab's constructor, only use the `InitToken` in your `super` call.
+In a custom Collab's constructor, only use the InitToken in your `super(init)` call.
 
 ## Expecting Strong Consistency (Database-Style Transactions)
 

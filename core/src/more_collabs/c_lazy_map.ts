@@ -105,7 +105,7 @@ export class CLazyMap<K, C extends Collab>
    * Constructs a CLazyMap with the given `valueConstructor`.
    *
    * @param valueConstructor Callback used to construct a
-   * value Collab with the given key. See [dynamically-created Collabs](../../../guide/initialization.html#dynamically-created-collabs)
+   * value Collab with the given key. See [collections of Collabs](https://collabs.readthedocs.io/en/latest/guide/collections.html)
    * for example usage.
    * This may be called multiple times for the same key due to garbage
    * collection (see class header).

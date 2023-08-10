@@ -1,6 +1,6 @@
 # Initial Values
 
-After initialization and before applying any updates, each Collab has a default initial value. For example, collection types are empty, [CCounter](../api/collabs/classes/CCounter.html) is 0, and [CBoolean](../api/collabs/classes/CBoolean.html) is false.
+After construction and before applying any updates, each Collab has a default initial value. For example, collection types are empty, [CCounter](../api/collabs/classes/CCounter.html) is 0, and [CBoolean](../api/collabs/classes/CBoolean.html) is false.
 
 Sometimes, you need to customize this initial value. For example, the Quill rich text editor's starting text is `"\n"`. If you try to sync its state to a default [CRichText](../api/collabs/classes/CRichText.html), which starts as the empty string, then you will get index out-of-bounds errors.
 
@@ -10,11 +10,11 @@ Below are some techniques and non-techniques for customizing initial values.
 
 ### Constructor Options
 
-A few Collabs take the initial value as a constructor option: [`CVar`](../api/collabs/classes/CVar.html), [`CBoolean`](../api/collabs/classes/CBoolean.html), [`CCounter`](../api/collabs/classes/CCounter.html).
+A few Collabs take the initial value as a constructor option: [CVar](../api/collabs/classes/CVar.html), [CBoolean](../api/collabs/classes/CBoolean.html), [CCounter](../api/collabs/classes/CCounter.html).
 
 ### Collab Creator Operations
 
-For a value in a [collection of Collabs](../guide/collections.html), you can perform operations that set the initial value just after creating it. For example, if you have a `myTextSet: CSet<CText, ...>` where each `CText` needs initial value `"\n"`, you can do:
+For a value in a [collection of Collabs](../guide/collections.html), you can perform operations that set the initial value just after creating it. For example, if you have a `myTextSet: CSet<CText, ...>` where each CText needs initial value `"\n"`, you can do:
 
 ```ts
 // After calling add, also set newText's initial value.

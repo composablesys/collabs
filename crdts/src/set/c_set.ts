@@ -31,7 +31,7 @@ const RADIX = 36;
  *
  * Unlike a normal `Set<C>`, you do not add values directly.
  * Instead, you use the pattern described in
- * [dynamically-created Collabs](../../../guide/initialization.html#dynamically-created-collabs):
+ * [collections of Collabs](https://collabs.readthedocs.io/en/latest/guide/collections.html):
  * one user calls [[add]] with `AddArgs`; each
  * replica passes those `AddArgs` to its
  * `valueConstructor`;
@@ -67,7 +67,7 @@ export class CSet<C extends Collab, AddArgs extends unknown[]>
    * Constructs a CSet with the given `valueConstructor`.
    *
    * @param valueConstructor Callback used to construct a
-   * value Collab with the given [[InitToken]] and arguments to [[add]]. See [dynamically-created Collabs](../../../guide/initialization.html#dynamically-created-collabs)
+   * value Collab with the given [[InitToken]] and arguments to [[add]]. See [collections of Collabs](https://collabs.readthedocs.io/en/latest/guide/collections.html)
    * for example usage.
    * @param options.argsSerializer A serializer for `AddArgs` as an array.
    * Defaults to [[DefaultSerializer]].

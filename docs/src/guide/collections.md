@@ -8,7 +8,7 @@ To make this possible, collections of Collabs are a bit more complicated than co
 
 ## Example: Shopping List
 
-Let's model a shopping list as a `CList` of `CText` items. That way, each item can be edited in the usual way for collaborative text, in addition to inserting and deleting items.
+Let's model a shopping list as a CList of CText items. That way, each item can be edited in the usual way for collaborative text, in addition to inserting and deleting items.
 
 Constructing the list:
 

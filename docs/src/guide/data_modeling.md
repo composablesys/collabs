@@ -18,7 +18,7 @@ We recommend creating collaborative data models using the following general proc
 
 1. Create a single-user (non-collaborative) version of your data model, using ES6 classes and strong typing.
 2. Replace collection types (`Set`, etc.) and primitive types (`boolean`, etc.) with Collab versions, following the advice in [Built-in Collabs](./built_in_collabs.html).
-3. Replace your custom classes with subclasses of [`CObject`](../api/collabs/classes/CObject.html), whose children are their instance variables.
+3. Replace your custom classes with subclasses of [CObject](../api/collabs/classes/CObject.html), whose children are their instance variables.
 
 We illustrate this process with examples below.
 
@@ -65,7 +65,7 @@ class Pair<T, U> {
 }
 ```
 
-**Collaborative data model:** We now give a collaborative version in the form of a custom Collab that is called `CPair`, which can hold a pair collaboratively.
+**Collaborative data model:** We now give a collaborative version in the form of a custom Collab that is called CPair, which can hold a pair collaboratively.
 
 ```ts
 class CPair<T, U> extends CObject {
@@ -168,7 +168,7 @@ boardState.on("Delete", (event) => {
 
 **App:** A game of Minesweeper that all users play together (anyone can click to reveal a square).
 
-**Single-user data model:** We again start by considering a single-user Minesweeper app. Let's represent each tile in the grid as an instance of a `Tile` class, and the whole board as an instance of a `Minesweeper` class.
+**Single-user data model:** We again start by considering a single-user Minesweeper app. Let's represent each tile in the grid as an instance of a Tile class, and the whole board as an instance of a Minesweeper class.
 
 For each tile, we need to store:
 
@@ -177,7 +177,7 @@ For each tile, we need to store:
 - whether the tile is a mine
 - what number to display when revealed (how many neighboring mines it has).
 
-So, we define class `Tile` to have the following properties:
+So, we define class Tile to have the following properties:
 
 ```ts
 class Tile {
@@ -192,7 +192,7 @@ class Tile {
 
 Note that `isMine` and `number` are `readonly` since they cannot be changed by the user.
 
-We then define class `Minesweeper` to store a grid of tiles:
+We then define class Minesweeper to store a grid of tiles:
 
 ```ts
 class Minesweeper {
@@ -217,17 +217,17 @@ class Minesweeper {
 }
 ```
 
-The app's top-level state is a variable `currentGame: Minesweeper | null`. When the user first clicks a tile, `currentGame` is set to a new instance of `Minesweeper`. (It is `null` before the first click: we provide that click's coordinates `(startX, startY)` to the `Minesweeper` constructor, so that it can generate a game where that coordinate is mine-free.)
+The app's top-level state is a variable `currentGame: Minesweeper | null`. When the user first clicks a tile, `currentGame` is set to a new instance of Minesweeper. (It is `null` before the first click: we provide that click's coordinates `(startX, startY)` to the Minesweeper constructor, so that it can generate a game where that coordinate is mine-free.)
 
 **Collaborative data model:** Next, we convert the above data model into a collaborative one.
 
-Per step 2, we should replace `Tile`'s properties with collaborative versions:
+Per step 2, we should replace Tile's properties with collaborative versions:
 
-- `revealed: boolean`: This should start `false`, and once it becomes `true`, it should stay that way forever - you can't "un-reveal" a tile (especially a mine!). `CBoolean` with the default options satisfies these conditions, so we use that.
-- `flag: FlagStatus`: Recall that `FlagStatus` is a custom enum. As an opaque immutable type, the table in [Built-in Collabs](./built_in_collabs.html) suggests `CVar<FlagStatus>`. In case of concurrent changes to the flag, this will pick one arbitrarily, which seems fine from the users' perspective.
+- `revealed: boolean`: This should start `false`, and once it becomes `true`, it should stay that way forever - you can't "un-reveal" a tile (especially a mine!). CBoolean with the default options satisfies these conditions, so we use that.
+- `flag: FlagStatus`: Recall that FlagStatus is a custom enum. As an opaque immutable type, the table in [Built-in Collabs](./built_in_collabs.html) suggests `CVar<FlagStatus>`. In case of concurrent changes to the flag, this will pick one arbitrarily, which seems fine from the users' perspective.
 - `readonly isMine: boolean;`, `readonly number: number;`: Since these are fixed, we actually don't need to make them collaborative. We can just set them in the constructor as usual.
 
-Also, per step 3, we should replace `Tile` with a subclass of `CObject`. That leads to the class `CTile` below:
+Also, per step 3, we should replace Tile with a subclass of CObject. That leads to the class CTile below:
 
 ```ts
 class CTile extends collabs.CObject {
@@ -253,11 +253,11 @@ class CTile extends collabs.CObject {
 }
 ```
 
-We must likewise transform the `Minesweeper` class. This deviates from the usual process in two ways.
+We must likewise transform the Minesweeper class. This deviates from the usual process in two ways.
 
 First, we cannot use randomness in the constructor: per [Documents](./documents.html#using-cruntime), the constructor must behave identically when called on different users with the same arguments. Instead, we use a PRNG, and pass its seed as a constructor argument. The seed will be randomly set by whichever user starts a new game, so that the board is still random.
 
-Second, even though `tiles` has type `Tile[][]` and the table maps `Array` to `CList` or `CValueList`, there is actually no need for us to use a list here. Indeed, we don't plan to mutate the arrays themselves after the constructor, just the tiles inside them. Instead, we treat each `Tile` as its own property with its own name, using the arrays only as a convenient way to store them. (See [Lists, not Arrays](./built_in_collabs.html#lists-not-arrays).)
+Second, even though `tiles` has type `Tile[][]` and the table maps `Array` to CList or CValueList, there is actually no need for us to use a list here. Indeed, we don't plan to mutate the arrays themselves after the constructor, just the tiles inside them. Instead, we treat each Tile as its own property with its own name, using the arrays only as a convenient way to store them. (See [Lists, not Arrays](./built_in_collabs.html#lists-not-arrays).)
 
 ```ts
 class CMinesweeper extends collabs.CObject {
@@ -304,7 +304,7 @@ class CMinesweeper extends collabs.CObject {
 
 Finally, we need to convert the variable `currentGame: Minesweeper | null` that holds the app's top-level state. This is a bit tricky because it requires two parts:
 
-1. A "factory" that creates new `CMinesweeper` instances dynamically. For this, we use a `CSet<CMinesweeper>` and "add" new instances to it.
+1. A "factory" that creates new CMinesweeper instances dynamically. For this, we use a `CSet<CMinesweeper>` and "add" new instances to it.
 2. A variable holding a _reference_ to the current game (or `null`). In general, Collabs uses a [CollabID](../api/collabs/modules.html#CollabID) to store a reference to a Collab in another collection. So, we use a `CVar<CollabID<CMinesweeper> | null>`.
 
 ```ts
@@ -339,7 +339,7 @@ const currentGame = doc.registerCollab(
 );
 ```
 
-To start a new game, we call `gameFactory.add` with `CMinesweeper`'s constructor arguments (except `init`), then set `currentGame` to reference the new game:
+To start a new game, we call `gameFactory.add` with CMinesweeper's constructor arguments (except `init`), then set `currentGame` to reference the new game:
 
 ```ts
 const newGame = gameFactory.add(

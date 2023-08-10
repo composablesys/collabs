@@ -177,7 +177,7 @@ This script runs two servers in parallel (note the single `&`); you can also run
 
 You've now completed the walkthrough of template-app's starter code. Hopefully this gave you a taste of Collabs!
 
-To turn this into your own app, you'll need to replace the "App code" section in `src/main.ts`. By registering more interesting Collabs than `CCounter`, you can model your app's collaborative state in Collabs, whether it's a [shared whiteboard](https://collabs-demos.herokuapp.com/whiteboard/), [rich-text editor](https://collabs-demos.herokuapp.com/rich-text/), [recipe editor](https://github.com/mweidner037/fileshare-recipe-editor/), etc.
+To turn this into your own app, you'll need to replace the "App code" section in `src/main.ts`. By registering more interesting Collabs than CCounter, you can model your app's collaborative state in Collabs, whether it's a [shared whiteboard](https://collabs-demos.herokuapp.com/whiteboard/), [rich-text editor](https://collabs-demos.herokuapp.com/rich-text/), [recipe editor](https://github.com/mweidner037/fileshare-recipe-editor/), etc.
 
 Eventually, you'll outgrow this simple template's single, globally-accessible document. Luckily, the network and storage providers let you [work with many documents](./guide/providers.html#collabs-providers), and [@collabs/ws-server](https://www.npmjs.com/package/@collabs/ws-server) lets you setup basic server-side authentication and storage. You can also write [your own providers](./guide/providers.html#manual).
 

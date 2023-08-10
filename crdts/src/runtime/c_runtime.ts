@@ -301,8 +301,8 @@ export class CRuntime
   }
 
   /**
-   * Registers a [[Collab]] as a ["global variable" Collab](../../../guide/initialization.html#global-variable-collabs)
-   * in this runtime with the given name.
+   * Registers a [[Collab]] as part of this document.
+   * See [Documents - Using CRuntime](https://collabs.readthedocs.io/en/latest/guide/documents.html#using-cruntime).
    *
    * Typically, you will call this method right after creating this CRuntime, with the style:
    * ```ts
@@ -313,9 +313,9 @@ export class CRuntime
    * Registrations must be identical across all replicas, i.e., all CRuntime instances that share
    * messages and saved states.
    *
-   * @param name A name for this property, unique among
-   * this runtime's `registerCollab` calls.
-   * We recommend using the same name as the property,
+   * @param name A name for the registered Collab, unique among
+   * this document's `registerCollab` calls.
+   * We recommend using the same name as the variable where you store the Collab,
    * but you can also use short strings to reduce
    * network usage ("", "0", "1", ...).
    * @param collabCallback A callback that uses the
