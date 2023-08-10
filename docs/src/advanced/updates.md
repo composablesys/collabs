@@ -25,6 +25,8 @@ An **update** is a Uint8Array describing a set of transactions. They come in two
 - A **message** describes a single transaction. The user who performed the transaction emits its message in a ["Send" event](TODO) on its CRuntime/AbstractDoc. Any user can deliver this message to [CRuntime.receive](TODO)/[AbstractDoc.receive](TODO) to apply the transaction.
 - A **saved state** describes all transactions up to a certain point. Any user can call [CRuntime.save](TODO)/[AbstractDoc.save](TODO) at any time to get a saved state describing all transactions applied to their document so far. Any user can deliver that saved state to [CRuntime.load](TODO)/[AbstractDoc.load](TODO) to apply all of its transactions.
 
+> Messages correspond to op-based CRDTs, while saved states correspond to state-based CRDTs. Collabs implements hybrid op-based/state-based CRDTs, which is why you can mix the two kinds of updates.
+
 ## Syncing Documents
 
 The golden rule for syncing documents is: **Two documents that have applied the same transactions will be in the same state.**
@@ -35,7 +37,7 @@ You can "apply" a transaction by applying any update that contains that transact
 
 Whenever a doc applies an update (including at the end of a local transaction), it emits an ["Update" event](TODO). This includes a copy of the update itself, as well as the "caller" that delivered the update (an optional argument to `receive` and `load`). Our providers use this to work together: if @collabs/ws-server applies an update to the document, @collabs/indexeddb learns of it from the "Update" event and saves it in IndexedDB, just like for local operations.
 
-Internally, messages are *not* always applied immediately. Instead, they are buffered until all after applying all [causally prior](TODO) transactions, to enforce [causal consistency](TODO). Saved states *are* always applied immediately, since they have all causally prior transactions built-in.
+Internally, messages are _not_ always applied immediately. Instead, they are buffered until all after applying all [causally prior](TODO) transactions, to enforce [causal consistency](TODO). Saved states _are_ always applied immediately, since they have all causally prior transactions built-in.
 
 ## Patterns
 

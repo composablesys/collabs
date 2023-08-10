@@ -1,5 +1,7 @@
 # Why Make Collabs?
 
+TODO: In “Why” page: semantic flexibility arg. Cross-link with Built-in Collabs # Fancy Semantics.
+
 ## Big Picture
 
 Our ultimate goal is to make collaborative apps **easier for programmers to write and distribute**, **better for users**, and **open-source compatible**. Collabs is not a complete solution, but we hope it is a step towards this goal.

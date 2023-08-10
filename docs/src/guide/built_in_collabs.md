@@ -62,6 +62,6 @@ One of [Collabs's goals](TODO) is _semantic flexbility_: as the app programmer, 
 
 Towards this goal, Collabs builds in some fancy semantics. These are specific behaviors that make sense to users but are nontrivial to implement. They include:
 
-- **CRichText formatting spans**: [CRichText](TODO) implements the [Peritext algorithm](TODO), which handles formatting spans in an intuitive way. For example, if one user bolds a range of text while another user types in that range concurrently, the new characters will also be bolded.
-- **CList `move` operation**: [CList.move](TODO#move) implements Martin Kleppmann's [Moving Elements in List CRDTs](TODO) paper. That way, if one user moves a list element while someone else mutates it concurrently, the element is both moved and mutated.
-- **CList deletion options**: If one user deletes a list element while someone else is still updating it, you have a few options for what to do: [delete-wins](TODO: CList.delete), [update-wins](TODO), or [archive](TODO) with the chance to restore later.
+- **CRichText formatting spans:** [CRichText](TODO) implements the [Peritext algorithm](TODO), which handles formatting spans in an intuitive way. For example, if one user bolds a range of text while another user types in that range concurrently, the new characters will also be bolded.
+- **CList `move` operation:** [CList.move](TODO#move) implements Martin Kleppmann's [Moving Elements in List CRDTs](TODO) paper. That way, if one user moves a list element while someone else mutates it concurrently, the element is both moved and mutated.
+- **CList deletion options:** If one user deletes a list element while someone else is still updating it, you have a few options for what to do: [delete-wins](TODO: CList.delete), [update-wins](TODO), or [archive](TODO) with the chance to restore later.

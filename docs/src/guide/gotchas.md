@@ -71,7 +71,10 @@ CSet, CValueSet, CMap, and CValueMap iterators might not yield elements in the s
 
 Do not perform Collab operations in event handlers or initializers (including Collab constructors and [collection `valueConstructor` callbacks](./collections.html#1-valueconstructor)). These operations will end up running on each user _as collaborative operations_, i.e., each user will broadcast a copy of the operation to every other user. So the operation will be performed (# users) times in total - probably not what you want.
 
-If Collabs detects this, it will throw an error "Cannot call receive() during another receive/load call; did you try to deliver a message in a Collab's event handler?"
+If Collabs detects this, it will throw an error:
+```
+Error: CRuntime.send called during a receive/load call; did you try to perform an operation in an event handler?
+```
 
 You might be tempted into doing this because you are trying to set the initial value of a Collab - e.g., inserting placeholder text in a new document. See [Initial Values](../advanced/initial_values.html) for safe ways to do this.
 
