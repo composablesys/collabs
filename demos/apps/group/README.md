@@ -1,6 +1,6 @@
 # Shapes Demo (Semidirect Product)
 
-A demo of the [semidirect product of CRDTs](https://docs.google.com/presentation/d/1AzUBBmq9IAf39ZvtSU5UtI-hlugsDsX7kuGKaaOZExQ/edit?usp=sharing), using [@collabs/ws-client](https://www.npmjs.com/package/@collabs/ws-client) and [@collabs/ws-server](https://www.npmjs.com/package/@collabs/ws-server) to connect users over a WebSocket server.
+A demo of the [semidirect product of CRDTs](https://docs.google.com/presentation/d/1AzUBBmq9IAf39ZvtSU5UtI-hlugsDsX7kuGKaaOZExQ/edit?usp=sharing), using [@collabs/ws-client](https://www.npmjs.com/package/@collabs/ws-client) and [@collabs/ws-server](https://www.npmjs.com/package/@collabs/ws-server) to connect users via aWebSocket server.
 
 Author: Ria Pradeep.
 

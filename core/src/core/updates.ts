@@ -2,6 +2,10 @@
  * Metadata for a message passed to [[Collab.receive]].
  */
 export interface MessageMeta {
+  // For fields shared with SavedStateMeta, we use the same typedoc
+  // on both, so that they show up nicely in IDE tooltips when you have
+  // an Update event of type MessageEvent | SavedStateEvent.
+
   /**
    * The update's type.
    */
@@ -12,7 +16,7 @@ export interface MessageMeta {
   readonly senderID: string;
   /**
    * Whether the update is for local operations, i.e., it results
-   * from calling [[Collab]] methods on this replica.
+   * from calling Collab methods on this replica.
    */
   readonly isLocalOp: boolean;
   /**
@@ -38,7 +42,7 @@ export interface SavedStateMeta {
   readonly updateType: "savedState";
   /**
    * Whether the update is for local operations, i.e., it results
-   * from calling [[Collab]] methods on this replica.
+   * from calling Collab methods on this replica.
    */
   readonly isLocalOp: false;
   /**
@@ -73,15 +77,15 @@ export type UpdateMeta = MessageMeta | SavedStateMeta;
 export interface MetaRequest {}
 
 /**
- * Type of saved state as used by [[Collab.save]] and [[Collab.load]].
+ * Optimized representation of saved state used by [[Collab.save]] and
+ * [[Collab.load]].
  *
- * A Collab with children may store their save data in [[children]];
+ * A Collab with children may store the children's save data in [[children]];
  * this is usually more convenient than serializing everything
- * into a single Uint8Array. However, it is not mandatory to use [[children]]
- * or to use this type as described.
+ * into a single Uint8Array.
  *
- * The return value of Collab.load is normalized before being passed to
- * Collab.save:
+ * The return value of Collab.save is normalized before being passed to
+ * Collab.load:
  * - If [[self]] was undefined, it is replaced by an empty Uint8Array.
  * - If [[children]] was undefined, it is replaced by an empty Map.
  */

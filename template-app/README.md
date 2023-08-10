@@ -16,8 +16,8 @@ First, install [Node.js](https://nodejs.org/). Then run `npm i`.
 
 Runs both servers for testing for the app:
 
-- `webpack-dev-server` on [http://localhost:3000/](http://localhost:3000/), to serve static files.
-- `collabs-ws-server` on [http://localhost:3001/](http://localhost:3001/), to connect users over a WebSocket server.
+- `webpack-dev-server` on port 3000, to serve static files.
+- `collabs-ws-server` on port 3001, to connect users via aWebSocket server.
 
 Open [http://localhost:3000/](http://localhost:3000/) to try it out. Use multiple browser windows at once to test collaboration.
 

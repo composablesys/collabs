@@ -21,7 +21,7 @@ app.use((req, res) => {
     // Split req.path into `/${folder}/${afterFolder}`.
     const folder = req.path.slice(1, firstSlash);
     const afterFolder = req.path.slice(firstSlash + 1);
-    // Send `${folder}/dist/${afterFolder}.
+    // Send `${folder}/dist/${afterFolder}`.
     res.sendFile(
       path.join(__dirname, "../../../", folder, "dist/", afterFolder)
     );

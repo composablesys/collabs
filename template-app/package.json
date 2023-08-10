@@ -20,7 +20,7 @@
     "webpack-cli": "^4.8.0"
   },
   "scripts": {
-    "start": "npm run npm run start:webpack & start:ws-server",
+    "start": "npm run start:webpack & npm run start:ws-server",
     "start:webpack": "TS_NODE_PROJECT='tsconfig.webpack-config.json' webpack-dev-server",
     "start:ws-server": "collabs-ws-server",
     "dev": "TS_NODE_PROJECT='tsconfig.webpack-config.json' webpack",

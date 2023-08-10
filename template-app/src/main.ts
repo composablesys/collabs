@@ -50,7 +50,7 @@ wsNetwork.subscribe(doc, docID);
 // even when offline.
 const tabSync = new TabSyncNetwork();
 tabSync.on("Error", (e) => {
-  console.error("IndexedDBDocStore error:", e.err);
+  console.error("TabSyncNetwork error:", e.err);
 });
 
 tabSync.subscribe(doc, docID);

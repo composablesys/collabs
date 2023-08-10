@@ -1,6 +1,6 @@
 # Rich Text Demo
 
-A collaborative rich text editor using [Quill](https://quilljs.com/), using [@collabs/ws-client](https://www.npmjs.com/package/@collabs/ws-client) and [@collabs/ws-server](https://www.npmjs.com/package/@collabs/ws-server) to connect users over a WebSocket server.
+A collaborative rich text editor using [Quill](https://quilljs.com/), using [@collabs/ws-client](https://www.npmjs.com/package/@collabs/ws-client) and [@collabs/ws-server](https://www.npmjs.com/package/@collabs/ws-server) to connect users via aWebSocket server.
 
 ## Installation
 

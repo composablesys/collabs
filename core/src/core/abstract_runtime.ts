@@ -15,20 +15,25 @@ export abstract class AbstractRuntime<Events extends EventsRecord>
 {
   readonly isRuntime: true = true;
   /**
+   * A unique ID for this replica (copy of a Collabs document).
+   */
+  readonly replicaID: string;
+  /**
    * Readonly. Set with [[setRootCollab]].
    */
   protected rootCollab!: Collab & Parent;
 
   /**
-   * @param replicaID This replica's [[replicaID]], usually
+   * @param replicaID This replica's `replicaID`, usually
    * obtained from [[ReplicaIDs]]. Must not be `""`.
    */
-  constructor(readonly replicaID: string) {
+  constructor(replicaID: string) {
     super();
 
     if (replicaID === "") {
       throw new Error('replicaID must not be ""');
     }
+    this.replicaID = replicaID;
   }
 
   /**

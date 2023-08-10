@@ -39,6 +39,7 @@ const config: webpack.Configuration = {
       template: "./src/index.html",
     }),
   ],
+  // webpack-dev-server config.
   devServer: {
     port: 3000,
     compress: true,

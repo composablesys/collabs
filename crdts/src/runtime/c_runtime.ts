@@ -36,7 +36,7 @@ export interface SendEvent {
    */
   message: Uint8Array;
   /**
-   * The message's sender: our [[AbstractDoc.replicaID]] / [[CRuntime.replicaID]].
+   * The message's sender: our [[AbstractDoc.replicaID]]/[[CRuntime.replicaID]].
    */
   senderID: string;
   /**
@@ -55,13 +55,14 @@ export interface MessageEvent {
   // For fields shared with SavedStateEvent, we use the same typedoc
   // on both, so that they show up nicely in IDE tooltips when you have
   // an Update event of type MessageEvent | SavedStateEvent.
+
   /**
    * The serialized update.
    *
    * Specifically, this is:
    * - For a local message, its [[SendEvent.message]].
-   * - For a remote message, the `message` passed to [[receive]].
-   * - For a loaded state, the `savedState` passed to [[load]].
+   * - For a remote message, the `message` passed to `receive`.
+   * - For a loaded state, the `savedState` passed to `load`.
    */
   update: Uint8Array;
   /**
@@ -69,10 +70,10 @@ export interface MessageEvent {
    *
    * Specifically, this is:
    * - For a local message, `undefined`.
-   * - For a remote message, the `caller` passed to [[receive]].
-   * - For a loaded state, the `caller` passed to [[load]].
+   * - For a remote message, the `caller` passed to `receive`.
+   * - For a loaded state, the `caller` passed to `load`.
    * - For a remote message delivered as part of a loaded state
-   * (due to unmet causal dependencies), the `caller` passed to [[load]].
+   * (due to unmet causal dependencies), the `caller` passed to `load`.
    */
   caller: unknown | undefined;
   /**
@@ -92,7 +93,7 @@ export interface MessageEvent {
   senderCounter: number;
   /**
    * Whether the message is for a local transaction, i.e., it results
-   * from calling [[Collab]] methods on this replica.
+   * from calling Collab methods on this replica.
    */
   isLocalOp: boolean;
 }
@@ -106,8 +107,8 @@ export interface SavedStateEvent {
    *
    * Specifically, this is:
    * - For a local message, its [[SendEvent.message]].
-   * - For a remote message, the `message` passed to [[receive]].
-   * - For a loaded state, the `savedState` passed to [[load]].
+   * - For a remote message, the `message` passed to `receive`.
+   * - For a loaded state, the `savedState` passed to `load`.
    */
   update: Uint8Array;
   /**
@@ -115,10 +116,10 @@ export interface SavedStateEvent {
    *
    * Specifically, this is:
    * - For a local message, `undefined`.
-   * - For a remote message, the `caller` passed to [[receive]].
-   * - For a loaded state, the `caller` passed to [[load]].
+   * - For a remote message, the `caller` passed to `receive`.
+   * - For a loaded state, the `caller` passed to `load`.
    * - For a remote message delivered as part of a loaded state
-   * (due to unmet causal dependencies), the `caller` passed to [[load]].
+   * (due to unmet causal dependencies), the `caller` passed to `load`.
    */
   caller: unknown | undefined;
   /**
@@ -148,13 +149,13 @@ export interface SavedStateEvent {
   redundant: Map<string, number>;
   /**
    * Whether the message is for a local transaction, i.e., it results
-   * from calling [[Collab]] methods on this replica.
+   * from calling Collab methods on this replica.
    */
   isLocalOp: false;
 }
 
 /**
- * Event emitted by [[CRuntime]] or [[AbstractDoc]]
+ * Event emitted by [[CRuntime]]/[[AbstractDoc]]
  * after applying an update.
  */
 export type UpdateEvent = MessageEvent | SavedStateEvent;
@@ -165,17 +166,13 @@ export type UpdateEvent = MessageEvent | SavedStateEvent;
 export interface RuntimeEventsRecord {
   /**
    * Emitted when a message is to be sent.
-   *
-   * Its message should be delivered to each other replica's
-   * [[CRuntime.receive]] /[[AbstractDoc.receive]]
-   *  method, eventually and at-least-once.
    */
   Send: SendEvent;
   /**
    * Emitted after applying an update.
    *
    * The update may be a local message, remote message,
-   * or saved state. Note that it may consist of multiple transactions.
+   * or saved state. Note that it may contain multiple transactions.
    */
   Update: UpdateEvent;
   /**
@@ -194,7 +191,7 @@ export interface RuntimeEventsRecord {
 export interface RuntimeOptions {
   /**
    * If you guarantee that messages will always be delivered to
-   * [[CRuntime.receive]] / [[AbstractDoc.receive]] in causal order, on all replicas (not just
+   * [[CRuntime.receive]]/[[AbstractDoc.receive]] in causal order, on all replicas (not just
    * this one), you may set this
    * to true to turn off causal ordering checks.
    *
@@ -202,11 +199,11 @@ export interface RuntimeOptions {
    * pass through a central server that forwards them
    * in the order it receives them.
    *
-   * [[CRuntime.receive]] / [[AbstractDoc.receive]] will still filter duplicate messages for you.
+   * [[CRuntime.receive]]/[[AbstractDoc.receive]] will still filter duplicate messages for you.
    */
   causalityGuaranteed?: boolean;
   /**
-   * How long transactions should be in the absence of a top-level [[CRuntime.transact]] / [[AbstractDoc.transact]] call:
+   * How long transactions should be in the absence of a top-level [[CRuntime.transact]]/[[AbstractDoc.transact]] call:
    * - "microtask" (default): All operations in the same microtask form a transaction
    * (specifically, until `Promise.resolve().then()` executes).
    * - "error": Throw an error if there is an operation
@@ -226,8 +223,8 @@ export interface RuntimeOptions {
    */
   debugReplicaID?: string;
   /**
-   * If true, [[AbstractDoc.load]] / [[CRuntime.load]] always pass loaded
-   * state to the Collabs and emit an Update event, even if the saved state
+   * If true, [[AbstractDoc.load]]/[[CRuntime.load]] always pass `savedState`
+   * to the Collabs and emit an Update event, even if `savedState`
    * appears to be redundant.
    *
    * Set this to true if loading is intentionally not idempotent (loading
@@ -356,8 +353,8 @@ export class CRuntime
     this.meta = null;
     this.crdtMeta = null;
 
-    // Send. It will be delivered to each other replica's
-    // receive function, eventually at-least-once.
+    // Send. This message, or a saved state containing its transaction, should
+    // be delivered to each other replica, eventually at-least-once.
     this.emit("Send", {
       message,
       senderID: this.replicaID,
@@ -677,8 +674,8 @@ export class CRuntime
 
   /**
    *
-   * The vector clock for our current state, mapping each replicaID
-   * to the number of applied transactions from that replicaID.
+   * The vector clock for our current state, mapping each senderID
+   * to the number of applied transactions from that senderID.
    *
    * Our current state includes precisely the transactions
    * with ID `(senderID, senderCounter)` where

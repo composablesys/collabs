@@ -1,6 +1,6 @@
-# Collabs Demo Server
+# Collabs Demo Apps
 
-Demo server for [Collabs](https://collabs.readthedocs.io/). Source of [collabs-demos.herokuapp.com/](collabs-demos.herokuapp.com/).
+Demo apps for [Collabs](https://collabs.readthedocs.io/). Source of [https://collabs-demos.herokuapp.com/](https://collabs-demos.herokuapp.com/).
 
 ## Usage
 
@@ -10,11 +10,9 @@ Install: `npm i`.
 
 Build: `npm run buildDemoServer` (`npm run build` also works but takes longer).
 
-Run: `npm start`, then open the printed link in a web browser. The linked demos use that server to collaborate, but you can also follow the instructions to run in Matrix widgets.
+Run: `npm start`, then open the printed link in a web browser. See [server/README.md](server/README.md) for options.
 
-> To load Matrix widgets from a localhost server, you'll need to start it in HTTPS mode: `npm start -- -- --https`. Note that other clients will only be able to load the widget if they can connect to the server at the same address---if it's a localhost address, all clients need to be on the same machine.
-
-See [server/README.md](server/README.md) for more options.
+The demos use a central server to collaborate. For easier testing, we omit cross-tab sync and IndexedDB storage; see our [app template](https://github.com/composablesys/collabs/tree/master/template-app) for code that incorporates those.
 
 ### Individual apps
 

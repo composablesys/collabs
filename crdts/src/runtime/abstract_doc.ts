@@ -14,7 +14,7 @@ const runtimeEventNames: (keyof RuntimeEventsRecord)[] = [
 
 /**
  * Base class for an encapsulated Collabs document, which wraps
- * its [[CRuntime]] and registered [[Collab]]s in a single object.
+ * its [[CRuntime]] and registered Collabs in a single object.
  *
  * To get started with AbstractDoc, see
  * [Documents - Using AbstractDoc](https://collabs.readthedocs.io/en/latest/guide/documents.html#using-abstractdoc).
@@ -156,8 +156,8 @@ export abstract class AbstractDoc extends EventEmitter<RuntimeEventsRecord> {
 
   /**
    *
-   * The vector clock for our current state, mapping each replicaID
-   * to the number of applied transactions from that replicaID.
+   * The vector clock for our current state, mapping each senderID
+   * to the number of applied transactions from that senderID.
    *
    * Our current state includes precisely the transactions
    * with ID `(senderID, senderCounter)` where

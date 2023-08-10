@@ -14,4 +14,4 @@ See [https://collabs.readthedocs.io/](https://collabs.readthedocs.io/)
 
 ## Source Code
 
-This package merely re-exports [@collabs/core](https://www.npmjs.com/package/@collabs/core) and [@collabs/crdts](https://www.npmjs.com/package/@collabs/crdts). The actual code lives in their source folders elsewhere in the monorepo: [core](https://github.com/composablesys/collabs/tree/master/core), [crdts](https://github.com/composablesys/collabs/tree/master/crdts).
+This package merely re-exports [@collabs/core](https://www.npmjs.com/package/@collabs/core) and [@collabs/crdts](https://www.npmjs.com/package/@collabs/crdts). The actual code lives in their source folders: [core](https://github.com/composablesys/collabs/tree/master/core), [crdts](https://github.com/composablesys/collabs/tree/master/crdts).
