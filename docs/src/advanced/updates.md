@@ -41,6 +41,8 @@ Internally, messages are _not_ always applied immediately. Instead, they are buf
 
 ## Patterns
 
+### State-based sync
+
 An easy way to sync two documents is to exchange saved states:
 
 1. Peer A calls `save()` and sends the result to peer B.
@@ -49,13 +51,26 @@ An easy way to sync two documents is to exchange saved states:
 
 Now they've both applied the same set of transactions - the union of their starting sets.
 
+### Ongoing sync
+
 Another common pattern that our providers use is:
 
 1. When you first connect to a new peer, send your current saved state.
-2. Register an "Update" handler on your copy of the document and forward all further updates to that peer, except for updates that you delivered yourself (`e.caller === this`).
+2. In the same thread, register an "Update" event handler on your copy of the document that forwards all future updates to that peer, except for updates that you delivered yourself (`e.caller === this`).
 
 If the peer actually receives all of your updates, then their state will be as up-to-date as yours. If they ever miss one (e.g., the connection drops temporarily), start over at step 1, even though you know this is a bit redundant.
 
-A third pattern eliminates this redundancy at the cost of more storage:
+### Message-based sync
 
-1. TODO: trID/vc-based sync.
+A third pattern accomplishes the same thing as state-based sync but can be more network-efficient.
+
+Each transaction is uniquely identified by a "causal dot" of the form `(senderID, senderCounter)`. A message's "Update" event tells you this ID for its transaction (see [MessageEvent.senderCounter](TODO)), letting you store a map (transaction ID) -> (message).
+
+Then to sync two documents:
+
+1. Peer A sends its [CRuntime.vectorClock](TODO)/[AbstractDoc.vectorClock](TODO). This succinctly encodes all of the transaction IDs that the peer has applied.
+2. Peer B replies with all stored messages whose transaction IDs are missing from Peer A's vector clock. Peer B also sends their own vector clock entries that are lower than Peer A's.
+3. Peer A applies the messages from Peer B, and replies with their own stored messages whose transaction IDs are missing from Peer B's vector clock.
+4. Peer B applies the messages from Peer A.
+
+> Instead of storing the full map (transaction ID) -> (message), you can just store the N most recent messages for some N. If a peer needs messages that you've evicted, fall back on sending your whole saved state.
