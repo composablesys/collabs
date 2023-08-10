@@ -488,7 +488,8 @@ export class CList<
    *
    * One usage pattern is to call restore on a value each time you
    * mutate that value. That way, if one user archives a value while
-   * it is still in use by another user, the archive will be canceled.
+   * it is still in use by another user, the archive will be canceled
+   * (*update-wins* semantics).
    */
   restore(value: C): void {
     const entry = this.entryFromValue(value);

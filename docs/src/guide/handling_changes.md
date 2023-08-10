@@ -15,7 +15,7 @@ function refreshDisplay() {
 doc.on("Change", refreshDisplay);
 ```
 
-Here `doc` can be a [CRuntime](TODO) or [AbstractDoc](TODO). This "Change" event is emitted after each task in which the document's state changes, as described in [our API documentation](../api/collabs/interfaces/RuntimeEventsRecord.html#Change).
+Here `doc` can be a [CRuntime](../api/collabs/classes/CRuntime.html) or [AbstractDoc](../api/collabs/classes/AbstractDoc.html). This "Change" event is emitted after each task in which the document's state changes, as described in [our API documentation](../api/collabs/interfaces/RuntimeEventsRecord.html#Change).
 
 For example, in the [Quick Start](../quick_start.html), we did:
 
@@ -31,7 +31,7 @@ doc.on("Change", refreshDisplay);
 
 Each Collab also emits type-specific events describing changes as they occur.
 
-For example, in [our whiteboard demo](TODO), it would be inefficient to repaint the whole board after each change. Instead, we listen on CValueMap's ["Set"](TODO) and ["Delete"](TODO) events:
+For example, in [our whiteboard demo](https://github.com/composablesys/collabs/blob/master/demos/apps/whiteboard/src/main.ts), it would be inefficient to repaint the whole board after each change. Instead, we listen on CValueMap's ["Set"](../api/collabs/interfaces/MapEventsRecord.html#Set) and ["Delete"](../api/collabs/interfaces/MapEventsRecord.html#Delete) events:
 
 ```ts
 const boardState: CValueMap<[x: number, y: number], Color> = ...;

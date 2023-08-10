@@ -2,9 +2,7 @@
 
 Collabs is designed to let you create custom type-safe collaborative data models. By _data model_, we mean the model in a model-view-\* architecture: the part that holds the application state. A _collaborative data model_ is then the shared state in a collaborative app, which all users can edit, and which automatically propagates these edits to all users.
 
-In addition to making data models for entire apps, you can make reusable data models for parts of an app. These serve a similar purpose to React Components, but for shared state instead of for the UI.
-
-<!-- TODO: You can even publish them as [Custom Types](./custom_types.md) for others to use. -->
+In addition to making data models for entire apps, you can make reusable data models for parts of an app. These serve a similar purpose to React Components, but for shared state instead of for the UI. You can even publish them in 3rd-party libraries for others to use.
 
 <details>
 <summary>Aside</summary>
@@ -29,11 +27,6 @@ Notes:
 - In practice, steps 2 and 3 are not sequential, but instead are a back-and-forth. Don't expect your program to compile until you have finished both of them together.
 - You may find that you need to revise your choice of Collabs or your class structure, in order to support the right operations or obtain the right semantics (see [Built-in Collabs](./built_in_collabs.html) for some common choice points).
 - You don't need to replace variables with collaborative versions if they are never mutated after being set (`readonly`/`const` and internally immutable).
-<!-- - TODO: For advanced scenarios, like supporting new primitive types or novel behavior in the face of concurrent operations, you may need to use more advanced techniques for creating [Custom Types](./custom_types.md). -->
-
-<!-- TODO: events somewhere (how to connect model with the view); perhaps also mention ops in each example (controller -> model). -->
-
-<!-- TODO: here, or ref elsewhere? (Extra guide page? Custom types? CObject typedoc?) -->
 
 ## Examples
 
@@ -264,7 +257,7 @@ We must likewise transform the `Minesweeper` class. This deviates from the usual
 
 First, we cannot use randomness in the constructor: per [Documents](./documents.html#using-cruntime), the constructor must behave identically when called on different users with the same arguments. Instead, we use a PRNG, and pass its seed as a constructor argument. The seed will be randomly set by whichever user starts a new game, so that the board is still random.
 
-Second, even though `tiles` has type `Tile[][]` and the table maps `Array` to `CList` or `CValueList`, there is actually no need for us to use a list here. Indeed, we don't plan to mutate the arrays themselves after the constructor, just the tiles inside them. Instead, we treat each `Tile` as its own property with its own name, using the arrays only as a convenient way to store them. (See Arrays vs `CLists` in [Built-in Collabs](./built_in_collabs.html). TODO: out-of-date section title)
+Second, even though `tiles` has type `Tile[][]` and the table maps `Array` to `CList` or `CValueList`, there is actually no need for us to use a list here. Indeed, we don't plan to mutate the arrays themselves after the constructor, just the tiles inside them. Instead, we treat each `Tile` as its own property with its own name, using the arrays only as a convenient way to store them. (See [Lists, not Arrays](./built_in_collabs.html#lists-not-arrays).)
 
 ```ts
 class CMinesweeper extends collabs.CObject {

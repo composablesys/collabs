@@ -1,4 +1,4 @@
-# Collabs template-custom-type
+# Collabs Custom Type Template
 
 **Template for a library exporting a custom Collabs collaborative type.**
 

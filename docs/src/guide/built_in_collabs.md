@@ -58,10 +58,10 @@ For example, the ordinary version of a shopping list is `Array<string>`. You hav
 
 ### Fancy Semantics
 
-One of [Collabs's goals](TODO) is _semantic flexbility_: as the app programmer, you should get to choose what the state will be after multiple users perform operations concurrently. These choices can be nuanced and app-specific. That way, you can make your app respect users' expectations and intents, even if users do a lot of offline edits and merge them later.
+Flexibility is one of [Collabs's principles](../#principles). In particular, we aim to allow _semantic flexibility_: as the app programmer, you should get to choose what the state will be after multiple users perform operations concurrently. These choices can be nuanced and app-specific. That way, you can make your app respect users' expectations and intents, even if users do a lot of offline edits and merge them later.
 
 Towards this goal, Collabs builds in some fancy semantics. These are specific behaviors that make sense to users but are nontrivial to implement. They include:
 
-- **CRichText formatting spans:** [CRichText](TODO) implements the [Peritext algorithm](TODO), which handles formatting spans in an intuitive way. For example, if one user bolds a range of text while another user types in that range concurrently, the new characters will also be bolded.
-- **CList `move` operation:** [CList.move](TODO#move) implements Martin Kleppmann's [Moving Elements in List CRDTs](TODO) paper. That way, if one user moves a list element while someone else mutates it concurrently, the element is both moved and mutated.
-- **CList deletion options:** If one user deletes a list element while someone else is still updating it, you have a few options for what to do: [delete-wins](TODO: CList.delete), [update-wins](TODO), or [archive](TODO) with the chance to restore later.
+- **CRichText formatting spans:** [CRichText](../api/collabs/classes/CRichText.html) implements the [Peritext algorithm](https://github.com/inkandswitch/peritext), which handles formatting spans in an intuitive way. For example, if one user bolds a range of text while another user types in that range concurrently, the new characters will also be bolded.
+- **CList `move` operation:** [`CList.move`](../api/collabs/classes/CList.html#move) implements Martin Kleppmann's [Moving Elements in List CRDTs](https://doi.org/10.1145/3380787.3393677) paper. That way, if one user moves a list element while someone else mutates it concurrently, the element is both moved and mutated.
+- **CList deletion options:** If one user deletes a list element while someone else is still updating it, you have a few options for what to do: [delete-wins](../api/collabs/classes/CList.html#delete), [update-wins](../api/collabs/classes/CList.html#restore), or [archive](../api/collabs/classes/CList.html#archive) with the chance to restore later.

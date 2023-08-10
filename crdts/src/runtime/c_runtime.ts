@@ -242,17 +242,21 @@ export interface RuntimeOptions {
 }
 
 /**
- * A runtime for a Collabs document, responsible for connecting
- * replicas of [[Collab]]s across devices and for other
- * whole-document functionality.
+ * A runtime for a Collabs document, responsible for managing the document's
+ * [[Collab]]s.
  *
- * Specifically, this runtime is for use with the @collabs/collabs and @collabs/crdts package,
- * which provide CRDT Collabs.
+ * To get started with CRuntime, see
+ * [Documents](https://collabs.readthedocs.io/en/latest/guide/documents.html).
  *
- * For a usage example, see [Entry Points](../../../guide/entry_points.html#cruntime).
+ * CRuntime is network- and storage-agnostic. By itself, it does not connect
+ * to remote collaborators or persistent storage.
+ * To easily set up networking and storage, configure
+ * [Providers](https://collabs.readthedocs.io/en/latest/guide/providers.html).
+ * Or, manually manage updates using the methods in this class; see
+ * [Updates and Sync](https://collabs.readthedocs.io/en/latest/advanced/updates.html).
  *
  * See also: [[AbstractDoc]], which lets you encapsulate
- * a runtime and your "global variable" Collabs in a single object.
+ * a CRuntime and its registered Collabs in a single object.
  */
 export class CRuntime
   extends AbstractRuntime<RuntimeEventsRecord>
@@ -386,7 +390,8 @@ export class CRuntime
   }
 
   /**
-   * Wraps `f`'s operations in a transaction. <!-- TODO: see transactions doc -->
+   * Wraps `f`'s operations in a
+   * [transaction](https://collabs.readthedocs.io/en/latest/advanced/updates.html#terminology).
    *
    * This method begins a transaction (if needed), calls `f()`,
    * then ends its transaction (if begun). Operations

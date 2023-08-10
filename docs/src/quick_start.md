@@ -1,12 +1,12 @@
 # Quick Start
 
-To get started quickly with Collabs, you can use our [template-app](TODO).
+To get started quickly with Collabs, you can use our [app template](https://github.com/composablesys/collabs/tree/master/template-app).
 
 This page has instructions for using the template, a walkthrough of its starter code, and next steps for your own collaborative app.
 
 ## Using the Template
 
-1. Download the template [from GitHub](TODO):
+1. Download the template [from GitHub](https://github.com/composablesys/collabs/tree/master/template-app):
 
 ```bash
 git clone TODO
@@ -67,8 +67,8 @@ import { TabSyncNetwork } from "@collabs/tab-sync";
 import { WebSocketNetwork } from "@collabs/ws-client";
 ```
 
-- [@collabs/collabs](TODO) is Collabs's main package. It contains all of the library's collaborative data structures, such as [CCounter](TODO). It also contains [CRuntime](TODO), which you use to make a Collabs _document_: a group of Collabs that are shared together.
-- The other packages are optional [network and storage providers](TODO), described [below](#network-and-storage-providers). These help you sync Collabs documents with remote collaborators and store them locally.
+- [@collabs/collabs](https://www.npmjs.com/package/@collabs/collabs) is Collabs's main package. It contains all of the library's collaborative data structures, such as [CCounter](./api/collabs/classes/CCounter.html). It also contains [CRuntime](./api/collabs/classes/CRuntime.html), which you use to make a Collabs [document](./guide/documents.html): a group of Collabs that are shared together.
+- The other packages are optional [network and storage providers](./guide/providers.html), described below. These help you sync Collabs documents with remote collaborators and store them locally.
 
 #### Collaborative Counter
 
@@ -101,7 +101,7 @@ document.getElementById("increment")!.onclick = () => counter.add(1);
 
 The code so far creates a single-user app that forgets its state when you refresh the page. To make it collaborative and persistent, we need to set up the network and storage providers that we imported above.
 
-First, `WebSocketNetwork` from package [@collabs/ws-client](TODO):
+First, [WebSocketNetwork](./api/ws-client/classes/WebSocketNetwork.html) from package [@collabs/ws-client](https://www.npmjs.com/package/@collabs/ws-client):
 
 ```ts
 // --- Network/storage setup ---
@@ -124,11 +124,11 @@ wsNetwork.on("Disconnect", (e) => {
 wsNetwork.subscribe(doc, docID);
 ```
 
-`WebSocketNetwork` is a network provider that syncs Collabs documents with [a central server](TODO: @collabs/ws-server) using WebSockets. This is an easy way to collaborate with other users: each update is sent to the server, which echoes it to other users listening on the same `docID` and also stores it for later.
+WebSocketNetwork is a network provider that syncs Collabs documents with a central server using WebSockets. This is an easy way to collaborate with other users: each update is sent to the server, which echoes it to other users listening on the same `docID` and also stores it for later.
 
 Note that using a central server to collaborate is convenient but not necessary - you can share Collabs updates however you like (WebRTC, [Dropbox](https://github.com/mweidner037/fileshare-recipe-editor/), ...).
 
-The next provider is `TabSyncNetwork` from package [@collabs/tab-sync](TODO):
+The next provider is [TabSyncNetwork](./api/tab-sync/classes/TabSyncNetwork.html) from package [@collabs/tab-sync](https://www.npmjs.com/package/@collabs/tab-sync):
 
 ```ts
 const tabSync = new TabSyncNetwork();
@@ -141,9 +141,7 @@ tabSync.subscribe(doc, docID);
 
 This is a network provider that shares updates across local tabs using BroadcastChannel. That way, a user with multiple tabs open sees their changes sync quickly, even when offline.
 
-TODO: provider class names: remove backticks; link to API docs instead.
-
-The final provider is `IndexedDBDocStore` from package [@collabs/indexeddb](TODO):
+The final provider is [IndexedDBDocStore](./api/indexeddb/classes/IndexedDBDocStore.html) from package [@collabs/indexeddb](https://www.npmjs.com/package/@collabs/indexeddb):
 
 ```ts
 const docStore = new IndexedDBDocStore();
@@ -173,14 +171,14 @@ The last bit of starter code is the `npm start` script, defined in `package.json
 This script runs two servers in parallel (note the single `&`); you can also run each script in a separate terminal.
 
 - `npm run start:webpack` starts [`webpack-dev-server`](https://webpack.js.org/configuration/dev-server/). It serves the app's static files on port 3000 (after building them with Webpack).
-- `npm run start:ws-server` starts `collabs-ws-server` from package [@collabs/ws-server](TODO). It handles connections from `WebSocketNetwork`s on port 3001.
+- `npm run start:ws-server` starts `collabs-ws-server` from package [@collabs/ws-server](https://www.npmjs.com/package/@collabs/ws-server). It handles connections from WebSocketNetwork on port 3001.
 
 ## Next Steps
 
 You've now completed the walkthrough of template-app's starter code. Hopefully this gave you a taste of Collabs!
 
-To turn this into your own app, you'll need to replace the "App code" section in `src/main.ts`. By registering more interesting Collabs than `CCounter`, you can model your app's collaborative state in Collabs, whether it's a [shared whiteboard](TODO), [rich-text editor](TODO), [recipe editor](TODO), etc.
+To turn this into your own app, you'll need to replace the "App code" section in `src/main.ts`. By registering more interesting Collabs than `CCounter`, you can model your app's collaborative state in Collabs, whether it's a [shared whiteboard](https://collabs-demos.herokuapp.com/whiteboard/), [rich-text editor](https://collabs-demos.herokuapp.com/rich-text/), [recipe editor](https://github.com/mweidner037/fileshare-recipe-editor/), etc.
 
-Eventually, you'll outgrow this simple template's single, globally-accessible document. Luckily, the network and storage providers let you [work with many documents](./guide/providers.html#collabs-providers), and [@collabs/ws-server](TODO) lets you setup basic server-side authentication and storage. You can also write your own providers by learning about [updates and sync](./advanced/updates.html).
+Eventually, you'll outgrow this simple template's single, globally-accessible document. Luckily, the network and storage providers let you [work with many documents](./guide/providers.html#collabs-providers), and [@collabs/ws-server](https://www.npmjs.com/package/@collabs/ws-server) lets you setup basic server-side authentication and storage. You can also write [your own providers](./guide/providers.html#manual).
 
 The [Guide](./guide/) covers these topics and more.

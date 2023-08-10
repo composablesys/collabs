@@ -8,8 +8,6 @@ See also: [@collabs/indexeddb](https://www.npmjs.com/package/@collabs/indexeddb)
 
 ## Docs
 
-<!-- TODO: Link to specific docs page instead of whole site -->
-
-See [https://collabs.readthedocs.io/](https://collabs.readthedocs.io/)
+[Providers overview](https://collabs.readthedocs.io/en/latest/guide/providers.html)
 
 [API](https://collabs.readthedocs.io/en/latest/api/local-storage)

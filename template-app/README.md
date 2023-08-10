@@ -1,8 +1,8 @@
-# Collabs App Starter Template
+# Collabs App Template
 
-Template for a generic Collabs app, using [@collabs/ws-client](https://www.npmjs.com/package/@collabs/ws-client) and [@collabs/ws-server](https://www.npmjs.com/package/@collabs/ws-server) to connect users over a WebSocket server.
+Template for a basic Collabs app.
 
-[Walkthrough of this template](https://collabs.readthedocs.io/en/latest/quick_start.html)
+Our [Quick Start](https://collabs.readthedocs.io/en/latest/quick_start.html) walks through using this template.
 
 [Collabs Docs](https://collabs.readthedocs.io/en/latest/)
 

@@ -22,8 +22,9 @@ export interface VectorClock {
  * whenever it delivers a message to [[Collab.receive]].
  * To access it more easily, consider extending [[PrimitiveCRDT]].
  *
- * All messages in the same transaction
- * have the same [[CRDTMessageMeta]]. <!-- TODO: docs link -->
+ * All messages in the same
+ * [transaction](https://collabs.readthedocs.io/en/latest/advanced/updates.html#terminology)
+ * have the same CRDTMessageMeta.
  *
  * Properties are only included if they were accessed during the
  * sender's own local echo (i.e., within their

@@ -1,29 +1,25 @@
 # Updates and Sync
 
-TODO: Cross-link in CRuntime/AbstractDoc class header
-
 To synchronize different copies of a document, Collabs gives you _updates_. You and your [providers](../guide/providers.html) are responsible for moving these updates around.
 
-This page describes Collabs's update model and rules for syncing documents. It complements the API docs for [CRuntime](TODO) and [AbstractDoc](TODO) (which have the same updated-related APIs).
+This page describes Collabs's update model and rules for syncing documents. It complements the API docs for [CRuntime](../api/collabs/classes/CRuntime.html) and [AbstractDoc](../api/collabs/classes/AbstractDoc.html) (which have the same updated-related APIs).
 
 For examples of how to work with updates, see our published providers' [source code](https://github.com/composablesys/collabs).
 
 ## Terminology
 
-TODO: Link from all 3 transact() functions and CRDTMessageMeta header (should have TODOs)
-
-An **operation** is a Collab method call that mutates its collaborative state. E.g., a call to [CText.insert](TODO).
+An **operation** is a Collab method call that mutates its collaborative state. E.g., a call to [`CText.insert`](../api/collabs/classes/CText.html#insert).
 
 A **transaction** is a sequence of operations by the same user. These operations are grouped together so that all users apply them together (atomically), without interleaving other operations.
 
-By default, all Collab operations in the same microtask are grouped into a transaction. This is network-efficient and avoids accidentally splitting up compound operations (e.g., CText.insert can be a composition of two lower-level operations). However, you can customize this behavior using the TODO option in CRuntime/AbstractDoc's constructor and the [CRuntime.transact](TODO)/[AbstractDoc.transact](TODO) method.
+By default, all Collab operations in the same microtask are grouped into a transaction. This is network-efficient and avoids accidentally splitting up compound operations (e.g., CText.insert can be a composition of two lower-level operations). However, you can customize this behavior using the [`autoTransactions` option](api/collabs/interfaces/RuntimeOptions.html#autoTransactions) in CRuntime/AbstractDoc's constructor and the [CRuntime](../api/collabs/classes/CRuntime.html#transact)/[AbstractDoc](../api/collabs/classes/AbstractDoc.html#transact) method.
 
 > Although we use the term "transaction", these are not ACID transactions like in a database - it is okay for concurrent transactions to mutate the same state.
 
 An **update** is a Uint8Array describing a set of transactions. They come in two types:
 
-- A **message** describes a single transaction. The user who performed the transaction emits its message in a ["Send" event](TODO) on its CRuntime/AbstractDoc. Any user can deliver this message to [CRuntime.receive](TODO)/[AbstractDoc.receive](TODO) to apply the transaction.
-- A **saved state** describes all transactions up to a certain point. Any user can call [CRuntime.save](TODO)/[AbstractDoc.save](TODO) at any time to get a saved state describing all transactions applied to their document so far. Any user can deliver that saved state to [CRuntime.load](TODO)/[AbstractDoc.load](TODO) to apply all of its transactions.
+- A **message** describes a single transaction. The user who performed the transaction emits its message in a ["Send" event](../api/collabs/interfaces/RuntimeEventsRecord.html#Send) on its CRuntime/AbstractDoc. Any user can deliver this message to [CRuntime](../api/collabs/classes/CRuntime.html#receive)/[AbstractDoc](../api/collabs/classes/AbstractDoc.html#receive) to apply the transaction.
+- A **saved state** describes all transactions up to a certain point. Any user can call [CRuntime](../api/collabs/classes/CRuntime.html#save)/[AbstractDoc](../api/collabs/classes/AbstractDoc.html#save) at any time to get a saved state describing all transactions applied to their document so far. Any user can deliver that saved state to [CRuntime](../api/collabs/classes/CRuntime.html#load)/[AbstractDoc](../api/collabs/classes/AbstractDoc.html#load) to apply all of its transactions.
 
 > Messages correspond to op-based CRDTs, while saved states correspond to state-based CRDTs. Collabs implements hybrid op-based/state-based CRDTs, which is why you can mix the two kinds of updates.
 
@@ -35,9 +31,9 @@ The golden rule for syncing documents is: **Two documents that have applied the 
 
 You can "apply" a transaction by applying any update that contains that transaction, whether it's a message or saved state. It's okay to apply a transaction more than once; duplicates will be ignored. For example, if you load two saved states that overlap, you'll get the "merged" result that you expect. It's also okay if some users apply a transaction via a message while others apply it via a saved state.
 
-Whenever a doc applies an update (including at the end of a local transaction), it emits an ["Update" event](TODO). This includes a copy of the update itself, as well as the "caller" that delivered the update (an optional argument to `receive` and `load`). Our providers use this to work together: if @collabs/ws-server applies an update to the document, @collabs/indexeddb learns of it from the "Update" event and saves it in IndexedDB, just like for local operations.
+Whenever a doc applies a non-redundant update (including at the end of a local transaction), it emits an ["Update" event](../api/collabs/interfaces/RuntimeEventsRecord.html#Update). This includes a copy of the update itself, as well as the "caller" that delivered the update (an optional argument to `receive` and `load`). Our providers use this to work together: if @collabs/ws-server applies an update to the document, @collabs/indexeddb learns of it from the "Update" event and saves it in IndexedDB, just like for local operations.
 
-Internally, messages are _not_ always applied immediately. Instead, they are buffered until all after applying all [causally prior](TODO) transactions, to enforce [causal consistency](TODO). Saved states _are_ always applied immediately, since they have all causally prior transactions built-in.
+Internally, messages are _not_ always applied immediately. Instead, they are buffered until all after applying all [causally prior](https://en.wikipedia.org/wiki/Happened-before) transactions, to enforce [causal consistency](https://en.wikipedia.org/wiki/Causal_consistency). Saved states _are_ always applied immediately, since they have all causally prior transactions built-in.
 
 ## Patterns
 
@@ -64,11 +60,11 @@ If the peer actually receives all of your updates, then their state will be as u
 
 A third pattern accomplishes the same thing as state-based sync but can be more network-efficient.
 
-Each transaction is uniquely identified by a "causal dot" of the form `(senderID, senderCounter)`. A message's "Update" event tells you this ID for its transaction (see [MessageEvent.senderCounter](TODO)), letting you store a map (transaction ID) -> (message).
+Each transaction is uniquely identified by a "causal dot" of the form `(senderID, senderCounter)`. A message's "Update" event tells you this ID for its transaction (see [MessageEvent.senderCounter](../api/collabs/interfaces/MessageEvent.html#senderCounter)), letting you store a map (transaction ID) -> (message).
 
 Then to sync two documents:
 
-1. Peer A sends its [CRuntime.vectorClock](TODO)/[AbstractDoc.vectorClock](TODO). This succinctly encodes all of the transaction IDs that the peer has applied.
+1. Peer A sends its [CRuntime](../api/collabs/classes/CRuntime.html#vectorClock)/[AbstractDoc](../api/collabs/classes/AbstractDoc.html#vectorClock). This succinctly encodes all of the transaction IDs that the peer has applied.
 2. Peer B replies with all stored messages whose transaction IDs are missing from Peer A's vector clock. Peer B also sends their own vector clock entries that are lower than Peer A's.
 3. Peer A applies the messages from Peer B, and replies with their own stored messages whose transaction IDs are missing from Peer B's vector clock.
 4. Peer B applies the messages from Peer A.

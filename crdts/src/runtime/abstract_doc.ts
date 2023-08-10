@@ -13,17 +13,18 @@ const runtimeEventNames: (keyof RuntimeEventsRecord)[] = [
 ];
 
 /**
- * Base class for a Collabs document.
+ * Base class for an encapsulated Collabs document, which wraps
+ * its [[CRuntime]] and registered [[Collab]]s in a single object.
  *
- * By extending AbstractDoc, you can encapsulate
- * a [[CRuntime]] and your [global variable Collabs](../../..guide/initialization.html#global-variable-collabs)
- * in a single "document" object. This is convenient
- * for passing documents around and for working with
- * multiple documents in the same app.
+ * To get started with AbstractDoc, see
+ * [Documents - Using AbstractDoc](https://collabs.readthedocs.io/en/latest/guide/documents.html#using-abstractdoc).
  *
- * See [Data Modeling](../../../guide/data_modeling.html#abstractdoc) for a usage example.
- *
- *
+ * AbstractDoc is network- and storage-agnostic. By itself, it does not connect
+ * to remote collaborators or persistent storage.
+ * To easily set up networking and storage, configure
+ * [Providers](https://collabs.readthedocs.io/en/latest/guide/providers.html).
+ * Or, manually manage updates using the methods in this class; see
+ * [Updates and Sync](https://collabs.readthedocs.io/en/latest/advanced/updates.html).
  */
 export abstract class AbstractDoc extends EventEmitter<RuntimeEventsRecord> {
   /**
@@ -49,7 +50,8 @@ export abstract class AbstractDoc extends EventEmitter<RuntimeEventsRecord> {
   }
 
   /**
-   * Wraps `f`'s operations in a transaction. <!-- TODO: see transactions doc -->
+   * Wraps `f`'s operations in a
+   * [transaction](https://collabs.readthedocs.io/en/latest/advanced/updates.html#terminology).
    *
    * This method begins a transaction (if needed), calls `f()`,
    * then ends its transaction (if begun). Operations

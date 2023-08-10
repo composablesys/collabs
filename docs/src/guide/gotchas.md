@@ -10,17 +10,17 @@ All in-sync copies of a Collab must be initialized identically. In particular:
 
 1. All copies of a document must make the same calls to [CRuntime.registerCollab](../api/collabs/classes/CRuntime.html#registerCollab), with the same names, Collab classes, and Collab constructor arguments (in the `init` callback)
 2. Likewise for calls to `registerCollab` within a `CObject`.
-3. Constructor arguments, and the logic inside Collab constructors or `valueConstructor` callbacks, must not depend on values that can differ across users - e.g., the user's current time, fresh random values, or [CRuntime.replicaID](TODO).
+3. Constructor arguments, and the logic inside Collab constructors or `valueConstructor` callbacks, must not depend on values that can differ across users - e.g., the user's current time, fresh random values, or [CRichText](../api/collabs/classes/CRuntime.html#replicaID).
 
 So long as all users are running the same code, 1 and 2 should be automatic.
 
-> See [Versioning](TODO) for tips on how to migrate schemas over time.
+<!-- > See [Versioning](TODO) for tips on how to migrate schemas over time. -->
 
 ## Delayed Initialization
 
 All of a document's [CRuntime.registerCollab](../api/collabs/classes/CRuntime.html#registerCollab) calls must happen before you use that document in any way: connecting providers, performing collaborative operations on its Collabs, or calling other CRuntime/AbstractDoc methods. To ensure this, you should make all CRuntime.registerCollab calls right after constructing the CRuntime. (In an AbstractDoc subclass, make all calls in its constructor.)
 
-Likewise, within a `CObject`, you should make all calls to `registerCollab` within the constructor. If you need to add children dynamically, you should instead use a collection of Collabs, e.g., [CSet](TODO).
+Likewise, within a `CObject`, you should make all calls to `registerCollab` within the constructor. If you need to add children dynamically, you should instead use a collection of Collabs, e.g., [CSet](../api/collabs/classes/CSet.html).
 
 ## Non-unique Names
 
@@ -30,7 +30,7 @@ All names passed to [CRuntime.registerCollab](../api/collabs/classes/IRuntime.ht
 
 Not all values can be serialized by default (e.g., functions). Also, some values might not deserialize the way you expect - e.g., an object reference on one user is meaningless to other users, and so by default, objects are deserialized as deep clones of the input object.
 
-You can work around serialization issues by using a custom [Serializer](TODO: API docs), which many Collabs accept as a constructor option.
+You can work around serialization issues by using a custom [Serializer](../api/collabs/interfaces/Serializer.html), which many Collabs accept as a constructor option.
 
 ## Collection Equality Semantics
 
@@ -72,6 +72,7 @@ CSet, CValueSet, CMap, and CValueMap iterators might not yield elements in the s
 Do not perform Collab operations in event handlers or initializers (including Collab constructors and [collection `valueConstructor` callbacks](./collections.html#1-valueconstructor)). These operations will end up running on each user _as collaborative operations_, i.e., each user will broadcast a copy of the operation to every other user. So the operation will be performed (# users) times in total - probably not what you want.
 
 If Collabs detects this, it will throw an error:
+
 ```
 Error: CRuntime.send called during a receive/load call; did you try to perform an operation in an event handler?
 ```
@@ -84,7 +85,7 @@ When listening on events from a Collab in a [collection of Collabs](./collection
 
 ## Misusing InitTokens
 
-Do not make your own [InitToken](TODO)s (the `init` argument passed to each Collab's constructor).
+Do not make your own [InitToken](../api/collabs/classes/InitToken.html)s (the `init` argument passed to each Collab's constructor).
 
 Only use a given InitToken once, in the way intended by its creator. E.g., a collection's [`valueConstructor`](./collections.html#1-valueconstructor) must return the Collab created using its `init` parameter.
 

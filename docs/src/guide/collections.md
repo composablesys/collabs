@@ -58,7 +58,7 @@ This function serves the same purpose as the callback you pass to [CRuntime.regi
 
 Like when you call CRuntime.registerCollab, you must ensure that all collaborators use "the same" `valueConstructor` function, returning a Collab with the same class and constructor arguments. That way, collaborators agree on how to interpret updates to each list value.
 
-Observe that we added an [event handler](./handling_changes.html#collab-events) to the new CText value before returning it from `valueConstructor`. This is the recommended place to add event handlers, since `valueConstructor` is guaranteed to run exactly once for each list value, before applying any updates. You should _not_ add event handlers in [CList's "Insert" event](TODO), since that can run multiple times for the same value (if you use CList's `archive` and `restore` methods).
+Observe that we added an [event handler](./handling_changes.html#collab-events) to the new CText value before returning it from `valueConstructor`. This is the recommended place to add event handlers, since `valueConstructor` is guaranteed to run exactly once for each list value, before applying any updates. You should _not_ add event handlers in [CList's "Insert" event](../api/collabs/interfaces/ListExtendedEventsRecord.html#Insert), since that can run multiple times for the same value (if you use CList's `archive` and `restore` methods).
 
 ### 2. Adding Values
 
@@ -75,7 +75,7 @@ const newItem = shoppingList.push();
 newItem.insert(0, "milk");
 ```
 
-Here [CList.push](TODO) returns the new CText value. The next line then performs a normal collaborative operation on this value, inserting "milk". Because only one user runs this code (the user who clicked the "+" button), "milk" is only inserted once, not duplicated once per collaborator.
+Here [CList.push](../api/collabs/classes/CList.html#push) returns the new CText value. The next line then performs a normal collaborative operation on this value, inserting "milk". Because only one user runs this code (the user who clicked the "+" button), "milk" is only inserted once, not duplicated once per collaborator.
 
 > It is tempting to pass "milk" as an argument to `push()` that gets passed through to each `valueConstructor`, then call `text.insert(0, "milk")` in each `valueConstructor`. This is wrong and will cause an error; see the [Gotchas](./gotchas.html#operations-in-event-handlers-or-initializers).
 
@@ -85,4 +85,4 @@ We saw above how collections of Collabs, like CList, differ from collections of 
 
 However, sometimes you do want to put an existing Collab in a collection. For example, our [minesweeper demo](./data_modeling.html#minesweeper) has a `CSet<CMinesweeper>` of all game boards, plus a CVar that points to the current in-play game.
 
-To do this, store [CollabIDs](TODO) in the collection instead of the actual Collabs. CollabIDs make sense across devices and can be serialized (they're JSON objects), unlike Collabs. Each collaborator can freely convert between a CollabID and their own copy of its Collab.
+To do this, store [CollabIDs](../api/collabs/modules.html#CollabID) in the collection instead of the actual Collabs. CollabIDs make sense across devices and can be serialized (they're JSON objects). Each collaborator can freely convert between a CollabID and their own copy of its Collab.

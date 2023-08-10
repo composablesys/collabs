@@ -7,7 +7,6 @@ hidden:
 maxdepth: 2
 ---
 quick_start
-walkthrough
 guide/index
 advanced/index
 further_info/index
@@ -28,7 +27,7 @@ api/index
 
 Collabs is written in TypeScript and should work in any JavaScript environment (browser, Node.js, etc.).
 
-Consider using our [app template](TODO).
+Consider using our [app template](https://github.com/composablesys/collabs/tree/master/template-app).
 
 ## Demos
 
@@ -40,7 +39,7 @@ Consider using our [app template](TODO).
 See our talk at [LFW.dev](https://localfirstweb.dev/) meetup #5, which introduces these principles and shows off fileshare-recipe-editor's fancy merge semantics: [Video](https://www.youtube.com/watch?v=Z0nzsxhoToo&t=2346s), [Slides](https://docs.google.com/presentation/d/13I3L76R-wwiXxgTXI2ide3zlbjiWoTWXMSU9YbQdYXU/edit?usp=sharing).
 
 - **[Local-first](https://www.inkandswitch.com/local-first/) ready:** Collabs lets users work offline and sync up with collaborators later. We use CRDTs to merge changes even with arbitrary latency and concurrency.
-- **Network- and storage-agnostic:** Collabs generates updates that you must eventually deliver to all collaborators, but you are free to deliver and store these updates however you like: your own server, WebRTC, encrypted [Matrix](matrix.org) room, etc. We also publish [providers](./guide/providers.html) that handle this for you.
+- **Network- and storage-agnostic:** Collabs generates updates that you must eventually deliver to all collaborators, but you are free to deliver and store these updates however you like: your own server, Dropbox, encrypted [Matrix](matrix.org) room, etc. We also publish [providers](./guide/providers.html) that handle this for you.
 - **Flexible and extensible:** At its core, Collabs is a library _for_ collaborative data structures, not just a menu of built-in options (but [we provide those too](./guide/built_in_collabs.html)). So if our built-in data structures don't meet your needs, you can create your own and even publish them as 3rd-party libraries: new semantics, faster algorithms, implementations of CRDT papers...
 - **Keep your data model and type safety:** A key feature of Collabs is that you can organize your collaborative state using [encapsulated, strongly-typed classes](./guide/data_modeling.html).
 
@@ -48,7 +47,7 @@ See our talk at [LFW.dev](https://localfirstweb.dev/) meetup #5, which introduce
 
 Collabs implements hybrid op-based/state-based [Conflict-free Replicated Data Types (CRDTs)](https://crdt.tech/). These ensure that collaborators converge to a consistent state once they apply the same updates, regardless of order, and they support both live collaboration and merging saved states. We try hard to converge to a "reasonable" result when users make concurrent changes to the same data.
 
-Our built-in CRDTs implement modern [algorithms](./further_info/algorithms.html) including [Peritext](TODO: CRichText), [Fugue](TODO), and a [list with a move operation](TODO).
+Our built-in CRDTs implement modern [algorithms](./further_info/algorithms.html) including [Peritext](./api/collabs/classes/CRichText.html), [Fugue](./api/collabs/classes/CTotalOrder.html), and a [list with a move operation](./api/collabs/classes/CList.html).
 
 ## Community
 

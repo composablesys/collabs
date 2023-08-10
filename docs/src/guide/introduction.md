@@ -30,7 +30,7 @@ Our [whiteboard demo](https://collabs-demos.herokuapp.com/whiteboard/) uses a ma
 const boardState: CValueMap<[x: number, y: number], Color>;
 ```
 
-Once `boardState` is initialized (TODO discussed later in [Initialization](./initialization.html)), you can use it like an ordinary `Map<[x: number, y: number], Color>`:
+Once `boardState` is initialized (discussed later in [Documents](./documents.html#using-cruntime)), you can use it like an ordinary `Map<[x: number, y: number], Color>`:
 
 ```ts
 class CValueMap<K, V> {
@@ -61,7 +61,7 @@ As an optimization, you can also render changes incrementally, by handling [Coll
 
 ## More Collaborative Data Structures
 
-Collabs comes with more collaborative data structures built-in. Fancy ones include [CRichText](TODO) for rich text, and [CList](TODO) for a list of other Collabs. See [Built-In Collabs](./built_in_collabs.html) for a summary.
+Collabs comes with more collaborative data structures built-in. Fancy ones include [CRichText](../api/collabs/classes/CRichText.html) for rich text, and [CList](../api/collabs/classes/CList.html) for a list of other Collabs. See [Built-In Collabs](./built_in_collabs.html) for a summary.
 
 For complex apps, you might want to organize your collaborative state into reusable classes. [Data Modeling](./data_modeling) explains how you can make your own Collab that encapsulates existing Collabs in a custom API - a unique feature of our library.
 

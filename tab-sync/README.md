@@ -6,8 +6,6 @@ Part of the Collabs library. Main package: [@collabs/collabs](https://www.npmjs.
 
 ## Docs
 
-<!-- TODO: Link to specific docs page instead of whole site -->
-
-See [https://collabs.readthedocs.io/](https://collabs.readthedocs.io/)
+[Providers overview](https://collabs.readthedocs.io/en/latest/guide/providers.html)
 
 [API](https://collabs.readthedocs.io/en/latest/api/tab-sync)
