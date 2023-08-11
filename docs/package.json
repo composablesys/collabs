@@ -10,6 +10,8 @@
     "build:typedoc": "node ../foreach-workspace.js publish \"npm run build:typedoc:one --\"",
     "build:typedoc:one": "bash -c 'typedoc --options typedoc.json --out generated/api/${1} ../${1}/src/index.ts --tsconfig ../${1}/tsconfig.json' @",
     "build:sphinx": "make html",
+    "test": "",
+    "fix": "",
     "clean": "npm-run-all clean:*",
     "clean:typedoc": "rimraf generated",
     "clean:sphinx": "make clean"

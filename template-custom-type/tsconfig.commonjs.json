@@ -1,8 +1,0 @@
-{
-  /* This tsconfig is for the CommonJS build, targeted at Node.js apps, including our own tests. */
-  "extends": "./tsconfig.json",
-  "compilerOptions": {
-    "module": "commonjs",
-    "outDir": "build/commonjs"
-  }
-}

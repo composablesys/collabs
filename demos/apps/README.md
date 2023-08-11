@@ -12,7 +12,7 @@ Build: `npm run buildDemoServer` (`npm run build` also works but takes longer).
 
 Run: `npm start`, then open the printed link in a web browser. See [server/README.md](server/README.md) for options.
 
-The demos use a central server to collaborate. For easier testing, we omit cross-tab sync and IndexedDB storage; see our [app template](https://github.com/composablesys/collabs/tree/master/template-app) for code that incorporates those.
+The demos use a central server to collaborate. For easier testing, we omit cross-tab sync and IndexedDB storage; see our [app template](https://github.com/composablesys/collabs-template-app) for code that incorporates those.
 
 ### Individual apps
 
