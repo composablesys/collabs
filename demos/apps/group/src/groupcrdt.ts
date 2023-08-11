@@ -3,7 +3,7 @@ import {
   CollabEventsRecord,
   CPrimitive,
   InitToken,
-  UpdateMeta,
+  MessageMeta,
 } from "@collabs/collabs";
 import { GroupComponentMessage } from "../generated/proto_compiled";
 import { MultipleSemidirectProduct } from "./multiple_semidirect_product";
@@ -91,7 +91,7 @@ export class TranslateComponent extends CPrimitive<GroupEventsRecord> {
     }
   }
 
-  protected receivePrimitive(message: Uint8Array | string, meta: UpdateMeta) {
+  protected receivePrimitive(message: Uint8Array | string, meta: MessageMeta) {
     let decoded = GroupComponentMessage.decode(<Uint8Array>message);
     this.state.X1 += decoded.X1;
     this.state.Y1 += decoded.Y1;
@@ -180,7 +180,7 @@ export class RotateComponent extends CPrimitive<GroupEventsRecord> {
     return [newX1, newX2, newY1, newY2];
   }
 
-  protected receivePrimitive(message: Uint8Array | string, meta: UpdateMeta) {
+  protected receivePrimitive(message: Uint8Array | string, meta: MessageMeta) {
     let decoded = GroupComponentMessage.decode(<Uint8Array>message);
 
     this.state.rotate1 += decoded.rotate1;
@@ -256,7 +256,7 @@ export class ReflectXComponent extends CPrimitive<GroupEventsRecord> {
     super.sendPrimitive(buffer);
   }
 
-  protected receivePrimitive(message: Uint8Array | string, meta: UpdateMeta) {
+  protected receivePrimitive(message: Uint8Array | string, meta: MessageMeta) {
     let decoded = GroupComponentMessage.decode(<Uint8Array>message);
     this.state.reflectX1 *= decoded.reflectX1;
     this.state.reflectX2 *= decoded.reflectX2;
@@ -313,7 +313,7 @@ export class ReflectYComponent extends CPrimitive<GroupEventsRecord> {
     super.sendPrimitive(buffer);
   }
 
-  protected receivePrimitive(message: Uint8Array | string, meta: UpdateMeta) {
+  protected receivePrimitive(message: Uint8Array | string, meta: MessageMeta) {
     let decoded = GroupComponentMessage.decode(<Uint8Array>message);
     this.state.reflectY1 *= decoded.reflectY1;
     this.state.reflectY2 *= decoded.reflectY2;
@@ -393,10 +393,10 @@ export class GroupCRDT extends MultipleSemidirectProduct<
   // add reflection or rotation as needed.
   protected action(
     m2MessageStack: (Uint8Array | string)[],
-    _m2Meta: UpdateMeta | null,
+    _m2Meta: MessageMeta | null,
     m2Index: number,
     m1MessageStack: (Uint8Array | string)[],
-    _m1Meta: UpdateMeta | null
+    _m1Meta: MessageMeta | null
   ): { m1MessageStack: (Uint8Array | string)[] } | null {
     let m2Decoded = GroupComponentMessage.decode(<Uint8Array>m2MessageStack[0]);
     let m1Decoded = GroupComponentMessage.decode(<Uint8Array>m1MessageStack[0]);

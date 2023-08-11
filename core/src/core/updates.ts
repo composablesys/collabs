@@ -1,68 +1,93 @@
 /**
- * Metadata for an applied update.
+ * Metadata for a message passed to [[Collab.receive]].
  */
-export interface UpdateMeta {
+export interface MessageMeta {
+  // For fields shared with SavedStateMeta, we use the same typedoc
+  // on both, so that they show up nicely in IDE tooltips when you have
+  // an Update event of type MessageEvent | SavedStateEvent.
+
   /**
-   * The update's type: a message sent by a [[Collab]] operation,
-   * or a saved state that was loaded.
+   * The update's type.
    */
-  readonly updateType: "message" | "savedState";
+  readonly updateType: "message";
   /**
-   * The replicaID that sent the update.
-   *
-   * For saved state, this is the saver's replicaID.
+   * The replicaID that sent the message.
    */
   readonly senderID: string;
   /**
-   * Whether the update was caused by a local operation, i.e., calling
-   * a [[Collab]] method on this replica.
-   *
-   * Equivalent to `(updateType === "message" && sender === (local runtime).replicaID)`.
+   * Whether the update is for local operations, i.e., it results
+   * from calling Collab methods on this replica.
    */
   readonly isLocalOp: boolean;
   /**
-   * Optionally, an [[IRuntime]] implementation may include extra metadata
-   * in this field. For example, [[CRuntime]] puts [[CRDTMessageMeta]] here
-   * for messages and [[CRDTSavedStateMeta]] here for saved states.
+   * Optionally, the runtime may include extra metadata
+   * in this field.
    *
    * This field is intended for use by [[Collab]] implementations,
    * not event listeners.
    *
-   * A Collab that requires specific metadata should cast this field
-   * to the appropriate type. For CRDTMessageMeta/CRDTSavedStateMeta,
-   * you can instead
-   * extend [[PrimitiveCRDT]]. Note that specific metadata will only
-   * be present when using a corresponding IRuntime.
+   * For example, [[CRuntime]] puts [[CRDTMessageMeta]] here.
+   * To access that more easily, consider extending [[PrimitiveCRDT]].
    */
   readonly runtimeExtra: unknown;
 }
 
 /**
+ * Metadata for a saved state passed to [[Collab.load]].
+ */
+export interface SavedStateMeta {
+  /**
+   * The update's type.
+   */
+  readonly updateType: "savedState";
+  /**
+   * Whether the update is for local operations, i.e., it results
+   * from calling Collab methods on this replica.
+   */
+  readonly isLocalOp: false;
+  /**
+   * Optionally, the runtime may include extra metadata
+   * in this field.
+   *
+   * This field is intended for use by [[Collab]] implementations,
+   * not event listeners.
+   *
+   * For example, [[CRuntime]] puts [[CRDTSavedStateMeta]] here.
+   * To access that more easily, consider extending [[PrimitiveCRDT]].
+   */
+  readonly runtimeExtra: unknown;
+}
+
+/**
+ * Metadata for an update (message or saved state).
+ */
+export type UpdateMeta = MessageMeta | SavedStateMeta;
+
+/**
  * A [[IRuntime]] may extend this interface to allow [[Collab]]s to configure
- * the content of a message's [[UpdateMeta.runtimeExtra]].
+ * the content of a message's [[MessageMeta.runtimeExtra]].
  *
  * Specifically, a Collab makes a request in [[Collab.send]]; this affects
- * the UpdateMeta passed to [[Collab.receive]] together with the sent message.
+ * the MessageMeta passed to [[Collab.receive]] together with the sent message.
  *
  * For example, [[CRuntime]] accepts requests of type [[CRDTMetaRequest]].
- * To make those requests more easily, you can instead extend [[PrimitiveCRDT]].
+ * To make those requests more easily, consider extending [[PrimitiveCRDT]].
  */
 // eslint-disable-next-line @typescript-eslint/no-empty-interface
 export interface MetaRequest {}
 
 /**
- * Type of saved state as used by [[Collab.save]] and [[Collab.load]].
+ * Optimized representation of saved state used by [[Collab.save]] and
+ * [[Collab.load]].
  *
- * A Collab with children may store their save data in [[children]];
+ * A Collab with children may store the children's save data in [[children]];
  * this is usually more convenient than serializing everything
- * into a single Uint8Array. However, it is not mandatory to use [[children]]
- * or to use this type as described.
+ * into a single Uint8Array.
  *
- * The return value of Collab.load is normalized before being passed to
- * Collab.save:
- * - If Collab.load returned null, Collab.save is not called.
+ * The return value of Collab.save is normalized before being passed to
+ * Collab.load:
  * - If [[self]] was undefined, it is replaced by an empty Uint8Array.
- * - If [[children]] was undefined, is is replaced by an empty Map.
+ * - If [[children]] was undefined, it is replaced by an empty Map.
  */
 export interface SavedStateTree {
   /**

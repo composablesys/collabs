@@ -1,0 +1,59 @@
+message Subscribe {
+  repeated string docIDs = 1;
+}
+
+message Unsubscribe {
+  required string docID = 1;
+}
+
+message Welcome {
+  required string docID = 1;
+  optional bytes savedState = 2;
+  repeated bytes updates = 3;
+  /* UpdateType enum. Aligned with updates. */
+  repeated uint32 updateTypes = 4 [packed=true];
+}
+
+message SubscribeDenied {
+  required string docID = 1;
+}
+
+message Send {
+  required string docID = 1;
+  required bytes update = 2;
+  /** UpdateType enum. */
+  required uint32 updateType = 3;
+  required uint32 localCounter = 4;
+}
+
+message Receive {
+  required string docID = 1;
+  required bytes update = 2;
+  /** UpdateType enum. */
+  required uint32 updateType = 3;
+}
+
+message Ack {
+  required string docID = 1;
+  required uint32 localCounter = 2;
+  optional string checkpointRequest = 3;
+}
+
+message CheckpointResponse {
+  required string docID = 1;
+  required bytes savedState = 2;
+  required string checkpointRequest = 3;
+}
+
+message WSMessage {
+  oneof type {
+    Subscribe subscribe = 1;
+    Unsubscribe unsubscribe = 2;
+    Welcome welcome = 3;
+    SubscribeDenied subscribeDenied = 4;
+    Send send = 5;
+    Receive receive = 6;
+    Ack ack = 7;
+    CheckpointResponse checkpointResponse = 8;
+  }
+}

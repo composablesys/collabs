@@ -15,29 +15,26 @@ export abstract class AbstractRuntime<Events extends EventsRecord>
 {
   readonly isRuntime: true = true;
   /**
-   * Readonly. Set with [[setRootCollab]].
+   * A unique ID for this
+   * [replica](https://collabs.readthedocs.io/en/latest/advanced/updates.html#terminology)
+   * (copy of a Collabs document).
    */
+  readonly replicaID: string;
   protected rootCollab!: Collab & Parent;
 
   /**
-   * @param replicaID This replica's [[replicaID]], usually
+   * @param replicaID This replica's `replicaID`, usually
    * obtained from [[ReplicaIDs]]. Must not be `""`.
    */
-  constructor(readonly replicaID: string) {
+  constructor(replicaID: string) {
     super();
 
     if (replicaID === "") {
       throw new Error('replicaID must not be ""');
     }
+    this.replicaID = replicaID;
   }
 
-  /**
-   * Call this during your constructor to set [[rootCollab]].
-   *
-   * @param rootCallback Callback that constructs rootCollab
-   * using the given [[InitToken]].
-   * @returns The constructed rootCollab.
-   */
   protected setRootCollab<C extends Collab & Parent>(
     rootCallback: (init: InitToken) => C
   ): C {

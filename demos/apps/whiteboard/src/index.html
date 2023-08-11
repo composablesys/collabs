@@ -1,0 +1,47 @@
+<!DOCTYPE html>
+
+<html lang="en">
+  <head>
+    <meta charset="utf-8" />
+
+    <style>
+      .btn-colors button {
+        height: 20px;
+        width: 20px;
+      }
+
+      #board {
+        border: 2px solid black;
+      }
+    </style>
+
+    <title>Whiteboard</title>
+  </head>
+
+  <body>
+    <div>
+      <input type="checkbox" id="connected" />
+      <label for="connected">Connected</label>
+      |
+      <a href="about.html">About this demo</a>
+      <hr />
+    </div>
+
+    <p></p>
+    <div class="btn-colors">
+      <button id="[255,0,0]" style="background-color: red"></button>
+      <button id="[255,165,0]" style="background-color: orange"></button>
+      <button id="[255,255,0]" style="background-color: yellow"></button>
+      <button id="[0,128,0]" style="background-color: green"></button>
+      <button id="[0,0,255]" style="background-color: blue"></button>
+      <button id="[128,0,128]" style="background-color: purple"></button>
+      <button id="[0,0,0]" style="background-color: black"></button>
+    </div>
+
+    <div class="btn-clear">
+      <button id="clear">Clear</button>
+    </div>
+
+    <canvas id="board" width="1000" height="750"></canvas>
+  </body>
+</html>

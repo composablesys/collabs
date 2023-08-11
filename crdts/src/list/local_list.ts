@@ -63,8 +63,6 @@ type ValuesOrChild<T> =
  * For example, when using a [[CList]],
  * you could store its archived values in a LocalList.
  * That would let you iterate over the archived values in list order.
- * <!-- TODO: example in docs; or, provide convenience function to
- * return the archived LocalList? -->
  *
  * To construct a LocalList that uses an existing list's positions, pass
  * that list's `totalOrder` to our constructor.

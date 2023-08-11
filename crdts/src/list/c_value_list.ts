@@ -5,11 +5,12 @@ import {
   DefaultSerializer,
   InitToken,
   ListEvent,
+  MessageMeta,
   Position,
+  SavedStateMeta,
   SavedStateTree,
   Serializer,
   Uint8ArraySerializer,
-  UpdateMeta,
   nonNull,
 } from "@collabs/core";
 import {
@@ -112,7 +113,7 @@ export class CValueList<T> extends AbstractList_CObject<T, [T]> {
    * Analogous to CPrimitive.receivePrimitive, but actually for processing
    * this.messenger's messages.
    */
-  private altReceivePrimitive(message: Uint8Array, meta: UpdateMeta): void {
+  private altReceivePrimitive(message: Uint8Array, meta: MessageMeta): void {
     const decoded = ValueListMessage.decode(message);
     switch (decoded.op) {
       case "insert": {
@@ -341,7 +342,7 @@ export class CValueList<T> extends AbstractList_CObject<T, [T]> {
     return ans;
   }
 
-  load(savedStateTree: SavedStateTree | null, meta: UpdateMeta): void {
+  load(savedStateTree: SavedStateTree | null, meta: SavedStateMeta): void {
     super.load(savedStateTree, meta);
 
     if (savedStateTree === null) return;

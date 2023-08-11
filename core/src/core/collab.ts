@@ -1,7 +1,13 @@
 import { EventEmitter } from "./event_emitter";
 import { IRuntime, isRuntime } from "./iruntime";
 import { Parent } from "./parent";
-import { MetaRequest, SavedStateTree, UpdateMeta } from "./updates";
+import {
+  MessageMeta,
+  MetaRequest,
+  SavedStateMeta,
+  SavedStateTree,
+  UpdateMeta,
+} from "./updates";
 
 /**
  * Used to initialize a [[Collab]] with the given
@@ -57,7 +63,7 @@ export interface CollabEventsRecord {
    * When using [[CRuntime]], note that this event may be emitted
    * multiple times in the middle of a transaction. You typically
    * want to wait to
-   * refresh displays until the next [[RuntimeEventsRecord.Change]] event, e.g.:
+   * refresh displays until the next [[DocEventsRecord.Change]] event, e.g.:
    * ```ts
    * let isDirty = false;
    * collab.on("Any", () => { isDirty = true; });
@@ -90,15 +96,12 @@ export interface CollabEventsRecord {
  * but are public for technical reasons; these are marked "Internal use only".
  *
  * To implement a custom Collab, you will usually extend one of the following
- * classes instead of `Collab` itself:
+ * classes instead of Collab itself:
  * - [[CObject]]: For object-oriented composition of existing Collabs.
  * - [[CPrimitive]]: For a "primitive" Collab that sends its own messages
  * over the network.
  * - [[PrimitiveCRDT]]: CRDT variant of CPrimitive that provides
  * CRDT-specific features.
- *
- * <!-- For information on the Collab abstraction and implementing custom
- * Collabs, see TODO (in docs/ folder). (Look at old docs on this file.) -->
  *
  * @typeParam Events Events record indicating the names and types of
  * events emitted by this Collab.
@@ -145,7 +148,7 @@ export abstract class Collab<
   /**
    * Emits an event, which triggers all the registered event handlers.
    *
-   * See [Events](../../../advanced/events.html) for advice
+   * See [[CollabEventsRecord]] for advice
    * on what events to emit.
    *
    * This is a wrapper around [[EventEmitter.emit]]
@@ -181,7 +184,7 @@ export abstract class Collab<
    * a stack of Uint8Arrays. Note that this method
    * may mutate it in-place.
    * @param metaRequests A stack of metadata requests. The [[runtime]] will use
-   * the union of these when creating the [[UpdateMeta]] for [[receive]].
+   * the union of these when creating the [[MessageMeta]] for [[receive]].
    * Note that the stack need not align with `messageStack`, and this method may mutate
    * it in place.
    */
@@ -217,7 +220,7 @@ export abstract class Collab<
    */
   abstract receive(
     messageStack: (Uint8Array | string)[],
-    meta: UpdateMeta
+    meta: MessageMeta
   ): void;
 
   /**
@@ -264,7 +267,10 @@ export abstract class Collab<
    * It incorporates all possible metadata requests. Note that
    * `meta.updateType` is always `"savedState"`.
    */
-  abstract load(savedStateTree: SavedStateTree | null, meta: UpdateMeta): void;
+  abstract load(
+    savedStateTree: SavedStateTree | null,
+    meta: SavedStateMeta
+  ): void;
 
   /**
    * Internal (parent) use only.

@@ -178,7 +178,7 @@ class CListEntry<C extends Collab> extends CObject {
  * [Array.splice](https://developer.mozilla.org/en-US/docs/Web/JavaScript/Reference/Global_Objects/Array/splice).
  *
  * To insert values, you use the pattern described in
- * [dynamically-created Collabs](../../../guide/initialization.html#dynamically-created-collabs):
+ * [collections of Collabs](https://collabs.readthedocs.io/en/latest/guide/collections.html):
  * one user calls [[insert]] with `InsertArgs`; each
  * replica passes those `InsertArgs` to its
  * `valueConstructor`;
@@ -216,7 +216,7 @@ export class CList<
    * Constructs a CList with the given `valueConstructor`.
    *
    * @param valueConstructor Callback used to construct a
-   * value Collab with the given [[InitToken]] and arguments to [[insert]]. See [dynamically-created Collabs](../../../guide/initialization.html#dynamically-created-collabs)
+   * value Collab with the given [[InitToken]] and arguments to [[insert]]. See [collections of Collabs](https://collabs.readthedocs.io/en/latest/guide/collections.html)
    * for example usage.
    * @param options.argsSerializer A serializer for `InsertArgs` as an array.
    * Defaults to [[DefaultSerializer]].
@@ -488,7 +488,8 @@ export class CList<
    *
    * One usage pattern is to call restore on a value each time you
    * mutate that value. That way, if one user archives a value while
-   * it is still in use by another user, the archive will be canceled.
+   * it is still in use by another user, the archive will be canceled
+   * (*update-wins* semantics).
    */
   restore(value: C): void {
     const entry = this.entryFromValue(value);

@@ -1,18 +1,19 @@
 import {
+  CRDTMessageMeta,
   Collab,
   CollabEventsRecord,
   CollabID,
-  CRDTMessageMeta,
-  InitToken,
   IParent,
+  InitToken,
+  MessageMeta,
   MetaRequest,
   Parent,
+  SavedStateMeta,
   SavedStateTree,
-  UpdateMeta,
 } from "@collabs/collabs";
 import {
-  collabIDOf,
   MessageStacksSerializer,
+  collabIDOf,
   protobufHas,
 } from "@collabs/core";
 import {
@@ -56,7 +57,7 @@ class StoredMessage {
     readonly senderCounter: number,
     readonly receiptCounter: number,
     messageStack: (Uint8Array | string)[] | null,
-    readonly meta: UpdateMeta | null,
+    readonly meta: MessageMeta | null,
     readonly arbIndex: number // arbitration number
   ) {
     this.messageStack = messageStack;
@@ -85,7 +86,7 @@ class MultipleSemidirectState<S extends object> {
    */
   add(
     messageStack: (Uint8Array | string)[],
-    meta: UpdateMeta,
+    meta: MessageMeta,
     crdtMeta: CRDTMessageMeta,
     arbId: number
   ) {
@@ -319,6 +320,8 @@ export abstract class MultipleSemidirectProduct<
 {
   readonly state: MultipleSemidirectState<S>;
 
+  private isUsed = false;
+
   /**
    * TODO
    * @param historyMetas=false        [description]
@@ -360,10 +363,10 @@ export abstract class MultipleSemidirectProduct<
    */
   protected abstract action(
     m2MessageStack: (Uint8Array | string)[],
-    m2Meta: UpdateMeta | null,
+    m2Meta: MessageMeta | null,
     m2Index: number,
     m1MessageStack: (Uint8Array | string)[],
-    m1Meta: UpdateMeta | null
+    m1Meta: MessageMeta | null
   ): { m1MessageStack: (Uint8Array | string)[] } | null;
 
   protected setupState(initialState: S) {
@@ -387,10 +390,12 @@ export abstract class MultipleSemidirectProduct<
   // The resulting message mact is then applied to σ and added to the history.
   // It also acts on all messages in the history with lower arbitration order,
   // regardless ofwhether they are concurrent or not.
-  receive(messageStack: (Uint8Array | string)[], meta: UpdateMeta) {
+  receive(messageStack: (Uint8Array | string)[], meta: MessageMeta) {
     if (messageStack.length === 0) {
       throw new Error("Unexpected message");
     }
+
+    this.isUsed = true;
 
     const crdtMeta = <CRDTMessageMeta>meta.runtimeExtra;
 
@@ -475,8 +480,17 @@ export abstract class MultipleSemidirectProduct<
    * case.
    * @param savedState [description]
    */
-  load(savedStateTree: SavedStateTree | null, meta: UpdateMeta): void {
+  load(savedStateTree: SavedStateTree | null, meta: SavedStateMeta): void {
     if (savedStateTree === null) return;
+
+    if (this.isUsed) {
+      console.log(
+        "Skipping load that would require state-based merging. " +
+          "You may see inconsistent states from missing operations."
+      );
+      return;
+    }
+    this.isUsed = true;
 
     for (const [name, savedState] of savedStateTree.children!) {
       if (savedState !== null) {

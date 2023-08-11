@@ -287,8 +287,8 @@ describe("CSet", () => {
     });
 
     it("allows sequential creation", () => {
-      let new1 = aliceSource.add();
-      let new2 = aliceSource.add();
+      const new1 = aliceSource.add();
+      const new2 = aliceSource.add();
       new1.add(7);
       new2.add(-3);
       assert.strictEqual(new1.value, 7);
@@ -296,8 +296,8 @@ describe("CSet", () => {
     });
 
     it("allows concurrent creation", () => {
-      let new1 = aliceSource.add();
-      let new2 = bobSource.add();
+      const new1 = aliceSource.add();
+      const new2 = bobSource.add();
       new1.add(7);
       new2.add(-3);
       assert.strictEqual(new1.value, 7);
@@ -309,12 +309,49 @@ describe("CSet", () => {
 
       aliceVariable.set(Optional.of(aliceSource.idOf(new1)));
       runtimeGen.releaseAll();
-      let new1Bob = bobSource.fromID(bobVariable.value.get())!;
+      const new1Bob = bobSource.fromID(bobVariable.value.get())!;
       bobVariable.set(Optional.of(bobSource.idOf(new2)));
       runtimeGen.releaseAll();
-      let new2Alice = aliceSource.fromID(aliceVariable.value.get())!;
+      const new2Alice = aliceSource.fromID(aliceVariable.value.get())!;
       assert.strictEqual(new1Bob.value, 7);
       assert.strictEqual(new2Alice.value, -3);
+    });
+
+    it("handles multiple adds in one transaction", () => {
+      // The makeName() logic is a little weird about multi-add
+      // transactions, so we need to test it.
+      let new1Alice!: CCounter;
+      let new2Alice!: CCounter;
+      alice.transact(() => {
+        new1Alice = aliceSource.add();
+        new2Alice = aliceSource.add();
+      });
+
+      const new3Bob = bobSource.add();
+
+      runtimeGen.releaseAll();
+
+      const new1Bob = bobSource.fromID(aliceSource.idOf(new1Alice))!;
+      const new2Bob = bobSource.fromID(aliceSource.idOf(new2Alice))!;
+      const new3Alice = aliceSource.fromID(bobSource.idOf(new3Bob))!;
+      assert.isDefined(new1Bob);
+      assert.isDefined(new2Bob);
+      assert.isDefined(new3Alice);
+
+      new1Alice.add(1);
+      new2Alice.add(2);
+      new3Alice.add(3);
+      new1Bob.add(10);
+      new2Bob.add(20);
+      new3Bob.add(30);
+      runtimeGen.releaseAll();
+
+      assert.strictEqual(new1Alice.value, 11);
+      assert.strictEqual(new1Bob.value, 11);
+      assert.strictEqual(new2Alice.value, 22);
+      assert.strictEqual(new2Bob.value, 22);
+      assert.strictEqual(new3Alice.value, 33);
+      assert.strictEqual(new3Bob.value, 33);
     });
 
     // TODO: test deletion, freezing, cross-replica CollabIDs

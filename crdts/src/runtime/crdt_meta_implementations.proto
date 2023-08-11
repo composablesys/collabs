@@ -1,4 +1,4 @@
-message CRDTMetaMessage {
+message CRDTMessageMetaMessage {
   required string senderID = 1;
   required uint32 senderCounter = 2;
   repeated string vcKeys = 3;
@@ -9,6 +9,4 @@ message CRDTMetaMessage {
   optional uint32 maximalVcKeyCount = 5;
   optional uint64 wallClockTime = 6;
   optional uint64 lamportTimestamp = 7;
-  // Only present when true.
-  optional bool isLoad = 8;
 }

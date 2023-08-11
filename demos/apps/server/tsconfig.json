@@ -1,21 +1,14 @@
 {
   "compilerOptions": {
-    "target": "ES2021",
-    /* Recommend by Webpack.  If you use dynamic import()
-        statements, you should upgrade this to ES2020. */
-    "module": "ES6",
-    /* Needed with module: ES6 or else compilation breaks. */
-    "moduleResolution": "node",
+    "module": "commonjs",
+    "target": "ES6",
     /* Enable strict type checking. */
     "strict": true,
     /* Prevent errors caused by other libraries. */
     "skipLibCheck": true,
     /* Enable interop with dependencies using different module systems. */
     "esModuleInterop": true,
-    /* We don't need to emit declarations. */
-    "declaration": false,
-    /* Emit sourcemap files. */
-    "sourceMap": true
-  },
-  "include": ["src/site"]
+    /* Use tsc (npm run build) to typecheck only. */
+    "noEmit": true
+  }
 }

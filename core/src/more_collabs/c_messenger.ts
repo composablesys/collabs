@@ -3,7 +3,7 @@ import {
   CollabEvent,
   CollabEventsRecord,
   InitToken,
-  UpdateMeta,
+  MessageMeta,
 } from "../core";
 import { DefaultSerializer, Serializer } from "../util";
 
@@ -15,6 +15,7 @@ export interface MessengerEvent<M> extends CollabEvent {
    * The received message.
    */
   message: M;
+  meta: MessageMeta;
 }
 
 /**
@@ -74,7 +75,7 @@ export class CMessenger<M> extends CPrimitive<MessengerEventsRecord<M>> {
 
   protected receivePrimitive(
     message: Uint8Array | string,
-    meta: UpdateMeta
+    meta: MessageMeta
   ): void {
     const decoded = this.messageSerializer.deserialize(<Uint8Array>message);
     this.emit("Message", {

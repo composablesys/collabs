@@ -1,5 +1,5 @@
 /**
- * Usage: node foreach-workspace.js -- <which> [-o <which skip>] <command>
+ * Usage: node foreach-workspace.js <which> [-s <which skip>] <command>
  * For each workspace in package.json's workspaceLists.<which> field,
  * skipping those in workspaceLists.<which skip>, runs `command -w <workspace>`.
  * <command> must be a single argument; usually this means you must quote it.
@@ -36,7 +36,7 @@ function error(message) {
   let whichSkip = new Set();
   if (args.length === 4) {
     if (args[1] !== "-s") error("Unrecognized flag: " + args[1]);
-    whichSkipList = packageJSON.workspaceLists[args[2]];
+    const whichSkipList = packageJSON.workspaceLists[args[2]];
     if (whichSkipList === undefined) {
       error("Unknown whichSkip: " + args[2]);
     }

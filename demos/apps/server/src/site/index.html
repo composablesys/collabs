@@ -30,38 +30,27 @@
     <div id="demoList"></div>
 
     <script>
-      // Map: file name to title
-      const containers = [
-        ...Object.entries({
-          "counter/dist/counter.html": "Counter",
-          "whiteboard/dist/whiteboard.html": "Whiteboard",
-          "plaintext/dist/plaintext.html": "Plain text editor",
-          "rich-text/dist/rich_text.html": "Rich text editor",
-          "minesweeper/dist/minesweeper.html": "Minesweeper",
-          "horse-color-genetics/dist/multi/horse-color-genetics.html":
-            "Horse color genetics",
-          "selector/dist/selector.html": "Container selector",
-          "group/dist/group.html":
-            "Shapes - semidirect<br />product (experimental)",
-        }),
-      ];
+      // Map: folder name (with trailing /) to title
+      const demos = {
+        "counter/": "Counter",
+        "whiteboard/": "Whiteboard",
+        "plaintext/": "Plain text editor",
+        "rich-text/": "Rich text editor",
+        "minesweeper/": "Minesweeper",
+        "horse-color-genetics/": "Horse color genetics",
+        //"group/": "Shapes - semidirect<br />product (experimental)",
+      };
 
       const demoList = document.getElementById("demoList");
-      for (let x = 0; x < containers.length; x++) {
+      for (const [folder, title] of Object.entries(demos)) {
         const oneDemoDiv = document.createElement("div");
         oneDemoDiv.className = "oneDemo";
-        oneDemoDiv.innerHTML = `<a href="web_socket.html?container=demos/${containers[x][0]}">${containers[x][1]}</a>`;
+        oneDemoDiv.innerHTML = `<a href="${folder}">${title}</a>`;
         demoList.appendChild(oneDemoDiv);
       }
     </script>
 
     <div id="prose">
-      <a id="matrix"><h3>Usage Over Matrix</h3></a>
-      <p>
-        Use the <code>/addwidget</code> command in a demo's "More Info" page to
-        add it as a widget in a <a href="https://matrix.org/">Matrix</a> room.
-      </p>
-
       <h3>About</h3>
       <p>
         Live collaboration using the

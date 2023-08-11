@@ -4,28 +4,29 @@ import {
   CollabID,
   EventEmitter,
 } from "@collabs/core";
-import { CRuntime, RuntimeEventsRecord, RuntimeOptions } from "./c_runtime";
+import { CRuntime, DocEventsRecord, DocOptions } from "./c_runtime";
 
-const runtimeEventNames: (keyof RuntimeEventsRecord)[] = [
+const runtimeEventNames: (keyof DocEventsRecord)[] = [
   "Change",
-  "Transaction",
+  "Update",
   "Send",
 ];
 
 /**
- * Base class for a Collabs document.
+ * Base class for an encapsulated Collabs document, which wraps
+ * its [[CRuntime]] and registered Collabs in a single object.
  *
- * By extending AbstractDoc, you can encapsulate
- * a [[CRuntime]] and your [global variable Collabs](../../..guide/initialization.html#global-variable-collabs)
- * in a single "document" object. This is convenient
- * for passing documents around and for working with
- * multiple documents in the same app.
+ * To get started with AbstractDoc, see
+ * [Documents - Using AbstractDoc](https://collabs.readthedocs.io/en/latest/guide/documents.html#using-abstractdoc).
  *
- * See [Data Modeling](../../../guide/data_modeling.html#abstractdoc) for a usage example.
- *
- *
+ * AbstractDoc is network- and storage-agnostic. By itself, it does not connect
+ * to remote collaborators or persistent storage.
+ * To easily set up networking and storage, configure
+ * [Providers](https://collabs.readthedocs.io/en/latest/guide/providers.html).
+ * Or, manually manage updates using the methods in this class; see
+ * [Updates and Sync](https://collabs.readthedocs.io/en/latest/advanced/updates.html).
  */
-export abstract class AbstractDoc extends EventEmitter<RuntimeEventsRecord> {
+export abstract class AbstractDoc extends EventEmitter<DocEventsRecord> {
   /**
    * The [[CRuntime]] for this document's Collabs.
    *
@@ -37,9 +38,9 @@ export abstract class AbstractDoc extends EventEmitter<RuntimeEventsRecord> {
   /**
    * Constructs an AbstractDoc.
    *
-   * @param options See [[RuntimeOptions]].
+   * @param options See [[DocOptions]].
    */
-  constructor(options?: RuntimeOptions) {
+  constructor(options?: DocOptions) {
     super();
 
     this.runtime = new CRuntime(options);
@@ -49,14 +50,15 @@ export abstract class AbstractDoc extends EventEmitter<RuntimeEventsRecord> {
   }
 
   /**
-   * Wraps `f`'s operations in a transaction. <!-- TODO: see transactions doc -->
+   * Wraps `f`'s operations in a
+   * [transaction](https://collabs.readthedocs.io/en/latest/advanced/updates.html#terminology).
    *
    * This method begins a transaction (if needed), calls `f()`,
    * then ends its transaction (if begun). Operations
    * not wrapped in a `transact` call use the constructor's
-   * [[RuntimeOptions.autoTransactions]] option.
+   * [[DocOptions.autoTransactions]] option.
    *
-   * If there are nested `transact` calls (possibly due to [[RuntimeOptions.autoTransactions]]),
+   * If there are nested `transact` calls (possibly due to [[DocOptions.autoTransactions]]),
    * only the outermost one matters.
    */
   transact(f: () => void) {
@@ -64,9 +66,10 @@ export abstract class AbstractDoc extends EventEmitter<RuntimeEventsRecord> {
   }
 
   /**
-   * Receives a message from another replica's [[RuntimeEventsRecord.Send]] event.
+   * Receives a message from another replica's [[DocEventsRecord.Send]] event.
    * The message's sender must be an AbstractDoc that is a
-   * replica of this one.
+   * replica of this one (i.e., it has the same
+   * ["schema"](https://collabs.readthedocs.io/en/latest/guide/documents.html#using-cruntime)).
    *
    * The local Collabs process the message, change the
    * local state accordingly, and emit events describing the
@@ -96,7 +99,8 @@ export abstract class AbstractDoc extends EventEmitter<RuntimeEventsRecord> {
   /**
    * Loads saved state. The saved state must be from
    * a call to [[load]] on an AbstractDoc that is a replica
-   * of this one.
+   * of this one (i.e., it has the same
+   * ["schema"](https://collabs.readthedocs.io/en/latest/guide/documents.html#using-cruntime)).
    *
    * The local Collabs merge in the saved state, change the
    * local state accordingly, and emit events describing the
@@ -150,5 +154,18 @@ export abstract class AbstractDoc extends EventEmitter<RuntimeEventsRecord> {
    */
   get replicaID(): string {
     return this.runtime.replicaID;
+  }
+
+  /**
+   *
+   * The vector clock for our current state, mapping each senderID
+   * to the number of applied transactions from that senderID.
+   *
+   * Our current state includes precisely the transactions
+   * with ID `(senderID, senderCounter)` where
+   * `senderCounter <= (vectorClock.get(senderID) ?? 0)`.
+   */
+  vectorClock(): Map<string, number> {
+    return this.runtime.vectorClock();
   }
 }

@@ -5,8 +5,10 @@ import {
   CollabID,
   IParent,
   InitToken,
+  MessageMeta,
   MetaRequest,
   Parent,
+  SavedStateMeta,
   SavedStateTree,
   UpdateMeta,
   collabIDOf,
@@ -103,7 +105,7 @@ export class CLazyMap<K, C extends Collab>
    * Constructs a CLazyMap with the given `valueConstructor`.
    *
    * @param valueConstructor Callback used to construct a
-   * value Collab with the given key. See [dynamically-created Collabs](../../../guide/initialization.html#dynamically-created-collabs)
+   * value Collab with the given key. See [collections of Collabs](https://collabs.readthedocs.io/en/latest/guide/collections.html)
    * for example usage.
    * This may be called multiple times for the same key due to garbage
    * collection (see class header).
@@ -204,7 +206,7 @@ export class CLazyMap<K, C extends Collab>
     this.send(messageStack, metaRequests);
   }
 
-  receive(messageStack: (Uint8Array | string)[], meta: UpdateMeta): void {
+  receive(messageStack: (Uint8Array | string)[], meta: MessageMeta): void {
     const keyString = <string>messageStack.pop();
     this.applyUpdate(
       keyString,
@@ -367,7 +369,7 @@ export class CLazyMap<K, C extends Collab>
     };
   }
 
-  load(savedStateTree: SavedStateTree | null, meta: UpdateMeta): void {
+  load(savedStateTree: SavedStateTree | null, meta: SavedStateMeta): void {
     if (savedStateTree === null) {
       // Pass the null on to children that might override canGC().
       for (const child of this.nontrivialMap.values()) child.load(null, meta);

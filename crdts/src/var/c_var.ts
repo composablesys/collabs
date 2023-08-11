@@ -30,9 +30,10 @@ const defaultAggregator: Aggregator<unknown> = {
  * mutating [[value]] internally will not change it on
  * other replicas. To store (a reference to) a *mutable*
  * value of type T, use a `CVar<CollabID<C>>`, where
- * C is a Collab representing T (see [Data Modeling](../../../guide/data_modeling.html#minesweeper)).
+ * C is a Collab representing T.
+ * ([Example](https://collabs.readthedocs.io/en/latest/guide/data_modeling.html#minesweeper))
  *
- * See also: [[CBoolean]].
+ * See also: [[CBoolean]], [[CCounter]].
  *
  * @typeParam T The variable type.
  */

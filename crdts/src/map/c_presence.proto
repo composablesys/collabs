@@ -33,4 +33,5 @@ message PresenceSave {
   // Unlike CPresence.state, includes the local state if connected,
   // with the time of saving.
   map<string, PresenceInfoSave> state = 1;
+  required string saverID = 2;
 }

@@ -10,13 +10,13 @@
     "core",
     "crdts",
     "collabs",
-    "container",
+    "local-storage",
+    "indexeddb",
+    "tab-sync",
     "ws-client",
     "ws-server",
     "matrix-widget",
-    "container-testing-server",
     "template-custom-type",
-    "template-container",
     "template-app",
     "demos/types/number",
     "demos/types/resettable-counter",
@@ -27,7 +27,6 @@
     "demos/apps/plaintext",
     "demos/apps/rich-text",
     "demos/apps/whiteboard",
-    "demos/apps/selector",
     "demos/apps/server",
     "benchmarks",
     "docs"
@@ -37,27 +36,21 @@
       "core",
       "crdts",
       "collabs",
-      "container",
+      "local-storage",
+      "indexeddb",
+      "tab-sync",
       "ws-client",
       "ws-server",
-      "matrix-widget",
-      "container-testing-server"
-    ],
-    "publishNoTypedoc": [
-      "container-testing-server"
+      "matrix-widget"
     ],
     "noTest": [
-      "template-container",
       "template-app",
-      "docs",
-      "demos/apps/counter"
+      "docs"
     ],
     "noFix": [
-      "template-container",
       "template-app",
       "template-custom-type",
-      "docs",
-      "demos/apps/counter"
+      "docs"
     ],
     "demoApps": [
       "demos/apps/counter",
@@ -67,7 +60,6 @@
       "demos/apps/plaintext",
       "demos/apps/rich-text",
       "demos/apps/whiteboard",
-      "demos/apps/selector",
       "demos/apps/server"
     ]
   },
@@ -76,7 +68,7 @@
     "build": "node foreach-workspace.js all \"npm run build -w\"",
     "buildDemoServer": "node foreach-workspace.js publish \"npm run build -w\" && node foreach-workspace.js demoApps \"npm run build -w\"",
     "heroku-postbuild": "npm run buildDemoServer",
-    "buildForTypedoc": "node foreach-workspace.js publish -s publishNoTypedoc \"npm run build -w\"",
+    "buildForTypedoc": "node foreach-workspace.js publish \"npm run build -w\"",
     "test": "node foreach-workspace.js all -s noTest \"npm run test -w\"",
     "fix": "node foreach-workspace.js all -s noFix \"npm run fix -w\"",
     "version": "bash version_script.sh",

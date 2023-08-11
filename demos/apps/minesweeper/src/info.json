@@ -1,7 +1,0 @@
-{
-  "name": "Minesweeper",
-  "description": "Collaborative Minesweeper.",
-  "author": "Ignacio Maronna and Matthew Weidner",
-  "license": "Apache-2.0",
-  "source": "https://github.com/composablesys/collabs/tree/master/demos/apps/minesweeper"
-}

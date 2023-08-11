@@ -1,8 +1,0 @@
-// tsconfig options targeting Node.js.
-{
-  "compilerOptions": {
-    "module": "commonjs",
-    "target": "ES6",
-    "esModuleInterop": true
-  }
-}

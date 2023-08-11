@@ -1,10 +1,11 @@
 import {
   CPrimitive,
   InitToken,
-  nonNull,
+  MessageMeta,
   Position,
+  SavedStateMeta,
+  nonNull,
   protobufHas,
-  UpdateMeta,
 } from "@collabs/core";
 import {
   ITotalOrderCreateMessage,
@@ -367,7 +368,7 @@ export class CTotalOrder extends CPrimitive {
 
   protected receivePrimitive(
     message: string | Uint8Array,
-    meta: UpdateMeta
+    meta: MessageMeta
   ): void {
     const decoded = TotalOrderCreateMessage.decode(<Uint8Array>message);
 
@@ -556,7 +557,7 @@ export class CTotalOrder extends CPrimitive {
 
   protected loadPrimitive(
     savedState: Uint8Array | null,
-    _meta: UpdateMeta
+    _meta: SavedStateMeta
   ): void {
     if (savedState === null) return;
 

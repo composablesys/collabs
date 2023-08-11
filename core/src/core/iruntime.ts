@@ -22,9 +22,6 @@ import { IParent } from "./parent";
  * of local messages.
  */
 export interface IRuntime extends IParent {
-  /**
-   * Type guard, used by [[isRuntime]].
-   */
   readonly isRuntime: true;
 
   /**

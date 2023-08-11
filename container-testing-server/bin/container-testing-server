@@ -1,7 +1,0 @@
-#!/usr/bin/env node
-
-// This file is a workaround to prevent install errors due to
-// https://github.com/npm/cli/issues/2632 when using the
-// development monorepo.
-// Workaround from https://github.com/npm/cli/issues/2632#issuecomment-888960315
-require("../build/server/server.js");

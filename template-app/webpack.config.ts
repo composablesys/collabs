@@ -1,21 +1,15 @@
 import HtmlWebpackPlugin from "html-webpack-plugin";
 import * as path from "path";
 import * as webpack from "webpack";
+import "webpack-dev-server";
 
+// Basic Webpack config for TypeScript, based on
+// https://webpack.js.org/guides/typescript/ .
 const config: webpack.Configuration = {
+  // mode and devtool are overridden by `npm run build` for production mode.
   mode: "development",
   devtool: "eval-source-map",
-  optimization: {
-    usedExports: true,
-    innerGraph: true,
-    sideEffects: true,
-  },
-  entry: "./src/app.ts",
-  output: {
-    filename: "[name].js",
-    path: path.resolve(__dirname, "dist"),
-    clean: true,
-  },
+  entry: "./src/main.ts",
   module: {
     rules: [
       {
@@ -28,35 +22,29 @@ const config: webpack.Configuration = {
         enforce: "pre",
         use: ["source-map-loader"],
       },
-      // If you include assets in your HTML file, uncomment
-      // the next rule and add html-loader as a devDependency,
-      // so that Webpack knows to include those assets.
-      // {
-      //   test: /\.(html)$/,
-      //   use: ["html-loader"],
-      // },
-      // Add loaders for other assets as needed, e.g., the
-      // next rule loads images.
-      // {
-      //   test: /\.(png|svg|jpg|jpeg|gif)$/i,
-      //   type: "asset/resource",
-      // },
+      // Other loaders here...
     ],
   },
   resolve: {
     extensions: [".tsx", ".ts", ".js"],
   },
+  output: {
+    filename: "[name].bundle.js",
+    path: path.resolve(__dirname, "dist"),
+    clean: true,
+  },
   plugins: [
-    // Creates an HTML file as the entry point, instead of just
-    // a .js file.
-    // Docs: https://webpack.js.org/plugins/html-webpack-plugin/
+    // Use src/index.html as the entry point.
     new HtmlWebpackPlugin({
-      filename: "index.html",
-      // Uses src/index.html as the HTML file.
-      // Delete this line if you want to instead use the plugin's default file.
       template: "./src/index.html",
     }),
   ],
+  // webpack-dev-server config.
+  devServer: {
+    port: 3000,
+    compress: true,
+    static: path.join(__dirname, "dist"),
+  },
 };
 
 export default config;

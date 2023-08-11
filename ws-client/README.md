@@ -1,13 +1,13 @@
-# `@collabs/ws-client`
+# @collabs/ws-client
 
 Part of the Collabs library. Main package: [@collabs/collabs](https://www.npmjs.com/package/@collabs/collabs).
 
-**@collabs/ws-client** contains the `WebSocketNetwork` class. It connects a `CRuntime` to a [@collabs/ws-server](https://www.npmjs.com/package/@collabs/ws-server) server using a WebSocket.
+**@collabs/ws-client** contains [WebSocketNetwork](https://collabs.readthedocs.io/en/latest/api/ws-client/classes/WebSocketNetwork.html), a network provider that syncs Collabs documents with a central server using WebSockets. This is an easy way to collaborate with other users: each update is sent to the server, which echoes it to other users listening on the same `docID` and also stores it for later.
+
+The [@collabs/ws-server](https://www.npmjs.com/package/@collabs/ws-server) package contains the server.
 
 ## Docs
 
-<!-- TODO: Link to specific docs page instead of whole site -->
-
-See [https://collabs.readthedocs.io/](https://collabs.readthedocs.io/)
+[Providers overview](https://collabs.readthedocs.io/en/latest/guide/providers.html)
 
 [API](https://collabs.readthedocs.io/en/latest/api/ws-client)
