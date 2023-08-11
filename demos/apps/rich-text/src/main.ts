@@ -20,14 +20,15 @@ Quill.register("modules/cursors", QuillCursors);
 const noGrowAtEnd = [
   // Links (Peritext Example 9)
   "link",
-  // Paragraph-level (\n) formatting: should only apply to the \n, not
-  // extend to surrounding chars.
-  "header",
-  "blockquote",
-  "code-block",
-  "list",
-  "indent",
 ];
+/**
+ * These formats are exclusive; we need to pass only one at a time to Quill or
+ * the result is inconsistent.
+ * So, we wrap them in our own "block" formatting attribute:
+ * { block: [key, value] }.
+ * See https://github.com/composablesys/collabs/issues/251
+ */
+const exclusiveBlocks = new Set(["blockquote", "header", "list", "code-block"]);
 
 const nameParts = ["Cat", "Dog", "Rabbit", "Mouse", "Elephant"];
 
@@ -89,12 +90,26 @@ const quill = new Quill("#editor", {
       // Omit "syntax: true" because I can't figure out how
       // to trick Webpack into importing highlight.js for
       // side-effects. Same with "formula" and katex.
-      // Omit "direction" because I am not sure whether it is paragraph-level
-      // or not (need to know for noGrowAtEnd).
       ["link"],
       ["clean"],
     ],
   },
+  formats: [
+    "font",
+    "size",
+    "bold",
+    "italic",
+    "underline",
+    "strike",
+    "color",
+    "background",
+    "script",
+    "header",
+    "blockquote",
+    "code-block",
+    "list",
+    "indent",
+  ],
 });
 
 // Reflect Collab operations in Quill.
@@ -123,16 +138,72 @@ text.on("Delete", (e) => {
 text.on("Format", (e) => {
   if (e.meta.isLocalOp) return;
 
+  // Find the Quill version of CRichText's formatting change,
+  // inverting quillAttrToCollabs.
+  let format: Record<string, any> = {};
+  if (e.key === "block") {
+    // Unwrap our "block" formatting attribute.
+    // See the comment above exclusiveBlocks.
+    if (e.value === undefined) {
+      const previousBlockAttr = e.previousValue as [key: string, value: any];
+      format[previousBlockAttr[0]] = null;
+    } else {
+      const blockAttr = e.value as [key: string, value: any];
+      format[blockAttr[0]] = blockAttr[1];
+    }
+  } else {
+    // Convert CRichText's undefineds to Quill's nulls (both indicate a
+    // not-present key).
+    format[e.key] = e.value ?? null;
+  }
+
   updateContents(
-    new Delta().retain(e.startIndex).retain(e.endIndex - e.startIndex, {
-      // Convert CRichText's undefineds to Quill's nulls (both indicate a
-      // not-present key).
-      [e.key]: e.value ?? null,
-    })
+    new Delta().retain(e.startIndex).retain(e.endIndex - e.startIndex, format)
   );
 });
 
 // Convert user inputs to Collab operations.
+
+quill.on("text-change", (delta) => {
+  // In theory we can listen for events with source "user",
+  // to ignore changes caused by Collab events instead of
+  // user input.  However, changes that remove formatting
+  // using the "remove formatting" button, or by toggling
+  // a link off, instead get emitted with source "api".
+  // This appears to be fixed only on a not-yet-released v2
+  // branch: https://github.com/quilljs/quill/issues/739
+  // For now, we manually keep track of whether changes are due
+  // to us or not.
+  // if (source !== "user") return;
+  if (ourChange) return;
+
+  for (const op of getRelevantDeltaOperations(delta)) {
+    // Insertion
+    if (op.insert) {
+      if (typeof op.insert === "string") {
+        const quillAttrs = op.attributes ?? {};
+        const collabsAttrs = Object.fromEntries(
+          [...Object.entries(quillAttrs)].map(quillAttrToCollabs)
+        );
+        text.insert(op.index, op.insert, collabsAttrs);
+      } else {
+        // Embed of object
+        throw new Error("Embeds not supported");
+      }
+    }
+    // Deletion
+    else if (op.delete) {
+      text.delete(op.index, op.delete);
+    }
+    // Formatting
+    else if (op.attributes && op.retain) {
+      for (const [quillKey, quillValue] of Object.entries(op.attributes)) {
+        const [key, value] = quillAttrToCollabs([quillKey, quillValue]);
+        text.format(op.index, op.index + op.retain, key, value);
+      }
+    }
+  }
+});
 
 /**
  * Convert delta.ops into an array of modified DeltaOperations
@@ -165,42 +236,24 @@ function getRelevantDeltaOperations(delta: DeltaStatic): {
   return relevantOps;
 }
 
-quill.on("text-change", (delta) => {
-  // In theory we can listen for events with source "user",
-  // to ignore changes caused by Collab events instead of
-  // user input.  However, changes that remove formatting
-  // using the "remove formatting" button, or by toggling
-  // a link off, instead get emitted with source "api".
-  // This appears to be fixed only on a not-yet-released v2
-  // branch: https://github.com/quilljs/quill/issues/739
-  // For now, we manually keep track of whether changes are due
-  // to us or not.
-  // if (source !== "user") return;
-  if (ourChange) return;
-
-  for (const op of getRelevantDeltaOperations(delta)) {
-    // Insertion
-    if (op.insert) {
-      if (typeof op.insert === "string") {
-        text.insert(op.index, op.insert, op.attributes ?? {});
-      } else {
-        // Embed of object
-        throw new Error("Embeds not supported");
-      }
-    }
-    // Deletion
-    else if (op.delete) {
-      text.delete(op.index, op.delete);
-    }
-    // Formatting
-    else if (op.attributes && op.retain) {
-      for (const [key, value] of Object.entries(op.attributes)) {
-        // Map null to undefined, for deleted keys.
-        text.format(op.index, op.index + op.retain, key, value ?? undefined);
-      }
-    }
+/**
+ * Converts a Quill formatting attr (key/value pair) to the format
+ * we store in CRichText.
+ */
+function quillAttrToCollabs(
+  attr: [key: string, value: any]
+): [key: string, value: any] {
+  const [key, value] = attr;
+  if (exclusiveBlocks.has(key)) {
+    // Wrap it in our own "block" formatting attribute.
+    // See the comment above exclusiveBlocks.
+    if (value === null) return ["block", undefined];
+    else return ["block", [key, value]];
+  } else {
+    // Convert Quill's null to CRichText's undefined.
+    return [key, value ?? undefined];
   }
-});
+}
 
 // Presence (shared cursors).
 const name =
