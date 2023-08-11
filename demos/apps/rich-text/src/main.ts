@@ -37,14 +37,14 @@ interface PresenceState {
   selection: { anchor: Cursor; head: Cursor } | null;
 }
 
-function makeInitialSave(): Uint8Array {
-  const runtime = new CRuntime({ debugReplicaID: "INIT" });
-  const clientText = runtime.registerCollab(
+function makeBaseState(): Uint8Array {
+  const doc = new CRuntime({ debugReplicaID: "BASE" });
+  const clientText = doc.registerCollab(
     "text",
     (init) => new CRichText(init, { noGrowAtEnd })
   );
-  runtime.transact(() => clientText.insert(0, "\n", {}));
-  return runtime.save();
+  doc.transact(() => clientText.insert(0, "\n", {}));
+  return doc.save();
 }
 
 const doc = new CRuntime();
@@ -55,7 +55,8 @@ const text = doc.registerCollab(
 // "Set the initial state"
 // (a single "\n", matching Quill's initial state) by
 // loading it from a separate doc.
-doc.load(makeInitialSave());
+// See https://collabs.readthedocs.io/en/latest/advanced/initial_values.html#loading-a-base-state
+doc.load(makeBaseState());
 
 // Store presence in a separate document so that its heartbeats
 // don't cause us to re-save the text doc, which could be large.

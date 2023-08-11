@@ -35,27 +35,29 @@ Finally, sometimes neither Collabs nor documents have a specific creator. For ex
 To the set the initial value of such a document's Collabs, you can create an identical "base" saved state on all users, then load that state before performing any operations (but after registering Collabs). For example:
 
 ```ts
-function makeInitialSave(): Uint8Array {
+function makeBaseState(): Uint8Array {
   // Set up your CRuntime + Collabs (or AbstractDoc) as usual, but
-  // with replicaID "INIT".
-  const doc = new collabs.CRuntime({ debugReplicaID: "INIT" });
+  // with replicaID "BASE".
+  const doc = new collabs.CRuntime({ debugReplicaID: "BASE" });
   const text = doc.registerCollab(
     "text",
     (init) => new collabs.CRichText(init)
   );
+
   // Now perform operations to set your initial value.
   // In this case, we need an initial "\n" to match Quill's initial state.
   doc.transact(() => text.insert(0, "\n", {}));
+
   // Return the resulting saved state.
   return doc.save();
 }
 
 // At the start of the app, after registering Collabs on doc,
-// load the initial save:
-doc.load(makeInitialSave());
+// load the base state:
+doc.load(makeBaseState());
 ```
 
-This is functionally equivalent to the previous technique, but instead of getting the "base" saved state from a specific user, you get a copy from the local `makeInitialSave()` call.
+This is functionally equivalent to the previous technique, but instead of getting the "base" saved state from a specific user, you get a copy from the local `makeBaseState()` call.
 
 ## Non-Techniques
 
@@ -75,9 +77,9 @@ doc.transact(() => text.insert(0, "\n", {}));
 
 However, this will have unintended consequences:
 
-- If you don't broadcast the setup operations' messages (e.g., you perform the operations before configuring your network provider), then other user will ignore your future messages, due to [unmet causal dependencies](./updates.html#syncing-documents).
-- If you do broadcast the messages, the setup operations will be duplicated every time a user starts the app. In the text example, you could end up with initial text `"\n\n\n..."`.
-- You can try to avoid duplication by checking who's first: `if (text.length === 0) text.insert(0, "\n", {})`. But two users might do this check concurrently and both succeed, again duplicating the `"\n"`.
+- If you broadcast the operations' messages normally, then the setup operations will be duplicated every time a user starts the app. In the text example, you could end up with initial text `"\n\n\n..."`.
+- You could try to avoid duplication by checking who's first: `if (text.length === 0) text.insert(0, "\n", {})`. But two users might do this check concurrently and both succeed, again duplicating the `"\n"`.
+- Or, you could skip broadcasting these messages, only applying them locally. But then other users will ignore your future messages, due to [unmet causal dependencies](./updates.html#syncing-documents).
 
 ### Operations in `valueConstructor`
 

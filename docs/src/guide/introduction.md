@@ -20,7 +20,7 @@ But unlike an ordinary number, when one user calls `counter.add(1)`, 1 is added 
 
 You can try this out in the [live demo](https://collabs-demos.herokuapp.com/counter/): open it in multiple tabs, then watch how incrementing the value in one tab also increments the value in the other. This also works if you open the tabs on different devices, since they are connected through our demo server.
 
-You can also try disconnecting one tab by unchecking the box at the top. Verify that if you disconnect one tab, increment both tabs, then reconnect the first tab, they get both increments.
+You can also try disconnecting one tab by unchecking the box at the top. Verify that if you disconnect one tab, increment both tabs, and reconnect, then both increments go through.
 
 ## Example: Whiteboard
 
@@ -49,6 +49,7 @@ function repaint(ctx: CanvasRenderingContext2D) {
   // Clear old state.
   ctx.fillStyle = "white";
   ctx.fillRect(0, 0, WIDTH, HEIGHT);
+
   // Draw current state.
   for (const [[x, y], [r, g, b]] of boardState.entries()) {
     ctx.fillStyle = `rgb(${r},${g},${b})`;
@@ -61,9 +62,9 @@ As an optimization, you can also render changes incrementally, by handling [Coll
 
 ## More Collaborative Data Structures
 
-Collabs comes with more collaborative data structures built-in. Fancy ones include [CRichText](../api/collabs/classes/CRichText.html) for rich text, and [CList](../api/collabs/classes/CList.html) for a list of other Collabs. See [Built-In Collabs](./built_in_collabs.html) for a summary.
+Collabs comes with more collaborative data structures built-in. Fancy ones include [CRichText](../api/collabs/classes/CRichText.html) for rich text, and [CList](../api/collabs/classes/CList.html) for a list of other Collabs. See [Built-in Collabs](./built_in_collabs.html) for a summary.
 
-For complex apps, you might want to organize your collaborative state into reusable classes. [Data Modeling](./data_modeling) explains how you can make your own Collab that encapsulates existing Collabs in a custom API - a unique feature of our library.
+For complex apps, you might want to organize your collaborative state into reusable classes. [Data Modeling](./data_modeling.html) explains how to do this, by making your own Collab that encapsulates existing Collabs in a custom API - a unique feature of our library.
 
 ## Using Collabs
 
@@ -79,4 +80,4 @@ We go over these steps in the next three pages of the Guide.
 
 Continue following the Guide with [Documents](./documents.html).
 
-Or, check out the [Quick Start](../quick_start.html) to get started with an app template.
+Or, use the [Quick Start](../quick_start.html) to get started with an app template.

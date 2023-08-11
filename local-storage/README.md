@@ -2,7 +2,7 @@
 
 Part of the Collabs library. Main package: [@collabs/collabs](https://www.npmjs.com/package/@collabs/collabs).
 
-**@collabs/local-storage** contains the `LocalStorageDocStore` class. It stores updates to Collabs documents (`AbstractDoc` / `CRuntime`) in localStorage. That way, apps can load a document quickly, even without network access.
+**@collabs/local-storage** contains [LocalStorageDocStore](https://collabs.readthedocs.io/en/latest/api/local-storage/classes/LocalStorageDocStore.html), a storage provider that stores Collabs documents in localStorage. That way, your app can load documents quickly, even when offline.
 
 See also: [@collabs/indexeddb](https://www.npmjs.com/package/@collabs/indexeddb), which stores updates in IndexedDB instead of localStorage.
 

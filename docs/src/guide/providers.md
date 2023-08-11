@@ -48,9 +48,9 @@ If you publish your own provider (WebRTC networking, file storage, ??), let us k
 
 ## Manual
 
-You can also manually manage document updates, using the methods and events on [CRuntime](../api/collabs/classes/CRuntime.html) / [AbstractDoc](../api/collabs/classes/AbstractDoc.html). This is how providers work internally. See [Updates and Sync](../advanced//updates.html) for more info.
+You can also manually manage document updates, using the methods and events on [CRuntime](../api/collabs/classes/CRuntime.html) / [AbstractDoc](../api/collabs/classes/AbstractDoc.html). This is how providers work internally. See [Updates and Sync](../advanced/updates.html) for more info.
 
-Manual update management (or writing custom providers) is often necessary for more complex apps, since our published providers are not very flexible. However, you may still find it useful to read or fork our providers' source code, which contains thorough comments.
+Manual update management (or writing custom providers) is often necessary for more complex apps, since our published providers are simple instead of flexible. However, you may still find it useful to read or fork our providers' source code, which contains thorough comments.
 
 ## Next Steps
 

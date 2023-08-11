@@ -2,9 +2,11 @@
 API
 =======================
 
+TypeScript API documentation generated with Typedoc.
+
 .. toctree::
    :maxdepth: 2
-   :caption: Contents:
+   :caption: By package:
 
    collabs/index
    indexeddb/index
@@ -13,5 +15,5 @@ API
    tab-sync/index
    ws-client/index
    ws-server/index
-   @collabs/core (subset of @collabs/collabs) <core/index>
-   @collabs/crdts (subset of @collabs/collabs) <crdts/index>
+   core/index
+   crdts/index

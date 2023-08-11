@@ -4,14 +4,6 @@ Collabs is designed to let you create custom type-safe collaborative data models
 
 In addition to making data models for entire apps, you can make reusable data models for parts of an app. These serve a similar purpose to React Components, but for shared state instead of for the UI. You can even publish them in 3rd-party libraries for others to use.
 
-<details>
-<summary>Aside</summary>
-Here we have been using the term "collaborative data models", but we could just as well call them "collaborative data structures", like we do for other types in the library. The distinction is only in how they are used: "data structure" brings to mind fundamental building blocks like sets, lists, etc. (e.g. Java Collections), while "data model" suggests a more app-specific thing built on top of these fundamental building blocks.
-
-Of course, from the library's perspective, there is no difference. Indeed, many of our built-in "data structures" are actually implemented on top of other data structures using the techniques described here.
-
-</details>
-
 ## Process
 
 We recommend creating collaborative data models using the following general process:
@@ -147,7 +139,7 @@ When the user draws on a point, we set that point's color in `boardState`, which
 boardState.set([x, y], color);
 ```
 
-This completes our data model. To actually use this data model, we also have to integrate it with the view (Canvas), by updating the view in response to [Events](../advanced/events.html) (either from the local user or other collaborators). For example:
+This completes our data model. To actually use this data model, we also have to integrate it with the view (Canvas), by updating the view in response to [events](./handling_changes.html) (either from the local user or other collaborators). For example:
 
 ```ts
 // ctx is the Canvas's getContext("2d").
@@ -255,7 +247,7 @@ class CTile extends collabs.CObject {
 
 We must likewise transform the Minesweeper class. This deviates from the usual process in two ways.
 
-First, we cannot use randomness in the constructor: per [Documents](./documents.html#using-cruntime), the constructor must behave identically when called on different users with the same arguments. Instead, we use a PRNG, and pass its seed as a constructor argument. The seed will be randomly set by whichever user starts a new game, so that the board is still random.
+First, we cannot use randomness in the constructor: per [Using CRuntime](./documents.html#using-cruntime), the constructor must behave identically when called on different users with the same arguments. Instead, we use a PRNG, and pass its seed as a constructor argument. The seed will be randomly set by whichever user starts a new game, so that the board is still random.
 
 Second, even though `tiles` has type `Tile[][]` and the table maps `Array` to CList or CValueList, there is actually no need for us to use a list here. Indeed, we don't plan to mutate the arrays themselves after the constructor, just the tiles inside them. Instead, we treat each Tile as its own property with its own name, using the arrays only as a convenient way to store them. (See [Lists, not Arrays](./built_in_collabs.html#lists-not-arrays).)
 
@@ -353,7 +345,7 @@ const newGame = gameFactory.add(
 currentGame.value = gameFactory.idOf(newGame);
 ```
 
-This completes our data model. To actually use this data model, we also have to integrate it with the view, by updating the view in response to [Events](../advanced/events.html) (either from the local user or other collaborators). An easy (though inefficient) way to do this is to refresh the entire view whenever anything changes:
+This completes our data model. To actually use this data model, we also have to integrate it with the view, by updating the view in response to [events](./handling_changes.html) (either from the local user or other collaborators). An easy (though inefficient) way to do this is to refresh the entire view whenever anything changes:
 
 ```ts
 doc.on("Change", () => {
@@ -361,3 +353,7 @@ doc.on("Change", () => {
   // ...
 });
 ```
+
+## Next Steps
+
+Finish the guide with [Gotchas](./gotchas.html).

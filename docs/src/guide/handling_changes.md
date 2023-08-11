@@ -1,10 +1,10 @@
 # Handling Changes
 
-A Collab changes state not just when you mutate it locally, but also when you receive updates from a remote collaoborator, or when you load some updates from storage. You need to know about these changes so that you can update your display.
+A Collab changes state not just when you mutate it locally, but also when you receive updates from a remote collaoborator, or when you load some state from storage. You need to know about these changes so that you can update your display.
 
 ## Document "Change" Event
 
-The easiest way to handle changes is to listen on your doc's "Change" event, like so:
+The easiest way to handle changes is to listen on your document's "Change" event, like so:
 
 ```ts
 function refreshDisplay() {
@@ -31,7 +31,7 @@ doc.on("Change", refreshDisplay);
 
 Each Collab also emits type-specific events describing changes as they occur.
 
-For example, in [our whiteboard demo](https://github.com/composablesys/collabs/blob/master/demos/apps/whiteboard/src/main.ts), it would be inefficient to repaint the whole board after each change. Instead, we listen on CValueMap's ["Set"](../api/collabs/interfaces/MapEventsRecord.html#Set) and ["Delete"](../api/collabs/interfaces/MapEventsRecord.html#Delete) events:
+For example, in [our whiteboard demo](https://github.com/composablesys/collabs/blob/master/demos/apps/whiteboard/src/main.ts), it would be inefficient to repaint the whole whiteboard after each change. Instead, we listen on CValueMap's ["Set"](../api/collabs/interfaces/MapEventsRecord.html#Set) and ["Delete"](../api/collabs/interfaces/MapEventsRecord.html#Delete) events:
 
 ```ts
 const boardState: CValueMap<[x: number, y: number], Color> = ...;
@@ -52,7 +52,7 @@ boardState.on("Delete", (event) => {
 });
 ```
 
-Each of our built-in Collabs emits events like these that completely describe how its state changes over time. You can find a Collab's event names and types in the API docs for its `on` method (click the `...EventsRecord` type name). E.g., here is [CValueMap's `on` method](../api/collabs/classes/CValueMap.html#on).
+Each of our built-in Collabs emits events like these that completely describe how its state changes over time. You can find a Collab's event names and types in the API docs for its `on` method (click the `...EventsRecord` type name). E.g., here is [CValueMap's `on` method](../api/collabs/classes/CValueMap.html#on), and here is its [MapEventsRecord](../api/collabs/interfaces/MapEventsRecord.html).
 
 ## Next Steps
 

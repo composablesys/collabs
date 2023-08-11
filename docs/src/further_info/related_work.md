@@ -6,13 +6,13 @@ This is a brief list of related projects and research. At some point, we will pu
 
 Find more at [https://localfirstweb.dev/](https://localfirstweb.dev/).
 
-### Network-Agnostic Libraries
+**Network-Agnostic Libraries**
 
 [Yjs](https://docs.yjs.dev/)
 
 [Automerge](https://automerge.org/)
 
-### Server-Based Libraries
+**Server-Based Libraries**
 
 [ShareDB](https://share.github.io/sharedb/)
 

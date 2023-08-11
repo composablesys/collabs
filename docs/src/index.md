@@ -31,23 +31,23 @@ Consider using our [app template](https://github.com/composablesys/collabs/tree/
 
 ## Demos
 
-- [Live demos](https://collabs-demos.herokuapp.com/) of collaborative apps built using Collabs. [Source code](https://github.com/composablesys/collabs/tree/master/demos)
+- [Live demos](https://collabs-demos.herokuapp.com/) of collaborative apps built using Collabs ([source code](https://github.com/composablesys/collabs/tree/master/demos/apps)).
 - [fileshare-recipe-editor](https://github.com/mweidner037/fileshare-recipe-editor/), a collaborative recipe editor that syncs through Dropbox.
-
-## Principles
-
-See our talk at [LFW.dev](https://localfirstweb.dev/) meetup #5, which introduces these principles and shows off fileshare-recipe-editor's fancy merge semantics: [Video](https://www.youtube.com/watch?v=Z0nzsxhoToo&t=2346s), [Slides](https://docs.google.com/presentation/d/13I3L76R-wwiXxgTXI2ide3zlbjiWoTWXMSU9YbQdYXU/edit?usp=sharing).
-
-- **[Local-first](https://www.inkandswitch.com/local-first/) ready:** Collabs lets users work offline and sync up with collaborators later. We use CRDTs to merge changes even with arbitrary latency and concurrency.
-- **Network- and storage-agnostic:** Collabs generates updates that you must eventually deliver to all collaborators, but you are free to deliver and store these updates however you like: your own server, Dropbox, encrypted [Matrix](matrix.org) room, etc. We also publish [providers](./guide/providers.html) that handle this for you.
-- **Flexible and extensible:** At its core, Collabs is a library _for_ collaborative data structures, not just a menu of built-in options (but [we provide those too](./guide/built_in_collabs.html)). So if our built-in data structures don't meet your needs, you can create your own and even publish them as 3rd-party libraries: new semantics, faster algorithms, implementations of CRDT papers...
-- **Keep your data model and type safety:** A key feature of Collabs is that you can organize your collaborative state using [encapsulated, strongly-typed classes](./guide/data_modeling.html).
 
 ## How it Works
 
-Collabs implements hybrid op-based/state-based [Conflict-free Replicated Data Types (CRDTs)](https://crdt.tech/). These ensure that collaborators converge to a consistent state once they apply the same updates, regardless of order, and they support both live collaboration and merging saved states. We try hard to converge to a "reasonable" result when users make concurrent changes to the same data.
+Collabs implements hybrid op-based/state-based [Conflict-free Replicated Data Types (CRDTs)](https://crdt.tech/). These ensure that collaborators converge to a consistent state once they apply the same updates, regardless of order. We also try hard to converge to a "reasonable" result when users make concurrent changes.
 
-Our built-in CRDTs implement modern [algorithms](./further_info/algorithms.html) including [Peritext](./api/collabs/classes/CRichText.html), [Fugue](./api/collabs/classes/CTotalOrder.html), and a [list with a move operation](./api/collabs/classes/CList.html).
+Our [built-in CRDTs](./guide/built_in_collabs.html) implement modern [algorithms](./further_info/algorithms.html) including [Peritext](./api/collabs/classes/CRichText.html), [Fugue](./api/collabs/classes/CTotalOrder.html), and a [list with a move operation](./api/collabs/classes/CList.html).
+
+## Principles
+
+See our talk at [LFW.dev](https://localfirstweb.dev/) meetup #5: [Video](https://www.youtube.com/watch?v=Z0nzsxhoToo&t=2346s), [Slides](https://docs.google.com/presentation/d/13I3L76R-wwiXxgTXI2ide3zlbjiWoTWXMSU9YbQdYXU/edit?usp=sharing).
+
+- **[Local-first](https://www.inkandswitch.com/local-first/) ready:** Collabs lets users work offline and sync up with collaborators later. We use CRDTs to merge changes even with arbitrary latency and concurrency.
+- **Network- and storage-agnostic:** Collabs generates updates that you must eventually deliver to all collaborators, but you are free to deliver and store these updates however you like. We also publish [providers](./guide/providers.html) that handle this for you.
+- **Keep your data model and type safety:** A key feature of Collabs is that you can organize your collaborative state using [encapsulated, strongly-typed classes](./guide/data_modeling.html).
+- **Flexible and extensible:** Collabs is a library _for_ collaborative data structures, not just a menu of built-in options (but [we provide those too](./guide/built_in_collabs.html)). So if our data structures don't meet your needs, you can create your own and even publish them as 3rd-party libraries: new semantics, faster algorithms, CRDT paper implementations...
 
 ## Community
 

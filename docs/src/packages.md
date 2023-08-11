@@ -1,6 +1,6 @@
 # All Packages
 
-List on npm: [Collabs org](https://www.npmjs.com/org/collabs)
+[List on npm](https://www.npmjs.com/org/collabs)
 
 ## Main Package
 
@@ -8,15 +8,15 @@ List on npm: [Collabs org](https://www.npmjs.com/org/collabs)
 
 ## Network Providers
 
-- [@collabs/ws-client](https://www.npmjs.com/package/@collabs/ws-client): Provides [WebSocketNetwork](./api/ws-client/classes/WebSocketNetwork.html), a network provider that syncs Collabs documents with a central server using WebSockets.
-- [@collabs/ws-server](https://www.npmjs.com/package/@collabs/ws-server): Node.js server for @collabs/ws-client.
-- [@collabs/tab-sync](https://www.npmjs.com/package/@collabs/tab-sync): Provides [TabSyncNetwork](./api/tab-sync/classes/TabSyncNetwork.html), a network provider that shares updates across local tabs using BroadcastChannel.
-- [@collabs/matrix-widget](https://www.npmjs.com/package/@collabs/matrix-widget): Provides [MatrixWidgetNetwork](./api/matrix-widget/classes/MatrixWidgetNetwork.html), a network provider that syncs Collabs documents through a [Matrix](https://matrix.org/) room from inside a widget. It is currently **experimental** because it does not save documents reliably.
+- [@collabs/ws-client](https://www.npmjs.com/package/@collabs/ws-client): Contains [WebSocketNetwork](./api/ws-client/classes/WebSocketNetwork.html), a network provider that syncs Collabs documents with a central server using WebSockets.
+- [@collabs/ws-server](https://www.npmjs.com/package/@collabs/ws-server): Node.js server for @collabs/ws-client. Contains [WebSocketNetworkServer](./api/ws-server/classes/WebSocketNetworkServer.html) and the `collabs-ws-server` command.
+- [@collabs/tab-sync](https://www.npmjs.com/package/@collabs/tab-sync): Contains [TabSyncNetwork](./api/tab-sync/classes/TabSyncNetwork.html), a network provider that shares updates across local tabs using BroadcastChannel.
+- [@collabs/matrix-widget](https://www.npmjs.com/package/@collabs/matrix-widget): Contains [MatrixWidgetNetwork](./api/matrix-widget/classes/MatrixWidgetNetwork.html), a network provider that syncs Collabs documents through a [Matrix](https://matrix.org/) room from inside a widget. It is currently **experimental** because it does not save documents reliably.
 
 ## Storage Providers
 
-- [@collabs/indexeddb](https://www.npmjs.com/package/@collabs/indexeddb): Provides [IndexedDBDocStore](./api/indexeddb/classes/IndexedDBDocStore.html), a storage provider that stores Collabs documents in IndexedDB.
-- [@collabs/local-storage](https://www.npmjs.com/package/@collabs/local-storage): Provides [LocalStorageDocStore](./api/local-storage/classes/LocalStorageDocStore.html), a storage provider that stores Collabs documents in localStorage.
+- [@collabs/indexeddb](https://www.npmjs.com/package/@collabs/indexeddb): Contains [IndexedDBDocStore](./api/indexeddb/classes/IndexedDBDocStore.html), a storage provider that stores Collabs documents in IndexedDB.
+- [@collabs/local-storage](https://www.npmjs.com/package/@collabs/local-storage): Contains [LocalStorageDocStore](./api/local-storage/classes/LocalStorageDocStore.html), a storage provider that stores Collabs documents in localStorage.
 
 ## Internal
 

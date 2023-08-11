@@ -6,7 +6,7 @@ This page has instructions for using the template, a walkthrough of its starter 
 
 ## Using the Template
 
-1. Download the template [from GitHub](https://github.com/composablesys/collabs/tree/master/template-app):
+1. Download the template from GitHub:
 
 ```bash
 git clone TODO
@@ -24,11 +24,11 @@ npm i
 npm start
 ```
 
-Open [http://localhost:3000/](http://localhost:3000/) in a browser and try out the example collaborative counter that it starts with. Open multiple windows to watch them count collaboratively!
+Open [http://localhost:3000/](http://localhost:3000/) in a browser and try out the example app that it starts with - a collaborative counter. Open multiple windows to watch them count in sync!
 
 ## Starter Code
 
-The template's starter code is a basic Webpack/TypeScript app, plus code for the collaborative counter example. Let's walk through these files.
+The template's starter code is a basic Webpack/TypeScript app, plus code for the collaborative counter example. Let's walk through the code files.
 
 ### `src/index.html`
 
@@ -42,6 +42,7 @@ First, take a look at `src/index.html`:
   </head>
 
   <body>
+    <!-- We include a simple collaborative counter as an example. -->
     <p id="display">0</p>
     <button id="increment">+1</button>
 
@@ -156,12 +157,12 @@ This is a _storage_ provider that stores Collabs documents in IndexedDB. That wa
 
 ### `package.json`
 
-The last bit of starter code is the `npm start` script, defined in `package.json`:
+The last bit of code is the `npm start` script, defined in `package.json`:
 
 ```json
 {
   "scripts": {
-    "start": "npm run npm run start:webpack & start:ws-server",
+    "start": "npm run start:webpack & npm run start:ws-server",
     "start:webpack": "TS_NODE_PROJECT='tsconfig.webpack-config.json' webpack-dev-server",
     "start:ws-server": "collabs-ws-server"
   }
@@ -179,6 +180,6 @@ You've now completed the walkthrough of template-app's starter code. Hopefully t
 
 To turn this into your own app, you'll need to replace the "App code" section in `src/main.ts`. By registering more interesting Collabs than CCounter, you can model your app's collaborative state in Collabs, whether it's a [shared whiteboard](https://collabs-demos.herokuapp.com/whiteboard/), [rich-text editor](https://collabs-demos.herokuapp.com/rich-text/), [recipe editor](https://github.com/mweidner037/fileshare-recipe-editor/), etc.
 
-Eventually, you'll outgrow this simple template's single, globally-accessible document. Luckily, the network and storage providers let you [work with many documents](./guide/providers.html#collabs-providers), and [@collabs/ws-server](https://www.npmjs.com/package/@collabs/ws-server) lets you setup basic server-side authentication and storage. You can also write [your own providers](./guide/providers.html#manual).
+Eventually, you'll outgrow the template's single, globally-accessible document. Luckily, the network and storage providers let you [work with many documents](./guide/providers.html#collabs-providers), and [@collabs/ws-server](https://www.npmjs.com/package/@collabs/ws-server) lets you set up basic server-side authentication and storage. You can also write [your own providers](./guide/providers.html#manual).
 
 The [Guide](./guide/) covers these topics and more.
