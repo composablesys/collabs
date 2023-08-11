@@ -68,7 +68,8 @@ export abstract class AbstractDoc extends EventEmitter<RuntimeEventsRecord> {
   /**
    * Receives a message from another replica's [[RuntimeEventsRecord.Send]] event.
    * The message's sender must be an AbstractDoc that is a
-   * replica of this one.
+   * replica of this one (i.e., it has the same
+   * ["schema"](https://collabs.readthedocs.io/en/latest/guide/documents.html#using-cruntime)).
    *
    * The local Collabs process the message, change the
    * local state accordingly, and emit events describing the
@@ -98,7 +99,8 @@ export abstract class AbstractDoc extends EventEmitter<RuntimeEventsRecord> {
   /**
    * Loads saved state. The saved state must be from
    * a call to [[load]] on an AbstractDoc that is a replica
-   * of this one.
+   * of this one (i.e., it has the same
+   * ["schema"](https://collabs.readthedocs.io/en/latest/guide/documents.html#using-cruntime)).
    *
    * The local Collabs merge in the saved state, change the
    * local state accordingly, and emit events describing the

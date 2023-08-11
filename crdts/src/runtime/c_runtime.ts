@@ -172,7 +172,8 @@ export interface RuntimeEventsRecord {
    * Emitted after applying an update.
    *
    * The update may be a local message, remote message,
-   * or saved state. Note that it may contain multiple transactions.
+   * or saved state. Note that it may contain multiple
+   * [transactions](https://collabs.readthedocs.io/en/latest/advanced/updates.html#terminology).
    */
   Update: UpdateEvent;
   /**
@@ -494,7 +495,8 @@ export class CRuntime
   /**
    * Receives a message from another replica's [[RuntimeEventsRecord.Send]] event.
    * The message's sender must be a [[CRuntime]] that is a
-   * replica of this one.
+   * replica of this one (i.e., it has the same
+   * ["schema"](https://collabs.readthedocs.io/en/latest/guide/documents.html#using-cruntime)).
    *
    * The local Collabs process the message, change the
    * local state accordingly, and emit events describing the
@@ -584,7 +586,8 @@ export class CRuntime
   /**
    * Loads saved state. The saved state must be from
    * a call to [[load]] on a CRuntime that is a replica
-   * of this one.
+   * of this one (i.e., it has the same
+   * ["schema"](https://collabs.readthedocs.io/en/latest/guide/documents.html#using-cruntime)).
    *
    * The local Collabs merge in the saved state, change the
    * local state accordingly, and emit events describing the

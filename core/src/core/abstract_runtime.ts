@@ -15,12 +15,11 @@ export abstract class AbstractRuntime<Events extends EventsRecord>
 {
   readonly isRuntime: true = true;
   /**
-   * A unique ID for this replica (copy of a Collabs document).
+   * A unique ID for this
+   * [replica](https://collabs.readthedocs.io/en/latest/advanced/updates.html#terminology)
+   * (copy of a Collabs document).
    */
   readonly replicaID: string;
-  /**
-   * Readonly. Set with [[setRootCollab]].
-   */
   protected rootCollab!: Collab & Parent;
 
   /**
@@ -36,13 +35,6 @@ export abstract class AbstractRuntime<Events extends EventsRecord>
     this.replicaID = replicaID;
   }
 
-  /**
-   * Call this during your constructor to set [[rootCollab]].
-   *
-   * @param rootCallback Callback that constructs rootCollab
-   * using the given [[InitToken]].
-   * @returns The constructed rootCollab.
-   */
   protected setRootCollab<C extends Collab & Parent>(
     rootCallback: (init: InitToken) => C
   ): C {
