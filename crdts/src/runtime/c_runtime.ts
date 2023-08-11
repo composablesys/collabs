@@ -161,9 +161,11 @@ export interface SavedStateEvent {
 export type UpdateEvent = MessageEvent | SavedStateEvent;
 
 /**
- * Events record for [[CRuntime]] and [[AbstractDoc]].
+ * Events record for a
+ * [document](https://collabs.readthedocs.io/en/latest/guide/documents.html)
+ * ([[CRuntime]]/[[AbstractDoc]]).
  */
-export interface RuntimeEventsRecord {
+export interface DocEventsRecord {
   /**
    * Emitted when a message is to be sent.
    */
@@ -187,9 +189,11 @@ export interface RuntimeEventsRecord {
 }
 
 /**
- * Constructor options for [[CRuntime]] and [[AbstractDoc]].
+ * Constructor options for a
+ * [document](https://collabs.readthedocs.io/en/latest/guide/documents.html)
+ * ([[CRuntime]]/[[AbstractDoc]]).
  */
-export interface RuntimeOptions {
+export interface DocOptions {
   /**
    * If you guarantee that messages will always be delivered to
    * [[CRuntime.receive]]/[[AbstractDoc.receive]] in causal order, on all replicas (not just
@@ -257,7 +261,7 @@ export interface RuntimeOptions {
  * a CRuntime and its registered Collabs in a single object.
  */
 export class CRuntime
-  extends AbstractRuntime<RuntimeEventsRecord>
+  extends AbstractRuntime<DocEventsRecord>
   implements IRuntime
 {
   private readonly registry: PublicCObject;
@@ -281,9 +285,9 @@ export class CRuntime
   /**
    * Constructs a [[CRuntime]].
    *
-   * @param options See [[RuntimeOptions]].
+   * @param options See [[DocOptions]].
    */
-  constructor(options: RuntimeOptions = {}) {
+  constructor(options: DocOptions = {}) {
     super(options.debugReplicaID ?? ReplicaIDs.random());
     const causalityGuaranteed = options.causalityGuaranteed ?? false;
     this.autoTransactions = options.autoTransactions ?? "microtask";
@@ -394,10 +398,10 @@ export class CRuntime
    * This method begins a transaction (if needed), calls `f()`,
    * then ends its transaction (if begun). Operations
    * not wrapped in a `transact` call use the constructor's
-   * [[RuntimeOptions.autoTransactions]] option.
+   * [[DocOptions.autoTransactions]] option.
    *
    * If there are nested `transact` calls (possibly due to
-   * [[RuntimeOptions.autoTransactions]]), only the outermost one matters.
+   * [[DocOptions.autoTransactions]]), only the outermost one matters.
    */
   transact(f: () => void) {
     const alreadyInTransaction = this.inTransaction;
@@ -493,7 +497,7 @@ export class CRuntime
   }
 
   /**
-   * Receives a message from another replica's [[RuntimeEventsRecord.Send]] event.
+   * Receives a message from another replica's [[DocEventsRecord.Send]] event.
    * The message's sender must be a [[CRuntime]] that is a
    * replica of this one (i.e., it has the same
    * ["schema"](https://collabs.readthedocs.io/en/latest/guide/documents.html#using-cruntime)).

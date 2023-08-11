@@ -15,7 +15,7 @@ function refreshDisplay() {
 doc.on("Change", refreshDisplay);
 ```
 
-Here `doc` can be a [CRuntime](../api/collabs/classes/CRuntime.html) or [AbstractDoc](../api/collabs/classes/AbstractDoc.html). This "Change" event is emitted after each task in which the document's state changes, as described in [our API documentation](../api/collabs/interfaces/RuntimeEventsRecord.html#Change).
+Here `doc` can be a [CRuntime](../api/collabs/classes/CRuntime.html) or [AbstractDoc](../api/collabs/classes/AbstractDoc.html). This "Change" event is emitted after each task in which the document's state changes, as described in [our API documentation](../api/collabs/interfaces/DocEventsRecord.html#Change).
 
 For example, in the [Quick Start](../quick_start.html), we did:
 

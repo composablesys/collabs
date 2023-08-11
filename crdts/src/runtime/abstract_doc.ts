@@ -4,9 +4,9 @@ import {
   CollabID,
   EventEmitter,
 } from "@collabs/core";
-import { CRuntime, RuntimeEventsRecord, RuntimeOptions } from "./c_runtime";
+import { CRuntime, DocEventsRecord, DocOptions } from "./c_runtime";
 
-const runtimeEventNames: (keyof RuntimeEventsRecord)[] = [
+const runtimeEventNames: (keyof DocEventsRecord)[] = [
   "Change",
   "Update",
   "Send",
@@ -26,7 +26,7 @@ const runtimeEventNames: (keyof RuntimeEventsRecord)[] = [
  * Or, manually manage updates using the methods in this class; see
  * [Updates and Sync](https://collabs.readthedocs.io/en/latest/advanced/updates.html).
  */
-export abstract class AbstractDoc extends EventEmitter<RuntimeEventsRecord> {
+export abstract class AbstractDoc extends EventEmitter<DocEventsRecord> {
   /**
    * The [[CRuntime]] for this document's Collabs.
    *
@@ -38,9 +38,9 @@ export abstract class AbstractDoc extends EventEmitter<RuntimeEventsRecord> {
   /**
    * Constructs an AbstractDoc.
    *
-   * @param options See [[RuntimeOptions]].
+   * @param options See [[DocOptions]].
    */
-  constructor(options?: RuntimeOptions) {
+  constructor(options?: DocOptions) {
     super();
 
     this.runtime = new CRuntime(options);
@@ -56,9 +56,9 @@ export abstract class AbstractDoc extends EventEmitter<RuntimeEventsRecord> {
    * This method begins a transaction (if needed), calls `f()`,
    * then ends its transaction (if begun). Operations
    * not wrapped in a `transact` call use the constructor's
-   * [[RuntimeOptions.autoTransactions]] option.
+   * [[DocOptions.autoTransactions]] option.
    *
-   * If there are nested `transact` calls (possibly due to [[RuntimeOptions.autoTransactions]]),
+   * If there are nested `transact` calls (possibly due to [[DocOptions.autoTransactions]]),
    * only the outermost one matters.
    */
   transact(f: () => void) {
@@ -66,7 +66,7 @@ export abstract class AbstractDoc extends EventEmitter<RuntimeEventsRecord> {
   }
 
   /**
-   * Receives a message from another replica's [[RuntimeEventsRecord.Send]] event.
+   * Receives a message from another replica's [[DocEventsRecord.Send]] event.
    * The message's sender must be an AbstractDoc that is a
    * replica of this one (i.e., it has the same
    * ["schema"](https://collabs.readthedocs.io/en/latest/guide/documents.html#using-cruntime)).

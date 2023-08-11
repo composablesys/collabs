@@ -63,7 +63,7 @@ export interface CollabEventsRecord {
    * When using [[CRuntime]], note that this event may be emitted
    * multiple times in the middle of a transaction. You typically
    * want to wait to
-   * refresh displays until the next [[RuntimeEventsRecord.Change]] event, e.g.:
+   * refresh displays until the next [[DocEventsRecord.Change]] event, e.g.:
    * ```ts
    * let isDirty = false;
    * collab.on("Any", () => { isDirty = true; });

@@ -33,8 +33,8 @@ export class TestingRuntimes {
    *
    * @param options.rng A PRNG used to deterministically set the replicaID
    * (via [[ReplicaIDs.pseudoRandom]]).
-   * @param options.causalityGuaranteed See [[RuntimeOptions.causalityGuaranteed]].
-   * @param options.skipRedundantLoads Opposite of [[RuntimeOptions.allowRedundantLoads]].
+   * @param options.causalityGuaranteed See [[DocOptions.causalityGuaranteed]].
+   * @param options.skipRedundantLoads Opposite of [[DocOptions.allowRedundantLoads]].
    * This defaults to false, so that redundant loads are allowed by default, opposite to
    * CRuntime's default; that way you can test your load functions' idempotence.
    */

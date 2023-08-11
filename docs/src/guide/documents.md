@@ -47,13 +47,13 @@ In the above example, our document consisted of two variables: `doc` of type CRu
 You can do that by extending the [AbstractDoc](../api/collabs/classes/AbstractDoc.html) class, as shown below.
 
 ```ts
-import { AbstractDoc, RuntimeOptions } from "@collabs/collabs";
+import { AbstractDoc, DocOptions } from "@collabs/collabs";
 
 class MyWhiteboardDoc extends AbstractDoc {
   /** The whiteboard's state, exposed publicly for convenience. */
   readonly boardState: CValueMap<[x: number, y: number], Color>;
 
-  constructor(options?: RuntimeOptions) {
+  constructor(options?: DocOptions) {
     super(options);
 
     // this.runtime is a CRuntime provided by our superclass.
