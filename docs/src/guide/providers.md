@@ -54,6 +54,6 @@ Manual update management (or writing custom providers) is often necessary for mo
 
 ## Next Steps
 
-You now know everything you need to begin making Collabs apps! Our [app template](https://github.com/composablesys/collabs/tree/master/template-app) (described in the [Quick Start](../quick_start.html)) is a good starting point.
+You now know everything you need to begin making Collabs apps! Our [app template](https://github.com/composablesys/collabs-template-app) (described in the [Quick Start](../quick_start.html)) is a good starting point.
 
 The rest of the Guide gives more info about working with Collabs. Continue with [Built-in Collabs](./built_in_collabs.html).
