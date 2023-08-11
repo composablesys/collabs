@@ -8,17 +8,17 @@ The table below suggests which Collab `C(U)` to use for various TypeScript types
 
 | Ordinary type `U`                      | Collaborative version `C(U)`                                                                                            |
 | -------------------------------------- | ----------------------------------------------------------------------------------------------------------------------- |
-| Any immutable `T`                      | [`CVar<T>`](../api/collabs/classes/CVar.html)                                                                           |
+| Any immutable `T`                      | [CVar\<T\>](../api/collabs/classes/CVar.html)                                                                           |
 | `boolean`                              | [CBoolean](../api/collabs/classes/CBoolean.html)                                                                        |
 | `number` (for counting or adding)      | [CCounter](../api/collabs/classes/CCounter.html)                                                                        |
 | `string` (as plain text in a text box) | [CText](../api/collabs/classes/CText.html)                                                                              |
 | Rich text                              | [CRichText](../api/collabs/classes/CRichText.html)                                                                      |
-| `Set<T>`, `T` immutable                | [`CValueSet<T>`](../api/collabs/classes/CValueSet.html)                                                                 |
-| `Set<T>`, `T` mutable                  | [`CSet<C(T), ...>`](../api/collabs/classes/CSet.html)                                                                   |
-| `Map<K, V>`, `V` immutable             | [`CValueMap<K, V>`](../api/collabs/classes/CValueMap.html)                                                              |
-| `Map<K, V>`, `V` mutable               | [`CMap<K, C(V), ...>`](../api/collabs/classes/CMap.html) or [`CLazyMap<K, C(V)>`](../api/collabs/classes/CLazyMap.html) |
-| `Array<T>`, `T` immutable              | [`CValueList<T>`](../api/collabs/classes/CValueList.html)                                                               |
-| `Array<T>`, `T` mutable                | [`CList<T, ...>`](../api/collabs/classes/CList.html)                                                                    |
+| `Set<T>`, `T` immutable                | [CValueSet\<T\>](../api/collabs/classes/CValueSet.html)                                                                 |
+| `Set<T>`, `T` mutable                  | [CSet\<C(T), ...\>](../api/collabs/classes/CSet.html)                                                                   |
+| `Map<K, V>`, `V` immutable             | [CValueMap\<K, V\>](../api/collabs/classes/CValueMap.html)                                                              |
+| `Map<K, V>`, `V` mutable               | [CMap\<K, C(V), ...\>](../api/collabs/classes/CMap.html) or [CLazyMap\<K, C(V)\>](../api/collabs/classes/CLazyMap.html) |
+| `Array<T>`, `T` immutable              | [CValueList\<T\>](../api/collabs/classes/CValueList.html)                                                               |
+| `Array<T>`, `T` mutable                | [CList\<T, ...\>](../api/collabs/classes/CList.html)                                                                    |
 | Class with fixed properties            | [CObject](../api/collabs/classes/CObject.html) subclass (see [data modeling](./data_modeling.html) later in the Guide)  |
 
 ## Tips
@@ -65,7 +65,7 @@ These choices can be nuanced and app-specific. That way, you can make your app r
 Towards this goal, Collabs builds in some fancy semantics. These are specific behaviors that make sense to users but are nontrivial to implement. They include:
 
 - **CRichText formatting spans:** [CRichText](../api/collabs/classes/CRichText.html) implements the [Peritext algorithm](https://www.inkandswitch.com/peritext/), which handles formatting spans in an intuitive way. For example, if one user bolds a range of text while another user types in that range concurrently, the new characters will also be bolded.
-- **CList "move" operation:** [`CList.move`](../api/collabs/classes/CList.html#move) implements Martin Kleppmann's [Moving Elements in List CRDTs](https://doi.org/10.1145/3380787.3393677) paper. That way, if one user moves a list element while someone else mutates it concurrently, the element is both moved and mutated.
+- **CList "move" operation:** [CList.move](../api/collabs/classes/CList.html#move) implements Martin Kleppmann's [Moving Elements in List CRDTs](https://doi.org/10.1145/3380787.3393677) paper. That way, if one user moves a list element while someone else mutates it concurrently, the element is both moved and mutated.
 - **CList deletion options:** If one user deletes a list element while someone else is still updating it, you have a few options for what to do: [delete-wins](../api/collabs/classes/CList.html#delete), [update-wins](../api/collabs/classes/CList.html#restore), or [archive](../api/collabs/classes/CList.html#archive) with the chance to restore later.
 
 ## Next Steps

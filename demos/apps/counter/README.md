@@ -6,7 +6,7 @@ This is the same collaborative app described in the [Quick Start](https://collab
 
 - The app (`src/main.ts`) omits IndexedDB storage and cross-tab sync, to make it easier to see that the server is doing something.
 - The app adds a "Connected" checkmark for testing concurrency.
-- The server (`bin/server.ts`) runs both `express` and `@collabs/ws-server` in the same script (& port), instead of using the separate commands `webpack-dev-server` and `collabs-ws-server`.
+- The server (`bin/server.ts`) runs both `express` and @collabs/ws-server in the same script (& port), instead of using the separate commands `webpack-dev-server` and `collabs-ws-server`.
 
 ## Installation
 

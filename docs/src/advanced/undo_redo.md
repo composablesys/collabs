@@ -14,9 +14,9 @@ A local operation's inverse should undo that operation's effects from the local 
 
 1. Set the value of a [CVar](../api/collabs/classes/CVar.html) -> Set the CVar to its previous value.
 2. Add a value to a [CValueSet](../api/collabs/classes/CValueSet.html) -> Delete that value.
-3. Insert a character into a [CText](../api/collabs/classes/CText.html) -> Delete the character's [Position](../api/collabs/modules.html#Position). Unlike an index, the Position moves around to account for concurrent operations. You can get the position (after inserting) using [`CText.getPosition`](../api/collabs/classes/CText.html#getPosition), then delete it with help from [`indexOfPosition`](../api/collabs/classes/CText.html#indexOfPosition).
+3. Insert a character into a [CText](../api/collabs/classes/CText.html) -> Delete the character's [Position](../api/collabs/modules.html#Position). Unlike an index, the Position moves around to account for concurrent operations. You can get the position (after inserting) using [CText.getPosition](../api/collabs/classes/CText.html#getPosition), then delete it with help from [indexOfPosition](../api/collabs/classes/CText.html#indexOfPosition).
 4. Delete a text character -> Insert the same character at the index where its Position would be, with help from [getPosition](../api/collabs/classes/CText.html#getPosition) and [indexOfPosition(pos, "right")](../api/collabs/classes/CText.html#indexOfPosition).
-5. Delete a value from a [CList](../api/collabs/classes/CList.html) -> Originally call [`CList.archive`](../api/collabs/classes/CList.html#archive) instead of [`CList.delete`](../api/collabs/classes/CList.html#delete), then undo with [`CList.restore`](../api/collabs/classes/CList.html#restore).
+5. Delete a value from a [CList](../api/collabs/classes/CList.html) -> Originally call [CList.archive](../api/collabs/classes/CList.html#archive) instead of [CList.delete](../api/collabs/classes/CList.html#delete), then undo with [CList.restore](../api/collabs/classes/CList.html#restore).
 
 Notes:
 

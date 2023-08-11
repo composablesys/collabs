@@ -56,7 +56,7 @@ In CList's constructor, we had to supply a `valueConstructor` function. It input
 
 This function serves the same purpose as the callback you pass to [CRuntime.registerCollab](./documents.html#using-cruntime): it tells your CList how to construct a new Collab. CList will call this `valueConstructor` once for each list value.
 
-Like when you call CRuntime.registerCollab, you must ensure that all collaborators use "the same" `valueConstructor` function, returning a Collab with the same class and constructor arguments. That way, collaborators agree on how to interpret updates within each list value.
+Like when you call `CRuntime.registerCollab`, you must ensure that all collaborators use "the same" `valueConstructor` function, returning a Collab with the same class and constructor arguments. That way, collaborators agree on how to interpret updates within each list value.
 
 Observe that we added an [event handler](./handling_changes.html#collab-events) to the new CText value before returning it from `valueConstructor`. This is the recommended place to add event handlers, since `valueConstructor` is guaranteed to run exactly once for each list value, before applying any updates.
 

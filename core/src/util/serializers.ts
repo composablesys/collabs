@@ -26,7 +26,7 @@ import { SafeWeakRef } from "./safe_weak_ref";
  * Serializer\<T\>, typically in the Collab constructor's
  * `options` parameter.
  *
- * Serializers provided with the library (often in package `@collabs/core`)
+ * Serializers provided with the library (some only in package @collabs/core)
  * include [[DefaultSerializer]],
  * [CollabIDSerializer](../../core/classes/CollabIDSerializer.html),
  * [StringSerializer](../../core/classes/StringSerializer.html),

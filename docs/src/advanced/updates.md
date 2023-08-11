@@ -8,20 +8,20 @@ For examples of how to work with updates, see our published providers' [source c
 
 ## Terminology
 
-A **replica** is a copy of a Collabs document: a specific in-memory instance of CRuntime. We use this term synonomously with **user** or **device**, although technically a single user or device could have multiple replicas of a document. A replica is uniquely identified by its [`CRuntime.replicaID`](../api/collabs/classes/CRuntime.html#replicaID) (= [`AbstractDoc.replicaID`](../api/collabs/classes/AbstractDoc.html#replicaID)).
+A **replica** is a copy of a Collabs document: a specific in-memory instance of CRuntime. We use this term synonomously with **user** or **device**, although technically a single user or device could have multiple replicas of a document. A replica is uniquely identified by its [CRuntime.replicaID](../api/collabs/classes/CRuntime.html#replicaID) (= [AbstractDoc.replicaID](../api/collabs/classes/AbstractDoc.html#replicaID)).
 
-An **operation** is a Collab method call that mutates its collaborative state. E.g., a call to [`CText.insert`](../api/collabs/classes/CText.html#insert).
+An **operation** is a Collab method call that mutates its collaborative state. E.g., a call to [CText.insert](../api/collabs/classes/CText.html#insert).
 
 A **transaction** is a sequence of operations by the same replica. These operations are grouped together so that all replicas apply them together (atomically), without interleaving other operations.
 
-By default, all Collab operations in the same microtask are grouped into a transaction. This is network-efficient and avoids accidentally splitting up compound operations (e.g., `CText.insert` is sometimes a composition of two lower-level operations). However, you can customize this behavior using the [`autoTransactions` option](../api/collabs/interfaces/RuntimeOptions.html#autoTransactions) in CRuntime's constructor and the [`CRuntime.transact`](../api/collabs/classes/CRuntime.html#transact) method.
+By default, all Collab operations in the same microtask are grouped into a transaction. This is network-efficient and avoids accidentally splitting up compound operations (e.g., `CText.insert` is sometimes a composition of two lower-level operations). However, you can customize this behavior using the [autoTransactions](../api/collabs/interfaces/RuntimeOptions.html#autoTransactions) option in CRuntime's constructor and the [CRuntime.transact](../api/collabs/classes/CRuntime.html#transact) method.
 
 _(Although we use the term "transaction", these are not ACID transactions like in a database - it is okay for concurrent transactions to mutate the same state.)_
 
 An **update** is a Uint8Array describing a set of transactions. They come in two types:
 
-- A **message** describes a single transaction. The replica that performed the transaction emits its message in a ["Send" event](../api/collabs/interfaces/RuntimeEventsRecord.html#Send). Any replica can deliver this message to [`CRuntime.receive`](../api/collabs/classes/CRuntime.html#receive) to apply the transaction.
-- A **saved state** describes all transactions up to a certain point. A user can call [`CRuntime.save`](../api/collabs/classes/CRuntime.html#save) at any time to get a saved state describing all transactions applied to their document so far. Any user can deliver that saved state to [`CRuntime.load`](../api/collabs/classes/CRuntime.html#load) to apply all of its transactions.
+- A **message** describes a single transaction. The replica that performed the transaction emits its message in a ["Send" event](../api/collabs/interfaces/RuntimeEventsRecord.html#Send). Any replica can deliver this message to [CRuntime.receive](../api/collabs/classes/CRuntime.html#receive) to apply the transaction.
+- A **saved state** describes all transactions up to a certain point. A user can call [CRuntime.save](../api/collabs/classes/CRuntime.html#save) at any time to get a saved state describing all transactions applied to their document so far. Any user can deliver that saved state to [CRuntime.load](../api/collabs/classes/CRuntime.html#load) to apply all of its transactions.
 
 Messages correspond to op-based CRDTs, while saved states correspond to state-based CRDTs. Collabs implements hybrid op-based/state-based CRDTs, which is why you can mix the two kinds of updates.
 
@@ -68,7 +68,7 @@ Each transaction is uniquely identified by a "causal dot" of the form `(senderID
 
 Then to sync two documents:
 
-1. Peer A sends its [`CRuntime.vectorClock`](../api/collabs/classes/CRuntime.html#vectorClock). This succinctly encodes all of their applied transaction IDs.
+1. Peer A sends its [CRuntime.vectorClock](../api/collabs/classes/CRuntime.html#vectorClock). This succinctly encodes all of their applied transaction IDs.
 2. Peer B replies with all stored messages whose transaction IDs are missing from Peer A's vector clock. Peer B also sends their own vector clock entries that are lower than Peer A's.
 3. Peer A applies the messages from Peer B. Peer A also replies with their own stored messages whose transaction IDs are missing from Peer B's vector clock.
 4. Peer B applies the messages from Peer A.

@@ -1,4 +1,4 @@
-# `@collabs/crdts`
+# @collabs/crdts
 
 Part of the Collabs library. Main package: [@collabs/collabs](https://www.npmjs.com/package/@collabs/collabs).
 

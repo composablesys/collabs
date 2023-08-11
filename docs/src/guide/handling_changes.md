@@ -52,7 +52,7 @@ boardState.on("Delete", (event) => {
 });
 ```
 
-Each of our built-in Collabs emits events like these that completely describe how its state changes over time. You can find a Collab's event names and types in the API docs for its `on` method (click the `...EventsRecord` type name). E.g., here is [CValueMap's `on` method](../api/collabs/classes/CValueMap.html#on), and here is its [MapEventsRecord](../api/collabs/interfaces/MapEventsRecord.html).
+Each of our built-in Collabs emits events like these that completely describe how its state changes over time. You can find a Collab's event names and types in the API docs for its `on` method (click the `...EventsRecord` type name). E.g., here is [CValueMap.on](../api/collabs/classes/CValueMap.html#on), and here is its [MapEventsRecord](../api/collabs/interfaces/MapEventsRecord.html).
 
 ## Next Steps
 

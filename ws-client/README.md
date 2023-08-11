@@ -1,4 +1,4 @@
-# `@collabs/ws-client`
+# @collabs/ws-client
 
 Part of the Collabs library. Main package: [@collabs/collabs](https://www.npmjs.com/package/@collabs/collabs).
 

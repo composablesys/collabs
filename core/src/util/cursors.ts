@@ -3,11 +3,11 @@ import { Position } from "../data_types";
 /**
  * A cursor in a collaborative list or text string.
  *
- * A `Cursor` points to a particular spot in a list, in between
+ * A Cursor points to a particular spot in a list, in between
  * two list elements (or text characters).
- * You can use `Cursor`s as ordinary cursors or selection endpoints.
+ * You can use Cursors as ordinary cursors or selection endpoints.
  *
- * Use the [[Cursors]] class to convert between indices and `Cursor`s.
+ * Use the [[Cursors]] class to convert between indices and Cursors.
  *
  * Internally, a cursor is represented as a string.
  * Specifically, it is the [[Position]] of the list element
