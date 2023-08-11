@@ -18,6 +18,10 @@
 - [@collabs/indexeddb](https://www.npmjs.com/package/@collabs/indexeddb): Contains [IndexedDBDocStore](./api/indexeddb/classes/IndexedDBDocStore.html), a storage provider that stores Collabs documents in IndexedDB.
 - [@collabs/local-storage](https://www.npmjs.com/package/@collabs/local-storage): Contains [LocalStorageDocStore](./api/local-storage/classes/LocalStorageDocStore.html), a storage provider that stores Collabs documents in localStorage.
 
+## Misc Tools
+
+- [@collabs/react](https://www.npmjs.com/package/@collabs/react): Contains React hooks for using Collabs, and React components with built-in Collabs sync.
+
 ## Internal
 
 @collabs/collabs is internally split into two packages:
