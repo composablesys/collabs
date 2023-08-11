@@ -1,10 +1,11 @@
 import {
+  CPrimitive,
   CollabEvent,
   CollabEventsRecord,
-  CPrimitive,
   InitToken,
+  MessageMeta,
+  SavedStateMeta,
   int64AsNumber,
-  UpdateMeta,
 } from "@collabs/core";
 import { CounterMessage, CounterSave } from "../../generated/proto_compiled";
 
@@ -84,7 +85,7 @@ export class CCounter extends CPrimitive<CounterEventsRecord> {
 
   protected receivePrimitive(
     message: Uint8Array | string,
-    meta: UpdateMeta
+    meta: MessageMeta
   ): void {
     const decoded = CounterMessage.decode(<Uint8Array>message);
     const toAdd = int64AsNumber(decoded.arg);
@@ -115,7 +116,7 @@ export class CCounter extends CPrimitive<CounterEventsRecord> {
 
   protected loadPrimitive(
     savedState: Uint8Array | null,
-    meta: UpdateMeta
+    meta: SavedStateMeta
   ): void {
     if (savedState === null) return;
 

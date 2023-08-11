@@ -18,12 +18,13 @@ export interface VectorClock {
 /**
  * CRDT-related meta for a message.
  *
- * [[CRuntime]] puts this meta in [[UpdateMeta.runtimeExtra]]
+ * [[CRuntime]] puts this meta in [[MessageMeta.runtimeExtra]]
  * whenever it delivers a message to [[Collab.receive]].
  * To access it more easily, consider extending [[PrimitiveCRDT]].
  *
- * All messages in the same transaction
- * have the same [[CRDTMessageMeta]]. <!-- TODO: docs link -->
+ * All messages in the same
+ * [transaction](https://collabs.readthedocs.io/en/latest/advanced/updates.html#terminology)
+ * have the same CRDTMessageMeta.
  *
  * Properties are only included if they were accessed during the
  * sender's own local echo (i.e., within their
@@ -34,7 +35,7 @@ export interface VectorClock {
  */
 export interface CRDTMessageMeta {
   /**
-   * Copy of [[UpdateMeta.senderID]], for convenience.
+   * Copy of [[MessageMeta.senderID]], for convenience.
    */
   readonly senderID: string;
   /**
@@ -99,7 +100,7 @@ export interface CRDTMetaRequest extends MetaRequest {
 /**
  * CRDT-related meta for a saved state.
  *
- * [[CRuntime]] puts this meta in [[UpdateMeta.runtimeExtra]]
+ * [[CRuntime]] puts this meta in [[SavedStateMeta.runtimeExtra]]
  * whenever it delivers a saved state to [[Collab.load]].
  * To access it more easily, consider extending [[PrimitiveCRDT]].
  *
@@ -107,10 +108,6 @@ export interface CRDTMetaRequest extends MetaRequest {
  * there is no "request" mechanism.
  */
 export interface CRDTSavedStateMeta {
-  /**
-   * Copy of [[UpdateMeta.senderID]], for convenience.
-   */
-  readonly senderID: string;
   /**
    * The local replica's vector clock (prior to merging
    * savedState's vector clock).

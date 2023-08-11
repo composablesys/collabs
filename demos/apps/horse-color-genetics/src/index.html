@@ -1,0 +1,559 @@
+<html>
+  <head>
+    <meta http-equiv="content-type" content="text/html; charset=windows-1252" />
+    <title>Horse Color Genetics: An Introduction</title>
+    <meta name="author" content="Jennifer Hoffman" />
+    <meta
+      name="keywords"
+      content="horse, equine, color, genetics, chestnut, black, dun, appaloosa, sabino, overo, paint, palomino, buckskin, bay, interactive, game, learning, serious games, tutorial"
+    />
+    <meta
+      name="description"
+      content="Learn how genes create coat colors in horses with this fun learning game!"
+    />
+    <meta http-equiv="X-UA-Compatible" content="IE=9" />
+    <!--<link rel="shortcut icon" href="http://horse.jenniferhoffman.net/favicon.ico">-->
+
+    <base target="_blank" />
+  </head>
+
+  <body onload="prepAnims();preloader();">
+    <div style="background-color: white; padding: 10px; text-align: left">
+      <input type="checkbox" id="connected" />
+      <label for="connected">Connected</label>
+      |
+      <a href="about.html">About this demo</a>
+    </div>
+
+    <div style="color: white; padding-top: 10px">
+      A collaborative version of an app by Jennifer Hoffman (<a
+        href="http://www.jenniferhoffman.net/"
+        >http://www.jenniferhoffman.net/</a
+      >).
+      <br />
+      Original app:
+      <a href="http://horse.jenniferhoffman.net/horse-color-genetics.html"
+        >http://horse.jenniferhoffman.net/horse-color-genetics.html</a
+      >
+    </div>
+
+    <div id="debugOutput"></div>
+    <div id="container">
+      <div id="borderDummy" class="">
+        <div id="gamewindow">
+          <div id="horse">
+            <img
+              id="basecoat"
+              name="basecoat"
+              src="horse-color-genetics_files/chestnut.png"
+              border="0"
+            />
+            <img
+              id="sooty"
+              name="sooty"
+              src="horse-color-genetics_files/sooty.png"
+              border="0"
+            />
+            <img
+              id="grey"
+              name="grey"
+              src="horse-color-genetics_files/grey.png"
+              border="0"
+            />
+            <img
+              id="appaloosa"
+              name="appaloosa"
+              src="horse-color-genetics_files/appaloosa_varnish1.png"
+              border="0"
+            />
+            <img
+              id="white"
+              name="white"
+              src="horse-color-genetics_files/white.png"
+              border="0"
+            />
+            <img
+              id="silver"
+              name="silver"
+              src="horse-color-genetics_files/silver.png"
+              border="0"
+            />
+            <img
+              id="roan"
+              name="roan"
+              src="horse-color-genetics_files/roan.png"
+              border="0"
+            />
+            <img
+              id="rabicano"
+              name="rabicano"
+              src="horse-color-genetics_files/rabicano.png"
+              border="0"
+            />
+            <img
+              id="tobiano"
+              name="tobiano"
+              src="horse-color-genetics_files/tobiano.png"
+              border="0"
+            />
+            <img
+              id="overo"
+              name="overo"
+              src="horse-color-genetics_files/overo.png"
+              border="0"
+            />
+            <img
+              id="sabino"
+              name="sabino"
+              src="horse-color-genetics_files/sabino1.png"
+              border="0"
+            />
+            <img
+              id="splashedwhite"
+              name="splashedwhite"
+              src="horse-color-genetics_files/splash1.png"
+              border="0"
+            />
+          </div>
+          <div id="genes">
+            <div id="topbuffer"></div>
+            <div
+              id="gene"
+              onmouseover="showTip('<b>Black</b><font size=-1><br>Forms black pigment in skin and hair.<br>Simple Dominant</font>')"
+              onmouseout="hideTip()"
+            >
+              <img
+                name="e1"
+                src="horse-color-genetics_files/_e.png"
+                onmousedown="cursorWait();"
+                onmouseup="reverseAllele(this);updateURL();"
+                border="0"
+              />
+              <img
+                name="e2"
+                src="horse-color-genetics_files/_e.png"
+                onmousedown="cursorWait();"
+                onmouseup="reverseAllele(this);updateURL();"
+                border="0"
+              />
+            </div>
+            <div
+              id="gene"
+              onmouseover="showTip('<b>Agouti</b><font size=-1><br>Restricts black pigment, usually to the horses &quot;points.&quot;</font>')"
+              onmouseout="hideTip()"
+            >
+              <img
+                name="a1"
+                src="horse-color-genetics_files/_a.png"
+                onmousedown="cursorWait();"
+                onmouseup="reverseAllele(this);updateURL();"
+                border="0"
+              />
+              <img
+                name="a2"
+                src="horse-color-genetics_files/_a.png"
+                onmousedown="cursorWait();"
+                onmouseup="reverseAllele(this);updateURL();"
+                border="0"
+              />
+            </div>
+            <div
+              id="gene"
+              onmouseover="showTip('<b>Grey</b><font size=-1><br>Causes the horse to grey with age similar to human hair.</font>')"
+              onmouseout="hideTip()"
+            >
+              <img
+                name="g1"
+                src="horse-color-genetics_files/_g.png"
+                onmousedown="cursorWait();"
+                onmouseup="reverseAllele(this);updateURL();"
+                border="0"
+              />
+              <img
+                name="g2"
+                src="horse-color-genetics_files/_g.png"
+                onmousedown="cursorWait();"
+                onmouseup="reverseAllele(this);updateURL();"
+                border="0"
+              />
+            </div>
+            <div
+              id="gene"
+              onmouseover="showTip('<b>Cream</b><font size=-1><br>Incomplete dominant dilution gene, affects mostly red.</font>')"
+              onmouseout="hideTip()"
+            >
+              <img
+                name="cr1"
+                src="horse-color-genetics_files/_cr.png"
+                onmousedown="cursorWait();"
+                onmouseup="reverseAllele(this);updateURL();"
+                border="0"
+              />
+              <img
+                name="cr2"
+                src="horse-color-genetics_files/_cr.png"
+                onmousedown="cursorWait();"
+                onmouseup="reverseAllele(this);updateURL();"
+                border="0"
+              />
+            </div>
+            <div
+              id="gene"
+              onmouseover="showTip('<b>Dun</b><font size=-1><br>A dilution gene which reveals &quot;primitive&quot; markings.</font>')"
+              onmouseout="hideTip()"
+            >
+              <img
+                name="d1"
+                src="horse-color-genetics_files/_d.png"
+                onmousedown="cursorWait();"
+                onmouseup="reverseAllele(this);updateURL();"
+                border="0"
+              />
+              <img
+                name="d2"
+                src="horse-color-genetics_files/_d.png"
+                onmousedown="cursorWait();"
+                onmouseup="reverseAllele(this);updateURL();"
+                border="0"
+              />
+            </div>
+            <div
+              id="gene"
+              onmouseover="showTip('<b>Champagne</b><font size=-1><br>A rare but dominant dilution gene.</font>')"
+              onmouseout="hideTip()"
+            >
+              <img
+                name="ch1"
+                src="horse-color-genetics_files/_ch.png"
+                onmousedown="cursorWait();"
+                onmouseup="reverseAllele(this);updateURL();"
+                border="0"
+              />
+              <img
+                name="ch2"
+                src="horse-color-genetics_files/_ch.png"
+                onmousedown="cursorWait();"
+                onmouseup="reverseAllele(this);updateURL();"
+                border="0"
+              />
+            </div>
+            <div
+              id="gene"
+              onmouseover="showTip('<b>Flaxen</b><font size=-1><br>A recessive dilution of the mane and tail in chestnut horses.</font>')"
+              onmouseout="hideTip()"
+            >
+              <img
+                name="f1"
+                src="horse-color-genetics_files/f.png"
+                onmousedown="cursorWait();"
+                onmouseup="reverseAllele(this);updateURL();"
+                border="0"
+              />
+              <img
+                name="f2"
+                src="horse-color-genetics_files/f.png"
+                onmousedown="cursorWait();"
+                onmouseup="reverseAllele(this);updateURL();"
+                border="0"
+              />
+            </div>
+            <div
+              id="gene"
+              onmouseover="showTip('<b>Silver Dapple</b><font size=-1><br>Dilutes only black.  Has stronger effect on mane and tail.</font>')"
+              onmouseout="hideTip()"
+            >
+              <img
+                name="z1"
+                src="horse-color-genetics_files/_z.png"
+                onmousedown="cursorWait();"
+                onmouseup="reverseAllele(this);updateURL();"
+                border="0"
+              />
+              <img
+                name="z2"
+                src="horse-color-genetics_files/_z.png"
+                onmousedown="cursorWait();"
+                onmouseup="reverseAllele(this);updateURL();"
+                border="0"
+              />
+            </div>
+            <div
+              id="gene"
+              onmouseover="showTip('<b>Sooty</b><font size=-1><br>Black hairs are mixed into the coat.</font>')"
+              onmouseout="hideTip()"
+            >
+              <img
+                name="sty1"
+                src="horse-color-genetics_files/_sty.png"
+                onmousedown="cursorWait();"
+                onmouseup="reverseAllele(this);updateURL();"
+                border="0"
+              />
+              <img
+                name="sty2"
+                src="horse-color-genetics_files/_sty.png"
+                onmousedown="cursorWait();"
+                onmouseup="reverseAllele(this);updateURL();"
+                border="0"
+              />
+            </div>
+            <div
+              id="gene"
+              onmouseover="showTip('<b>Rabicano</b><font size=-1><br>White hairs are mixed into the coat on the belly.</font>')"
+              onmouseout="hideTip()"
+            >
+              <img
+                name="rb1"
+                src="horse-color-genetics_files/_rb.png"
+                onmousedown="cursorWait();"
+                onmouseup="reverseAllele(this);updateURL();"
+                border="0"
+              />
+              <img
+                name="rb2"
+                src="horse-color-genetics_files/_rb.png"
+                onmousedown="cursorWait();"
+                onmouseup="reverseAllele(this);updateURL();"
+                border="0"
+              />
+            </div>
+            <div
+              id="gene"
+              onmouseover="showTip('<b>KIT Gene: Roan</b><font size=-1><br>White hairs are mixed into the coat.</font>')"
+              onmouseout="hideTip()"
+            >
+              <img
+                name="rn1"
+                src="horse-color-genetics_files/_rn.png"
+                onmousedown="cursorWait();"
+                onmouseup="reverseAllele(this);updateURL();"
+                border="0"
+              />
+              <img
+                name="rn2"
+                src="horse-color-genetics_files/_rn.png"
+                onmousedown="cursorWait();"
+                onmouseup="reverseAllele(this);updateURL();"
+                border="0"
+              />
+            </div>
+            <div
+              id="gene"
+              onmouseover="showTip('<b>KIT Gene: Sabino</b><font size=-1><br>Low irregular white patches with white hairs mixed into the coat.</font>')"
+              onmouseout="hideTip()"
+            >
+              <img
+                name="sb1"
+                src="horse-color-genetics_files/_sb.png"
+                onmousedown="cursorWait();"
+                onmouseup="reverseAllele(this);updateURL();"
+                border="0"
+              />
+              <img
+                name="sb2"
+                src="horse-color-genetics_files/_sb.png"
+                onmousedown="cursorWait();"
+                onmouseup="reverseAllele(this);updateURL();"
+                border="0"
+              />
+            </div>
+            <div
+              id="gene"
+              onmouseover="showTip('<b>KIT Gene: White</b><font size=-1><br>Restricts pigment, leaving the horse white from birth.</font>')"
+              onmouseout="hideTip()"
+            >
+              <img
+                name="w1"
+                src="horse-color-genetics_files/_w.png"
+                onmousedown="cursorWait();"
+                onmouseup="reverseAllele(this);updateURL();"
+                border="0"
+              />
+              <img
+                name="w2"
+                src="horse-color-genetics_files/_w.png"
+                onmousedown="cursorWait();"
+                onmouseup="reverseAllele(this);updateURL();"
+                border="0"
+              />
+            </div>
+            <div
+              id="gene"
+              onmouseover="showTip('<b>KIT Gene: Tobiano</b><font size=-1><br>Creates large, rounded dark spots on a white background.</font>')"
+              onmouseout="hideTip()"
+            >
+              <img
+                name="to1"
+                src="horse-color-genetics_files/_to.png"
+                onmousedown="cursorWait();"
+                onmouseup="reverseAllele(this);updateURL();"
+                border="0"
+              />
+              <img
+                name="to2"
+                src="horse-color-genetics_files/_to.png"
+                onmousedown="cursorWait();"
+                onmouseup="reverseAllele(this);updateURL();"
+                border="0"
+              />
+            </div>
+            <div
+              id="gene"
+              onmouseover="showTip('<b>Overo</b><font size=-1><br>Creates small, irregular white spots on a dark background.</font>')"
+              onmouseout="hideTip()"
+            >
+              <img
+                name="o1"
+                src="horse-color-genetics_files/_o.png"
+                onmousedown="cursorWait();"
+                onmouseup="reverseAllele(this);updateURL();"
+                border="0"
+              />
+              <img
+                name="o2"
+                src="horse-color-genetics_files/_o.png"
+                onmousedown="cursorWait();"
+                onmouseup="reverseAllele(this);updateURL();"
+                border="0"
+              />
+            </div>
+            <div
+              id="gene"
+              onmouseover="showTip('<b>Splashed</b><font size=-1><br>Makes the horse look as though it was dunked in white paint.</font>')"
+              onmouseout="hideTip()"
+            >
+              <img
+                name="spl1"
+                src="horse-color-genetics_files/_spl.png"
+                onmousedown="cursorWait();"
+                onmouseup="reverseAllele(this);updateURL();"
+                border="0"
+              />
+              <img
+                name="spl2"
+                src="horse-color-genetics_files/_spl.png"
+                onmousedown="cursorWait();"
+                onmouseup="reverseAllele(this);updateURL();"
+                border="0"
+              />
+            </div>
+            <div
+              id="gene"
+              onmouseover="showTip('<b>Appaloosa</b><font size=-1><br>Enables Appaloosa spotting.<br>Causes varnish roan pattern.</font>')"
+              onmouseout="hideTip()"
+            >
+              <img
+                name="lp1"
+                src="horse-color-genetics_files/_lp.png"
+                onmousedown="cursorWait();"
+                onmouseup="reverseAllele(this);updateURL();"
+                border="0"
+              />
+              <img
+                name="lp2"
+                src="horse-color-genetics_files/_lp.png"
+                onmousedown="cursorWait();"
+                onmouseup="reverseAllele(this);updateURL();"
+                border="0"
+              />
+            </div>
+            <div
+              id="gene"
+              onmouseover="showTip('<b>Pattern</b><font size=-1><br>Leopard spotting, requires Appaloosa.<br>Incomplete dominant.</font>')"
+              onmouseout="hideTip()"
+            >
+              <img
+                name="patn11"
+                src="horse-color-genetics_files/_patn1.png"
+                onmousedown="cursorWait();"
+                onmouseup="reverseAllele(this);updateURL();"
+                border="0"
+              />
+              <img
+                name="patn12"
+                src="horse-color-genetics_files/_patn1.png"
+                onmousedown="cursorWait();"
+                onmouseup="reverseAllele(this);updateURL();"
+                border="0"
+              />
+            </div>
+            <div
+              id="gene"
+              onmouseover="showTip('<b>Pattern</b><font size=-1><br>Blanket spotting, requires Appaloosa.<br>Simple dominant.</font>')"
+              onmouseout="hideTip()"
+            >
+              <img
+                name="patn21"
+                src="horse-color-genetics_files/_patn2.png"
+                onmousedown="cursorWait();"
+                onmouseup="reverseAllele(this);updateURL();"
+                border="0"
+              />
+              <img
+                name="patn22"
+                src="horse-color-genetics_files/_patn2.png"
+                onmousedown="cursorWait();"
+                onmouseup="reverseAllele(this);updateURL();"
+                border="0"
+              />
+            </div>
+            <div id="showhidehelp" onclick="showhidehelp()">show help</div>
+          </div>
+          <div id="information">
+            <div id="colorname" onclick="togglecolorinfo()">Chestnut</div>
+          </div>
+          <div id="colorinfo">
+            <p>
+              Chestnut is one of the most common horse coat colors, seen in
+              almost every breed. Chestnut consists of a red or brownish coat,
+              with a mane and tail the same or lighter in color than the coat.
+            </p>
+          </div>
+          <div id="arrows" onclick="togglecolorinfo()">
+            <img
+              src="horse-color-genetics_files/arrow_down.png"
+              name="arrow"
+              alt="Toggle color description"
+              title="Toggle color description"
+              border="0"
+            />
+          </div>
+          <div id="generatecolor">
+            <!--<a href="http://horse.jenniferhoffman.net/extension.html#gamewindow_anchor"><img src="horse-color-genetics_files/bback.png" alt="back to start" title="back to start" border="0"></a>
+                <a href="http://horse.jenniferhoffman.net/appaloosa.html#gamewindow_anchor"><img src="horse-color-genetics_files/back.png" alt="back one" title="back one" border="0"></a>-->
+            <img
+              id="randomButton"
+              onmousedown="cursorWait();"
+              onmouseup="randomhorse();updateURL()"
+              src="horse-color-genetics_files/horseshoe.png"
+              alt="generate a random horse"
+              title="generate a random horse"
+              border="0"
+            />
+            <!--<a href="#"><img src="horse-color-genetics_files/forward.png" class="subdued" border="0"></a>
+                <a href="#"><img src="horse-color-genetics_files/fforward.png" class="subdued" border="0"></a>-->
+          </div>
+          <div id="footer">
+            <a
+              rel="license"
+              href="http://creativecommons.org/licenses/by-nc-sa/3.0/"
+              target="_blank"
+              ><img
+                alt="Creative Commons License"
+                title="Creative Commons License"
+                style="border-width: 0"
+                src="horse-color-genetics_files/88x31.png"
+            /></a>
+          </div>
+          <div id="genehelp" style="top: -58px; display: none">
+            Gene information displayed here.
+          </div>
+        </div>
+      </div>
+      <div id="loadBarText" style="visibility: hidden">Loading</div>
+      <div id="loadBarBox" style="visibility: hidden">
+        <div id="loadBar" style="width: 100%"></div>
+      </div>
+    </div>
+  </body>
+</html>

@@ -1,11 +1,11 @@
 import {
   int64AsNumber,
+  MessageMeta,
   nonNull,
   protobufHas,
   Serializer,
-  UpdateMeta,
 } from "@collabs/core";
-import { CRDTMetaMessage } from "../../generated/proto_compiled";
+import { CRDTMessageMetaMessage } from "../../generated/proto_compiled";
 import { CRDTMessageMeta, CRDTSavedStateMeta, VectorClock } from "./crdt_meta";
 
 export class BasicVectorClock implements VectorClock {
@@ -194,21 +194,13 @@ export class ReceiveCRDTMeta implements CRDTMessageMeta {
 }
 
 /**
- * Serializer for message UpdateMeta produced by CRuntime.
+ * Serializer for MessageMeta produced by CRuntime.
  *
  * runtimeExtra field must be either ReceiveCRDTMeta
  * or a frozen SendCRDTMeta.
- *
- * Not for saved state's UpdateMeta, which instead use LoadCRDTMeta.
  */
-export class RuntimeMetaSerializer implements Serializer<UpdateMeta> {
-  private constructor() {
-    // Singleton.
-  }
-
-  static instance = new this();
-
-  serialize(value: UpdateMeta): Uint8Array {
+export const RuntimeMetaSerializer: Serializer<MessageMeta> = {
+  serialize(value: MessageMeta): Uint8Array {
     const crdtMeta = value.runtimeExtra as SendCRDTMeta | ReceiveCRDTMeta;
     const vcKeys = new Array<string>(crdtMeta.vcEntries.size - 1);
     const vcValues = new Array<number>(crdtMeta.vcEntries.size - 1);
@@ -222,7 +214,7 @@ export class RuntimeMetaSerializer implements Serializer<UpdateMeta> {
       vcValues[i] = value;
       i++;
     }
-    const message = CRDTMetaMessage.create({
+    const message = CRDTMessageMetaMessage.create({
       senderID: crdtMeta.senderID,
       senderCounter: crdtMeta.senderCounter,
       vcKeys,
@@ -233,13 +225,12 @@ export class RuntimeMetaSerializer implements Serializer<UpdateMeta> {
           : crdtMeta.maximalVCKeyCount,
       wallClockTime: crdtMeta.wallClockTime,
       lamportTimestamp: crdtMeta.lamportTimestamp,
-      isLoad: value.updateType === "savedState" ? true : undefined,
     });
-    return CRDTMetaMessage.encode(message).finish();
-  }
+    return CRDTMessageMetaMessage.encode(message).finish();
+  },
 
-  deserialize(message: Uint8Array): UpdateMeta {
-    const decoded = CRDTMetaMessage.decode(message);
+  deserialize(message: Uint8Array): MessageMeta {
+    const decoded = CRDTMessageMetaMessage.decode(message);
     const vc = new Map<string, number>();
     vc.set(decoded.senderID, decoded.senderCounter);
     for (let i = 0; i < decoded.vcKeys.length; i++) {
@@ -260,12 +251,12 @@ export class RuntimeMetaSerializer implements Serializer<UpdateMeta> {
     );
     return {
       senderID: crdtMeta.senderID,
-      updateType: decoded.isLoad ? "savedState" : "message",
+      updateType: "message",
       isLocalOp: false,
       runtimeExtra: crdtMeta,
     };
-  }
-}
+  },
+} as const;
 
 export class LoadCRDTMeta implements CRDTSavedStateMeta {
   readonly remoteVectorClock: BasicVectorClock;

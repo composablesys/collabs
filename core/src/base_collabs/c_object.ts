@@ -8,7 +8,8 @@ import {
   MetaRequest,
   Parent,
   SavedStateTree,
-  UpdateMeta,
+  MessageMeta,
+  SavedStateMeta,
 } from "../core";
 import { nonNull } from "../util/assertions";
 
@@ -16,8 +17,8 @@ import { nonNull } from "../util/assertions";
  * Base class for a collaborative object, containing
  * properties that are themselves [[Collab]]s.
  *
- * See [Data Modeling](../../../guide/data_modeling.html) for a guide and
- * examples of how to extend this class.
+ * See [Data Modeling](https://collabs.readthedocs.io/en/latest/guide/data_modeling.html)
+ * for a guide and examples of how to extend this class.
  *
  * Extending CObject lets you create a reusable object-oriented
  * unit out of one or more existing Collabs.
@@ -71,8 +72,9 @@ export class CObject<Events extends CollabEventsRecord = CollabEventsRecord>
    * ```ts
    * this.foo = this.registerCollab("foo", (init) => new FooClass(init, constructor args...));
    * ```
-   * where `readonly foo: FooClass;` is a Collab property.
-   * See [Data Modeling](../../../guide/data_modeling.html) for examples.
+   * where `readonly foo: FooClass;` is a Collab property. See
+   * [Data Modeling](https://collabs.readthedocs.io/en/latest/guide/data_modeling.html)
+   * for examples.
    *
    * Registrations must be identical across all replicas.
    *
@@ -112,7 +114,7 @@ export class CObject<Events extends CollabEventsRecord = CollabEventsRecord>
     this.send(messageStack, metaRequests);
   }
 
-  receive(messageStack: (Uint8Array | string)[], meta: UpdateMeta): void {
+  receive(messageStack: (Uint8Array | string)[], meta: MessageMeta): void {
     if (messageStack.length === 0) {
       // We are the target
       throw new Error("CObject received message for itself");
@@ -163,7 +165,7 @@ export class CObject<Events extends CollabEventsRecord = CollabEventsRecord>
    * views that were not automatically updated by children's load events.
    * It is recommended to do so as follows:
    * ```ts
-   * load(savedStateTree: SavedStateTree | null, meta: UpdateMeta) {
+   * load(savedStateTree: SavedStateTree | null, meta: SavedStateMeta) {
    *   super.load(savedStateTree, meta);
    *   // Process your extra saved state from savedStateTree.self.
    *   const savedState = savedStateTree === null? null: savedStateTree.self!;
@@ -173,7 +175,7 @@ export class CObject<Events extends CollabEventsRecord = CollabEventsRecord>
    * }
    * ```
    */
-  load(savedStateTree: SavedStateTree | null, meta: UpdateMeta): void {
+  load(savedStateTree: SavedStateTree | null, meta: SavedStateMeta): void {
     if (savedStateTree === null) {
       // Pass the null on to children that might override canGC().
       // For consistency with CLazyMap, only do this for nontrivial children.

@@ -1,74 +1,185 @@
 # Quick Start
 
-In this quick start, you will make a collaborative counter app: a webpage where anyone can view and change a shared counter value. The finished app's code is [here](https://github.com/composablesys/collabs/tree/master/demos/apps/counter) and a live demo is [here](https://collabs-demos.herokuapp.com/web_socket.html?container=demos/counter/dist/counter.html). The [walkthrough part](./walkthrough.html) will walk through the code that you copy and paste here.
+To get started quickly with Collabs, you can use our [app template](https://github.com/composablesys/collabs/tree/master/template-app).
 
-1. Download the [Container Starter Template](https://github.com/composablesys/collabs/tree/master/template-container).
-2. Open the template's root folder in a terminal, then run `npm i` to install dependencies.
-3. Open `src/index.html` in a text editor/IDE. Replace the `TODO` comment with the following HTML content, which adds a title, a display area for the counter, and a button to increment the counter:
+This page has instructions for using the template, a walkthrough of its starter code, and next steps for your own collaborative app.
+
+## Using the Template
+
+1. Download the template from GitHub:
+
+```bash
+git clone TODO
+```
+
+2. Install dependencies:
+
+```bash
+npm i
+```
+
+3. Start the app:
+
+```bash
+npm start
+```
+
+Open [http://localhost:3000/](http://localhost:3000/) in a browser and try out the example app that it starts with - a collaborative counter. Open multiple windows to watch them count in sync!
+
+## Starter Code
+
+The template's starter code is a basic Webpack/TypeScript app, plus code for the collaborative counter example. Let's walk through the code files.
+
+### `src/index.html`
+
+First, take a look at `src/index.html`:
 
 ```html
-<head>
-  <title>Counter</title>
-</head>
+<!DOCTYPE html>
+<html>
+  <head>
+    <title>Collabs template-app</title>
+  </head>
 
-<body>
-  <p id="display">0</p>
-  <button id="increment">+1</button>
-</body>
+  <body>
+    <!-- We include a simple collaborative counter as an example. -->
+    <p id="display">0</p>
+    <button id="increment">+1</button>
+
+    <!-- HtmlWebpackPlugin inserts the script tag for us. -->
+  </body>
+</html>
 ```
 
-4. Open `src/app.ts`. Replace the file with the TypeScript code below. This code connects the display area and increment button to a Collabs `CCounter`---a collaborative counter.
+There's nothing surprising here - it's just a number display and a "+1" button, like you saw on screen.
+
+### `src/main.ts`
+
+Next, let's go through `src/main.ts` one part at a time.
+
+#### Imports
+
+At the top, we import classes from various Collabs packages:
 
 ```ts
-import { CCounter } from "@collabs/collabs";
-import { CContainer } from "@collabs/container";
-
-(async function () {
-  // Create a CContainer, the entry point for a Collabs container.
-  const container = new CContainer();
-
-  // Setup your app, using container.registerCollab to create
-  // Collabs state variables.
-  // Register Collabs.
-  const counter = container.registerCollab(
-    "counter",
-    (init) => new CCounter(init)
-  );
-
-  // Refresh the display when the Collabs state changes, possibly
-  // due to a message from another replica.
-  const display = document.getElementById("display")!;
-  function refreshDisplay() {
-    display.innerHTML = counter.value.toString();
-  }
-  container.on("Change", refreshDisplay);
-
-  // Change counter's value on button clicks.
-  // Note that we don't need to refresh the display here, since Change
-  // events are also triggered by local operations.
-  document.getElementById("increment")!.onclick = () => {
-    counter.add(1);
-  };
-
-  // Wait for the container to load the previous saved state, if any.
-  await container.load();
-
-  // Signal to the container host that we're ready for use.
-  container.ready();
-})();
+import { CCounter, CRuntime } from "@collabs/collabs";
+import { IndexedDBDocStore } from "@collabs/indexeddb";
+import { TabSyncNetwork } from "@collabs/tab-sync";
+import { WebSocketNetwork } from "@collabs/ws-client";
 ```
 
-5. Save both files, then in the terminal (still in the template's root folder), build your app in development mode: `npm run dev`.
+- [@collabs/collabs](https://www.npmjs.com/package/@collabs/collabs) is Collabs's main package. It contains all of the library's collaborative data structures, such as [CCounter](./api/collabs/classes/CCounter.html). It also contains [CRuntime](./api/collabs/classes/CRuntime.html), which you use to make a Collabs [document](./guide/documents.html): a group of Collabs that are shared together.
+- The other packages are optional [network and storage providers](./guide/providers.html), described below. These help you sync Collabs documents with remote collaborators and store them locally.
 
-6. Test your app: `npm start`, then open [http://localhost:3000/](http://localhost:3000/). You should see a simple collaborative counter. Try using it in multiple windows at once.
+#### Collaborative Counter
 
-7. (Optional) Deploy your app to the web:
-   a. Rename the output file: At the `TODO` in `webpack.config.ts`, replace `MY_CONTAINER.html` with `counter.html`. Do the same replacement in `package.json`.
-   b. Build your app in production mode: `npm run build`. This is essentially the same as `npm run dev`, but it makes a smaller output file.
-   c. Take the output file, `dist/counter.html`, and upload it to [Collabs's Container Selector demo](https://collabs-demos.herokuapp.com/web_socket.html?container=demos/selector/dist/selector.html) in the "By file" category. (If you don't see the option to upload a file, you'll need to reset the demo from the "More Info" page linked at the top.) After clicking "Go", you should see your counter, and anyone who visits that page can collaboratively increment the value. Under the hood, Collabs is using our demo server to connect collaborators.
+Next, we setup the app's example collaborative state: a single Collabs document containing a collaborative counter.
+
+```ts
+// --- App code ---
+
+const doc = new CRuntime();
+
+const counter = doc.registerCollab("counter", (init) => new CCounter(init));
+```
+
+Then we hook up this collaborative counter to the GUI, so that:
+
+- The displayed value always matches the counter's current value, even when it is changed by another user.
+- Clicking "+1" increments the counter.
+
+```ts
+const display = document.getElementById("display")!;
+function refreshDisplay() {
+  display.innerHTML = counter.value.toString();
+}
+doc.on("Change", refreshDisplay);
+
+document.getElementById("increment")!.onclick = () => counter.add(1);
+```
+
+#### Network and Storage Providers
+
+The code so far creates a single-user app that forgets its state when you refresh the page. To make it collaborative and persistent, we need to set up the network and storage providers that we imported above.
+
+First, [WebSocketNetwork](./api/ws-client/classes/WebSocketNetwork.html) from package [@collabs/ws-client](https://www.npmjs.com/package/@collabs/ws-client):
+
+```ts
+// --- Network/storage setup ---
+
+const docID = "counter";
+
+const wsURL = "ws://localhost:3001/";
+const wsNetwork = new WebSocketNetwork(wsURL);
+wsNetwork.on("Disconnect", (e) => {
+  // After a disconnection, try to reconnect every 2 seconds, unless
+  // we deliberately called wsNetwork.disconnect().
+  if (e.cause === "manual") return;
+  console.error("WebSocket disconnected due to", e.cause, e.wsEvent);
+  setTimeout(() => {
+    console.log("Reconnecting...");
+    wsNetwork.connect();
+  }, 2000);
+});
+
+wsNetwork.subscribe(doc, docID);
+```
+
+WebSocketNetwork is a network provider that syncs Collabs documents with a central server using WebSockets. This is an easy way to collaborate with other users: each update is sent to the server, which echoes it to other users listening on the same `docID` and also stores it for later.
+
+Note that using a central server to collaborate is convenient but not necessary - you can share Collabs updates however you like (WebRTC, [Dropbox](https://github.com/mweidner037/fileshare-recipe-editor/), ...).
+
+The next provider is [TabSyncNetwork](./api/tab-sync/classes/TabSyncNetwork.html) from package [@collabs/tab-sync](https://www.npmjs.com/package/@collabs/tab-sync):
+
+```ts
+const tabSync = new TabSyncNetwork();
+tabSync.on("Error", (e) => {
+  console.error("IndexedDBDocStore error:", e.err);
+});
+
+tabSync.subscribe(doc, docID);
+```
+
+This is a network provider that shares updates across local tabs using BroadcastChannel. That way, a user with multiple tabs open sees their changes sync quickly, even when offline.
+
+The final provider is [IndexedDBDocStore](./api/indexeddb/classes/IndexedDBDocStore.html) from package [@collabs/indexeddb](https://www.npmjs.com/package/@collabs/indexeddb):
+
+```ts
+const docStore = new IndexedDBDocStore();
+docStore.on("Error", (e) => {
+  console.error("IndexedDBDocStore error:", e.err);
+});
+
+docStore.subscribe(doc, docID);
+```
+
+This is a _storage_ provider that stores Collabs documents in IndexedDB. That way, your app can load documents quickly, even when offline. Adding IndexedDB storage is one step towards making your app [local-first](https://www.inkandswitch.com/local-first/).
+
+### `package.json`
+
+The last bit of code is the `npm start` script, defined in `package.json`:
+
+```json
+{
+  "scripts": {
+    "start": "npm run start:webpack & npm run start:ws-server",
+    "start:webpack": "TS_NODE_PROJECT='tsconfig.webpack-config.json' webpack-dev-server",
+    "start:ws-server": "collabs-ws-server"
+  }
+}
+```
+
+This script runs two servers in parallel (note the single `&`); you can also run each script in a separate terminal.
+
+- `npm run start:webpack` starts [`webpack-dev-server`](https://webpack.js.org/configuration/dev-server/). It serves the app's static files on port 3000 (after building them with Webpack).
+- `npm run start:ws-server` starts `collabs-ws-server` from package [@collabs/ws-server](https://www.npmjs.com/package/@collabs/ws-server). It handles connections from WebSocketNetwork on port 3001.
 
 ## Next Steps
 
-<!-- TODO: walkthrough last (fast track option only), start with Guide Intro. -->
+You've now completed the walkthrough of template-app's starter code. Hopefully this gave you a taste of Collabs!
 
-Head over to the [Guide](./guide/index.html) to begin learning how to create your own Collabs apps, starting with a [walkthrough](./walkthrough.html) of the code you copy-pasted here.
+To turn this into your own app, you'll need to replace the "App code" section in `src/main.ts`. By registering more interesting Collabs than CCounter, you can model your app's collaborative state in Collabs, whether it's a [shared whiteboard](https://collabs-demos.herokuapp.com/whiteboard/), [rich-text editor](https://collabs-demos.herokuapp.com/rich-text/), [recipe editor](https://github.com/mweidner037/fileshare-recipe-editor/), etc.
+
+Eventually, you'll outgrow the template's single, globally-accessible document. Luckily, the network and storage providers let you [work with many documents](./guide/providers.html#collabs-providers), and [@collabs/ws-server](https://www.npmjs.com/package/@collabs/ws-server) lets you set up basic server-side authentication and storage. You can also write [your own providers](./guide/providers.html#manual).
+
+The [Guide](./guide/) covers these topics and more.

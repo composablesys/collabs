@@ -3,8 +3,8 @@ import {
   CollabEvent,
   CollabEventsRecord,
   InitToken,
+  MessageMeta,
   PrimitiveCRDT,
-  UpdateMeta,
 } from "@collabs/collabs";
 import { CResettableCounter } from "@collabs/resettable-counter";
 import * as tf from "@tensorflow/tfjs";
@@ -198,7 +198,7 @@ export class TensorGCounterCollab extends PrimitiveCRDT<TensorCounterEventsRecor
     return idCounter + " " + sender;
   }
 
-  protected receiveCRDT(message: Uint8Array | string, meta: UpdateMeta): void {
+  protected receiveCRDT(message: Uint8Array | string, meta: MessageMeta): void {
     const decoded = proto.TensorGCounterMessage.decode(<Uint8Array>message);
     switch (decoded.data) {
       case "add":

@@ -2,12 +2,14 @@ import {
   DefaultSerializer,
   IMap,
   InitToken,
-  int64AsNumber,
-  nonNull,
+  MessageMeta,
   Optional,
-  protobufHas,
+  SavedStateMeta,
   Serializer,
   UpdateMeta,
+  int64AsNumber,
+  nonNull,
+  protobufHas,
 } from "@collabs/core";
 import { fromByteArray, toByteArray } from "base64-js";
 import {
@@ -64,7 +66,7 @@ export interface MultiValueMapItem<V> {
  * [[aggregate]] to the concurrently-set values,
  * returning your desired value.
  *
- * For example, our [whiteboard demo](https://collabs-demos.herokuapp.com/web_socket.html?container=demos/whiteboard/dist/whiteboard.html)
+ * For example, our [whiteboard demo](https://collabs-demos.herokuapp.com/whiteboard/)
  * takes the RGB average of concurrently-set colors,
  * thus blending concurrent strokes.
  */
@@ -183,7 +185,7 @@ export class CMultiValueMap<K, V>
 
   protected receiveCRDT(
     message: Uint8Array | string,
-    meta: UpdateMeta,
+    meta: MessageMeta,
     crdtMeta: CRDTMessageMeta
   ): void {
     const decoded = MultiValueMapMessage.decode(<Uint8Array>message);
@@ -368,7 +370,7 @@ export class CMultiValueMap<K, V>
 
   loadCRDT(
     savedState: Uint8Array | null,
-    meta: UpdateMeta,
+    meta: SavedStateMeta,
     crdtMeta: CRDTSavedStateMeta
   ): void {
     let decoded: MultiValueMapSave;
@@ -411,7 +413,7 @@ export class CMultiValueMap<K, V>
     localItems: MultiValueMapItem<V>[] | undefined,
     remoteItems: MultiValueMapItemsSave | undefined,
     decodedSenders: string[],
-    meta: UpdateMeta,
+    meta: SavedStateMeta,
     crdtMeta: CRDTSavedStateMeta
   ): void {
     // The new set of items is the union of:

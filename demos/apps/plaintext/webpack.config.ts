@@ -1,24 +1,15 @@
+import CopyPlugin from "copy-webpack-plugin";
+import HtmlWebpackPlugin from "html-webpack-plugin";
 import * as path from "path";
 import * as webpack from "webpack";
-import HtmlWebpackPlugin from "html-webpack-plugin";
-import InlineChunkHtmlPlugin from "react-dev-utils/InlineChunkHtmlPlugin";
-import { CleanWebpackPlugin } from "clean-webpack-plugin";
-import CopyWebpackPlugin from "copy-webpack-plugin";
 
+// Basic Webpack config for TypeScript, based on
+// https://webpack.js.org/guides/typescript/ .
 const config: webpack.Configuration = {
+  // mode and devtool are overridden by `npm run build` for production mode.
   mode: "development",
   devtool: "eval-source-map",
-  optimization: {
-    usedExports: true,
-    innerGraph: true,
-    sideEffects: true,
-  },
-  entry: "./src/plaintext.ts",
-  output: {
-    filename: "[name].js",
-    path: path.resolve(__dirname, "dist"),
-    clean: true,
-  },
+  entry: "./src/main.ts",
   module: {
     rules: [
       {
@@ -36,40 +27,19 @@ const config: webpack.Configuration = {
   resolve: {
     extensions: [".tsx", ".ts", ".js"],
   },
+  output: {
+    filename: "[name].bundle.js",
+    path: path.resolve(__dirname, "dist"),
+    clean: true,
+  },
   plugins: [
-    // Create an HTML file as the entry point, instead of just
-    // a .js file.
+    // Use src/index.html as the entry point.
     new HtmlWebpackPlugin({
-      filename: "plaintext.html",
-      // Use plaintext.html as the HTML file,
-      // instead of the plugin's default file.
-      template: "./src/plaintext.html",
-      // Inject the compiled .js into <body> instead of
-      // <head>.  This lets use access HTML elements immediately
-      // in plaintext.ts file, instead of awaiting window.onload.
-      // (Normally you don't have to do this because scripts are
-      // deferred, but inline scripts can't be deferred.)
-      inject: "body",
+      template: "./src/index.html",
     }),
-    // Inline scripts in the HtmlWebpackPlugin's generated
-    // HTML file.
-    // Docs: https://github.com/facebook/create-react-app/tree/main/packages/react-dev-utils#new-inlinechunkhtmlpluginhtmlwebpackplugin-htmlwebpackplugin-tests-regex
-    new InlineChunkHtmlPlugin(HtmlWebpackPlugin, [/.*/]) as any,
-    // Delete built .js files.  We don't need them since they
-    // are inlined by InlineChunkHtmlPlugin.
-    new CleanWebpackPlugin({
-      cleanAfterEveryBuildPatterns: ["**/*.js"],
-      cleanStaleWebpackAssets: false,
-      protectWebpackAssets: false,
-    }),
-    new CopyWebpackPlugin({
-      patterns: [
-        // Copy info.json.
-        {
-          from: "./src/info.json",
-          to: "./[base]",
-        },
-      ],
+    // Copy assets to the dist folder.
+    new CopyPlugin({
+      patterns: [{ from: "src/about.html", to: "[name][ext]" }],
     }),
   ],
 };

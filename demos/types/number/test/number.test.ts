@@ -1,10 +1,7 @@
 import { CRuntime, TestingRuntimes } from "@collabs/collabs";
 import { assert } from "chai";
+import seedrandom from "seedrandom";
 import { CNumber } from "../src";
-import { debug } from "./debug";
-import seedrandom = require("seedrandom");
-
-// TODO: these take a suspiciously long time to run.
 
 describe("Number", () => {
   let runtimeGen: TestingRuntimes;
@@ -29,28 +26,6 @@ describe("Number", () => {
     bobNumber = bob.registerCollab(
       name,
       (init) => new CNumber(init, initialValue)
-    );
-    if (debug) {
-      addEventListeners(aliceNumber, "Alice");
-      addEventListeners(bobNumber, "Bob");
-    }
-  }
-
-  function addEventListeners(number: CNumber, name: string): void {
-    number.on("Add", (event) =>
-      console.log(`${name}: ${event.meta.senderID} added ${event.arg}`)
-    );
-
-    number.on("Mult", (event) =>
-      console.log(`${name}: ${event.meta.senderID} multed ${event.arg}`)
-    );
-
-    number.on("Min", (event) =>
-      console.log(`${name}: ${event.meta.senderID} minned ${event.arg}`)
-    );
-
-    number.on("Max", (event) =>
-      console.log(`${name}: ${event.meta.senderID} maxed ${event.arg}`)
     );
   }
 

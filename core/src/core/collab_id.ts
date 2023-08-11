@@ -19,7 +19,7 @@ import { Parent } from "./parent";
  *
  * CollabIDs are JSON objects and can be serialized with [[DefaultSerializer]].
  * You can also use [CollabIDSerializer](../core/classes/CollabIDSerializer.html)
- * (in package `@collabs/core`).
+ * (in package @collabs/core).
  */
 // eslint-disable-next-line @typescript-eslint/no-unused-vars
 export type CollabID<C extends Collab> = {

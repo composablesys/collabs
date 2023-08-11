@@ -8,10 +8,10 @@ Guide
    :caption: Contents:
    
    introduction
-   entry_points
-   initialization
+   documents
    handling_changes
+   providers
    built_in_collabs
+   collections
    data_modeling
-   containers
    gotchas

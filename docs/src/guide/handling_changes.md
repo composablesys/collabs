@@ -1,39 +1,59 @@
 # Handling Changes
 
-When remote users change a collaborative data structure's state, you need to know about that change, so that you can refresh your display. The easiest way to do this is to handle your [entry point](./entry_points.html)'s `Change` event, which works for both [CRuntime](../api/collabs/classes/CRuntime.html) and [CContainer](../api/container/classes/CContainer.html):
+A Collab changes state not just when you mutate it locally, but also when you receive updates from a remote collaoborator, or when you load some state from storage. You need to know about these changes so that you can update your display.
+
+## Document "Change" Event
+
+The easiest way to handle changes is to listen on your document's "Change" event, like so:
 
 ```ts
 function refreshDisplay() {
   // Refresh the display (and other views of the collaborative state)
-  // so that it reflects the current state of your collaborative data structures
+  // so that it reflects the current state of your Collabs.
   // ...
 }
-
-runtime.on("Change", refreshDisplay);
+doc.on("Change", refreshDisplay);
 ```
+
+Here `doc` can be a [CRuntime](../api/collabs/classes/CRuntime.html) or [AbstractDoc](../api/collabs/classes/AbstractDoc.html). This "Change" event is emitted after each task in which the document's state changes, as described in [our API documentation](../api/collabs/interfaces/DocEventsRecord.html#Change).
 
 For example, in the [Quick Start](../quick_start.html), we did:
 
 ```ts
-// Refresh the display when the Collabs state changes, possibly
-// due to a message from another replica.
 const display = document.getElementById("display")!;
 function refreshDisplay() {
   display.innerHTML = counter.value.toString();
 }
-container.on("Change", refreshDisplay);
+doc.on("Change", refreshDisplay);
 ```
 
-As described in the API docs ([CRuntime Change event docs](../api/collabs/interfaces/RuntimeEventsRecord.html#Change), [CContainer change event docs](../api/container/interfaces/CContainerEventsRecord.html#Change)), a `Change` event is emitted each time your app performs a local operation, receives a message from a remote collaborator, or loads a saved state. Thus using the above pattern ensures that your display is always a functional view of your collaborative state.
+## Collab Events
 
-> You can find the API docs for events like these by going to the event emitter's `on` method (e.g. [CRuntime.on](../api/collabs/classes/CRuntime.html#on)), clicking on `eventName`'s key type (e.g. [RuntimeEventsRecord](../api/collabs/interfaces/RuntimeEventsRecord.html)), then viewing the property with the event's name. That property's type tells you the type of the event `e` passed to your event handler (ignored in our example).
+Each Collab also emits type-specific events describing changes as they occur.
 
-## Fine-Grained Changes: Events
+For example, in [our whiteboard demo](https://github.com/composablesys/collabs/blob/master/demos/apps/whiteboard/src/main.ts), it would be inefficient to repaint the whole whiteboard after each change. Instead, we listen on CValueMap's ["Set"](../api/collabs/interfaces/MapEventsRecord.html#Set) and ["Delete"](../api/collabs/interfaces/MapEventsRecord.html#Delete) events:
 
-Sometimes you want to know not just that _something_ changed, but _what specifically_ changed. For example, you might want to know which `Collab` changed so you can efficiently refresh only its part of the GUI, or you might want to know what characters were typed in [CText](../api/collabs/classes/CText.html) and where. [Events](../advanced/events.html), covered in [Advanced Topics](../advanced/), make this possible.
+```ts
+const boardState: CValueMap<[x: number, y: number], Color> = ...;
+const ctx: CanvasRenderingContext2D = ...;
+
+// Draw points
+boardState.on("Set", (event) => {
+  const [x, y] = event.key;
+  const [r, g, b] = event.value;
+  ctx.fillStyle = `rgb(${r},${g},${b})`;
+  ctx.fillRect(x, y, 1, 1);
+});
+
+// Clear points
+boardState.on("Delete", (event) => {
+  const [x, y] = event.key;
+  ctx.clearRect(x, y, 1, 1);
+});
+```
+
+Each of our built-in Collabs emits events like these that completely describe how its state changes over time. You can find a Collab's event names and types in the API docs for its `on` method (click the `...EventsRecord` type name). E.g., here is [CValueMap.on](../api/collabs/classes/CValueMap.html#on), and here is its [MapEventsRecord](../api/collabs/interfaces/MapEventsRecord.html).
 
 ## Next Steps
 
-We've finished describing the three [wrinkles](./introduction.html#using-collabs) from the introduction. You now know enough to start using Collabs for real - congrats!
-
-The [Walkthrough of Quick Start](../walkthrough.html) puts everything together. After that, the Guide continues with some pages that are not necessary but often useful.
+Finish setting up your Collabs by configuring [Providers](./providers.html).

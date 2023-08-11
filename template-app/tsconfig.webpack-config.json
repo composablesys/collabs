@@ -1,0 +1,15 @@
+// From https://webpack.js.org/configuration/configuration-languages/#typescript
+// Used when running Webpack, so that it can understand
+// webpack.config.ts.
+{
+  "compilerOptions": {
+    "module": "commonjs",
+    "target": "ES6",
+    /* Enable strict type checking. */
+    "strict": true,
+    /* Prevent errors caused by other libraries. */
+    "skipLibCheck": true,
+    /* Enable interop with dependencies using different module systems. */
+    "esModuleInterop": true
+  }
+}

@@ -23,7 +23,6 @@ do
     grep -rl --exclude-dir={node_modules,.git} --include="package.json" "\"@collabs/$package\": \"$1\"" . | xargs sed -i "s/\"@collabs\/$package\": \"$1\"/\"@collabs\/$package\": \"$2\"/g"
 done
 
-# TODO: automatically update dependency versions in templates.
 echo ""
-echo "! Manually update template dependency versions if needed"
-echo "!     E.g., 0.1.x -> 0.2.x"
+echo "! Also update range versions if needed, e.g.:"
+echo "!     npm run version ^0.1.0 ^0.2.0"

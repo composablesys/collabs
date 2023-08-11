@@ -1,12 +1,26 @@
 # All Packages
 
-List on npm: [Collabs org](https://www.npmjs.com/org/collabs)
+[List on npm](https://www.npmjs.com/org/collabs)
 
-- [@collabs/collabs](https://www.npmjs.com/package/@collabs/collabs): Main package; includes data structures for local-first collaborative apps. Internally, it just re-exports the most commonly-used parts of [@collabs/core](https://www.npmjs.com/package/@collabs/core) and [@collabs/crdts](https://www.npmjs.com/package/@collabs/crdts).
-- [@collabs/container](https://www.npmjs.com/package/@collabs/container): Tools for [Collabs containers](./guide/containers.html) (network-agnostic collaborative apps), including the entry point class `CContainer`.
-- [@collabs/container-testing-server](https://www.npmjs.com/package/@collabs/container-testing-server): Simple server for testing [Collabs containers](./guide/containers.html). Provides the `container-testing-server` CLI command.
-- [@collabs/matrix-widget](https://www.npmjs.com/package/@collabs/matrix-widget): Provides `MatrixWidgetNetwork`, a demo network that connects a @collabs/collabs `CRuntime` to the [Matrix](https://matrix.org/) network inside a widget. You can try it out using [our demo server](https://collabs-demos.herokuapp.com/#matrix), which lets you run any [container](./guide/containers.html) over Matrix.
-- [@collabs/ws-client](https://www.npmjs.com/package/@collabs/ws-client): Provides `WebSocketNetwork`, a demo network that connects a @collabs/collabs `CRuntime` to a [@collabs/ws-server](https://www.npmjs.com/package/@collabs/ws-server) server over WebSockets.
-- [@collabs/ws-server](https://www.npmjs.com/package/@collabs/ws-server): NodeJS server for [@collabs/ws-client](https://www.npmjs.com/package/@collabs/ws-client).
-- [@collabs/core](https://www.npmjs.com/package/@collabs/core): Includes the parts of Collabs that are applicable to general collaborative data structures (i.e., message-driven replicated data types), not just Conflict-free Replicated Data Types (CRDTs). Use this to import parts not included in [@collabs/collabs](https://www.npmjs.com/package/@collabs/collabs), or if you are developing a non-CRDT extension to Collabs, e.g., a library for collaborative data structures that are managed by a central server.
-- [@collabs/crdts](https://www.npmjs.com/package/@collabs/crdts): Includes Collabs's Conflict-free Replicated Data Types (CRDTs). Use this to import parts not included in [@collabs/collabs](https://www.npmjs.com/package/@collabs/collabs).
+## Main Package
+
+- [@collabs/collabs](https://www.npmjs.com/package/@collabs/collabs): A library for network- and storage-agnostic collaborative data structures (CRDTs).
+
+## Network Providers
+
+- [@collabs/ws-client](https://www.npmjs.com/package/@collabs/ws-client): Contains [WebSocketNetwork](./api/ws-client/classes/WebSocketNetwork.html), a network provider that syncs Collabs documents with a central server using WebSockets.
+- [@collabs/ws-server](https://www.npmjs.com/package/@collabs/ws-server): Node.js server for @collabs/ws-client. Contains [WebSocketNetworkServer](./api/ws-server/classes/WebSocketNetworkServer.html) and the `collabs-ws-server` command.
+- [@collabs/tab-sync](https://www.npmjs.com/package/@collabs/tab-sync): Contains [TabSyncNetwork](./api/tab-sync/classes/TabSyncNetwork.html), a network provider that shares updates across local tabs using BroadcastChannel.
+- [@collabs/matrix-widget](https://www.npmjs.com/package/@collabs/matrix-widget): Contains [MatrixWidgetNetwork](./api/matrix-widget/classes/MatrixWidgetNetwork.html), a network provider that syncs Collabs documents through a [Matrix](https://matrix.org/) room from inside a widget. It is currently **experimental** because it does not save documents reliably.
+
+## Storage Providers
+
+- [@collabs/indexeddb](https://www.npmjs.com/package/@collabs/indexeddb): Contains [IndexedDBDocStore](./api/indexeddb/classes/IndexedDBDocStore.html), a storage provider that stores Collabs documents in IndexedDB.
+- [@collabs/local-storage](https://www.npmjs.com/package/@collabs/local-storage): Contains [LocalStorageDocStore](./api/local-storage/classes/LocalStorageDocStore.html), a storage provider that stores Collabs documents in localStorage.
+
+## Internal
+
+@collabs/collabs is internally split into two packages:
+
+- [@collabs/core](https://www.npmjs.com/package/@collabs/core): The parts of Collabs that are applicable to general collaborative data structures (update-driven replicated data types), not just Conflict-free Replicated Data Types (CRDTs). Use this to import internal utilities not included in @collabs/collabs, or if you are developing a non-CRDT extension to Collabs (e.g., a server-side reconciliation library.)
+- [@collabs/crdts](https://www.npmjs.com/package/@collabs/crdts): Collabs's CRDTs.

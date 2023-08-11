@@ -34,12 +34,9 @@
   },
   "sideEffects": false,
   "dependencies": {
-    "@collabs/collabs": "0.12.0",
-    "@types/ws": "^7.2.6",
-    "base64-js": "^1.5.1",
-    "reconnecting-websocket": "^4.4.0",
-    "tslib": "^2.0.1",
-    "ws": "^7.4.6"
+    "@collabs/collabs": "^0.12.0",
+    "protobufjs": "~6.9.0",
+    "tslib": "^2.0.1"
   },
   "devDependencies": {
     "npm-run-all": "^4.1.5",
@@ -50,11 +47,15 @@
   "scripts": {
     "prepack": "npm run clean && npm run build && npm run test",
     "build": "npm-run-all build:*",
-    "build:ts": "tsc -p tsconfig.json && tsc -p tsconfig.commonjs.json",
+    "build:protobuf": "npm-run-all build:protobuf:*",
+    "build:protobuf:prepare": "mkdirp generated_esm generated build/esm/generated",
+    "build:protobuf:js": "pbjs -t static-module -w es6 -o generated_esm/proto_compiled.js `find src -name '*.proto'` && pbjs -t static-module -w commonjs -o generated/proto_compiled.js `find src -name '*.proto'`",
+    "build:protobuf:ts": "pbts -o generated/proto_compiled.d.ts generated/proto_compiled.js",
+    "build:ts": "tsc -p tsconfig.json && tsc -p tsconfig.commonjs.json && cp generated_esm/proto_compiled.js build/esm/generated/proto_compiled.js",
     "test": "npm-run-all test:*",
     "test:format": "prettier --check .",
     "fix": "npm-run-all fix:*",
     "fix:format": "prettier --write .",
-    "clean": "rimraf build"
+    "clean": "rimraf generated generated_esm build"
   }
 }

@@ -2,13 +2,11 @@
 
 **Collabs** is a collections library for **collaborative data structures**. These are data structures that look like `Set`, `Map`, `Array`, etc., except they are synchronized between multiple users: when one user changes a collaborative data structure, their changes show up for every other user.
 
-We sometimes use `Collab` as an abbreviation for "collaborative data structure". It is also the name of an abstract class, [`Collab`](../api/collabs/classes/Collab.html), that all of our collaborative data structures extend. Then the Collabs library is literally a library of `Collab`s.
-
-> To avoid confusion between the library name (Collabs) vs the plural of `Collab` (`Collab`s), we will always put the latter in `code font`.
+We call each collaborative data structure a **Collab**, for short.
 
 ## Example: Counter
 
-For example, the [Quick Start](../quick_start.html) (live demo [here](https://collabs-demos.herokuapp.com/web_socket.html?container=demos/counter/dist/counter.html)) uses a [`CCounter`](../api/collabs/classes/CCounter.html) collaborative data structure. This is an object that has an API like a `number`:
+The [Quick Start](../quick_start.html) uses a [CCounter](../api/collabs/classes/CCounter.html) Collab. This is an object with a simple numeric API:
 
 ```ts
 class CCounter {
@@ -18,28 +16,21 @@ class CCounter {
 }
 ```
 
-But unlike an ordinary number, when one user calls `counter.add(1)`, 1 is added to _every_ user's `counter.value`, not just theirs. If multiple users call `counter.add(1)` at the same time, all of their additions go through, increasing their shared value by the total number of calls. In this way, everyone eventually (after network delay) ends up seeing the same `counter.value`, as you'd expect.
+But unlike an ordinary number, when one user calls `counter.add(1)`, 1 is added to _every_ user's `counter.value`, not just theirs. If multiple users call `counter.add(1)` at the same time, all of their additions go through, increasing their shared value by the total number of calls. In this way, everyone eventually ends up seeing the same `counter.value`, as you'd expect.
 
-You can try this out in the [live demo](https://collabs-demos.herokuapp.com/web_socket.html?container=demos/counter/dist/counter.html): open it in multiple tabs, then watch how incrementing the value in one tab also increments the value in the other. This also works if you open the tabs on different devices, since they are connected through our demo server.
+You can try this out in the [live demo](https://collabs-demos.herokuapp.com/counter/): open it in multiple tabs, then watch how incrementing the value in one tab also increments the value in the other. This also works if you open the tabs on different devices, since they are connected through our demo server.
 
-You can also try disconnecting one tab by unchecking the box at the top. Verify that if you disconnect one tab, increment both tabs, then reconnect the first tab, all tabs end up seeing both increments.
+You can also try disconnecting one tab by unchecking the box at the top. Verify that if you disconnect one tab, increment both tabs, and reconnect, then both increments go through.
 
 ## Example: Whiteboard
 
-`CCounter` is simple but not especially useful. Collection types, like maps, are more useful.
+Our [whiteboard demo](https://collabs-demos.herokuapp.com/whiteboard/) uses a map Collab to store the board state. Specifically, it uses a [CValueMap](../api/collabs/classes/CValueMap.html) that maps each coordinate `[x, y]` to its color:
 
-For example, our [whiteboard demo](https://collabs-demos.herokuapp.com/web_socket.html?container=demos/whiteboard/dist/whiteboard.html) uses a map collaborative data structure to store the board state. Specifically, it uses an [`CValueMap`](../api/collabs/classes/CValueMap.html) from coordinates `[x: number, y: number]` to `Color = [r: number, g: number, b: number]`
-
-```
-const boardState: CValueMap<[x: number, y: number], Color>
+```ts
+const boardState: CValueMap<[x: number, y: number], Color>;
 ```
 
-Here:
-
-- `CValueMap` is imported via `import { CValueMap } from @collabs/collabs`.
-- The `boardState` is a `const` because we always use the same `CValueMap` _instance_; all operations mutate the map internally. This is a general rule for Collabs: you keep the same instance of a `Collab` for its whole lifetime, while operations (either by the local user and by other collaborators) mutate its internal state.
-
-Once `boardState` is initialized (discussed later in [Initialization](./initialization.html)), you can use it like an ordinary `Map<[x: number, y: number], Color>`:
+Once `boardState` is initialized (discussed later in [Documents](./documents.html#using-cruntime)), you can use it like an ordinary `Map<[x: number, y: number], Color>`:
 
 ```ts
 class CValueMap<K, V> {
@@ -58,6 +49,7 @@ function repaint(ctx: CanvasRenderingContext2D) {
   // Clear old state.
   ctx.fillStyle = "white";
   ctx.fillRect(0, 0, WIDTH, HEIGHT);
+
   // Draw current state.
   for (const [[x, y], [r, g, b]] of boardState.entries()) {
     ctx.fillStyle = `rgb(${r},${g},${b})`;
@@ -66,24 +58,26 @@ function repaint(ctx: CanvasRenderingContext2D) {
 }
 ```
 
-> The actual [demo code](https://github.com/composablesys/collabs/tree/master/demos/apps/whiteboard) is a bit different because it uses granular "pixels", and because it optimizes repaints using [Events] (covered in the [Advanced Guide](../advanced/)).
+As an optimization, you can also render changes incrementally, by handling [Collab events](./handling_changes.html#collab-events).
 
 ## More Collaborative Data Structures
 
-Collabs comes with more collaborative data structures built-in. These include other primitive and collection types like `CCounter` and `CValueMap`, plus collections like `CSet` that can contain `Collab`s as elements. See [Built-In `Collab`s](./build_in_collabs.html) for a summary.
+Collabs comes with more collaborative data structures built-in. Fancy ones include [CRichText](../api/collabs/classes/CRichText.html) for rich text, and [CList](../api/collabs/classes/CList.html) for a list of other Collabs. See [Built-in Collabs](./built_in_collabs.html) for a summary.
 
-For complex apps, you might want to organize your collaborative state into reusable classes. [Data Modeling](./data_modeling) explains how you can make these classes be `Collab`s themselves---a unique feature of our library.
+For complex apps, you might want to organize your collaborative state into reusable classes. [Data Modeling](./data_modeling.html) explains how to do this, by making your own Collab that encapsulates existing Collabs in a custom API - a unique feature of our library.
 
 ## Using Collabs
 
-There are a few extra wrinkles when using Collabs, relative to using ordinary (non-collaborative) data structures. We go over them in the next sections of this Guide. Briefly, they are:
+Collaborative data structures require a bit more setup than local ones, to make them actually collaborative. The steps are:
 
-1. [**Entry Points:**](./entry_points.html) Before you can initialize your `Collab`s, you must create an entry point, which is either a [CRuntime](../api/collabs/classes/CRuntime.html) or a [CContainer](../api/container/classes/CContainer.html). This handles connecting your `Collab`s to other collaborators over the network, loading saved state from storage, and other utilities.
-2. [**Initializing `Collab`s:**](./initialization.html) To ensure that your `Collab`s are connected to the network, they need to know about your entry point. We enforce this by not letting you initialize `Collab`s in isolation by calling their constructor directly. Instead, you need to initialize `Collab`s using a method like [CRuntime.registerCollab](../api/collabs/classes/CRuntime.html#registerCollab).
-3. [**Handling Changes:**](./handling_changes.html) When your collaborative state changes, such as when you receive an update from a remote user, you need to know about that change so you can refresh your display. [Handling Changes](./handling_changes.html) describes an easy way to do this. More flexible/optimized techniques are described in [Events](../advanced/events.html) in the [Advanced Guide](../advanced/).
+1. Create a [**document**](./documents.html) holding your Collabs.
+2. [**Handle changes**](./handling_changes.html) to your Collabs, so that when a remote collaborator changes the collaborative state, you update the local display.
+3. Configure [**network and storage providers**](./providers.html) that keep your Collabs in sync with remote collaborators and persistent storage.
+
+We go over these steps in the next three pages of the Guide.
 
 ## Next Steps
 
-Continue following the Guide with [Entry Points](./entry_points.html).
+Continue following the Guide with [Documents](./documents.html).
 
-Or, if you are impatient, skip to the [Walkthrough of Quick Start](../walkthrough.html) to see how everything fits together in a complete app.
+Or, use the [Quick Start](../quick_start.html) to get started with an app template.

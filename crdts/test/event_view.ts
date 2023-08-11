@@ -56,7 +56,7 @@ export abstract class EventView<C extends Collab> {
           this.wrap(() => {
             if (!checkPending) {
               checkPending = true;
-              (collab.runtime as CRuntime).on("Transaction", () => {
+              (collab.runtime as CRuntime).on("Update", () => {
                 checkPending = false;
                 this.checkInstance();
               });

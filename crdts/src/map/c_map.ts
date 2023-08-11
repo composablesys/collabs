@@ -23,7 +23,7 @@ import { CValueMap } from "./c_value_map";
  *
  * Unlike a normal `Map<K, C>`, you do not set values directly.
  * Instead, you use the pattern described in
- * [dynamically-created Collabs](../../../guide/initialization.html#dynamically-created-collabs):
+ * [collections of Collabs](https://collabs.readthedocs.io/en/latest/guide/collections.html):
  * one user calls [[set]] with `SetArgs`; each
  * replica passes those `SetArgs` to its
  * `valueConstructor`;
@@ -58,7 +58,7 @@ export class CMap<
    * Constructs a CMap with the given `valueConstructor`.
    *
    * @param valueConstructor Callback used to construct a
-   * value Collab with the given [[InitToken]], key, and arguments to [[set]]. See [dynamically-created Collabs](../../../guide/initialization.html#dynamically-created-collabs)
+   * value Collab with the given [[InitToken]], key, and arguments to [[set]]. See [collections of Collabs](https://collabs.readthedocs.io/en/latest/guide/collections.html)
    * for example usage.
    * @param options.keySerializer A serializer for keys.
    * Defaults to [[DefaultSerializer]].

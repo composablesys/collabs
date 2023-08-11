@@ -2,9 +2,10 @@ import {
   CollabEvent,
   CollabEventsRecord,
   InitToken,
+  MessageMeta,
   Position,
+  SavedStateMeta,
   Serializer,
-  UpdateMeta,
   int64AsNumber,
   nonNull,
   protobufHas,
@@ -130,7 +131,7 @@ export class CSpanLog<F extends Record<string, any>> extends PrimitiveCRDT<
 
   protected receiveCRDT(
     message: string | Uint8Array,
-    meta: UpdateMeta,
+    meta: MessageMeta,
     crdtMeta: CRDTMessageMeta
   ): void {
     const decoded = this.partialSpanSerializer.deserialize(<Uint8Array>message);
@@ -175,7 +176,10 @@ export class CSpanLog<F extends Record<string, any>> extends PrimitiveCRDT<
     return SpanLogSaveMessage.encode(message).finish();
   }
 
-  protected loadCRDT(savedState: Uint8Array | null, meta: UpdateMeta): void {
+  protected loadCRDT(
+    savedState: Uint8Array | null,
+    meta: SavedStateMeta
+  ): void {
     if (savedState === null) return;
 
     const decoded = SpanLogSaveMessage.decode(savedState);

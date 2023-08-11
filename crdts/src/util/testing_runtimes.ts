@@ -33,12 +33,16 @@ export class TestingRuntimes {
    *
    * @param options.rng A PRNG used to deterministically set the replicaID
    * (via [[ReplicaIDs.pseudoRandom]]).
-   * @param options.causalityGuaranteed As in [[CRuntime]]'s constructor.
+   * @param options.causalityGuaranteed See [[DocOptions.causalityGuaranteed]].
+   * @param options.skipRedundantLoads Opposite of [[DocOptions.allowRedundantLoads]].
+   * This defaults to false, so that redundant loads are allowed by default, opposite to
+   * CRuntime's default; that way you can test your load functions' idempotence.
    */
   newRuntime(
     options: {
       rng?: seedrandom.prng;
       causalityGuaranteed?: boolean;
+      skipRedundantLoads?: boolean;
     } = {}
   ): CRuntime {
     const debugReplicaID = options.rng
@@ -48,6 +52,7 @@ export class TestingRuntimes {
       autoTransactions: "debugOp",
       debugReplicaID,
       causalityGuaranteed: options.causalityGuaranteed,
+      allowRedundantLoads: !(options.skipRedundantLoads ?? false),
     });
 
     const appQueue = new Map<CRuntime, Uint8Array[]>();

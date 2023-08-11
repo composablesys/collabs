@@ -13,17 +13,15 @@
   },
   "sideEffects": false,
   "dependencies": {
-    "@collabs/collabs": "0.12.x"
+    "@collabs/collabs": "^0.12.0"
   },
   "devDependencies": {
     "@types/chai": "^4.2.14",
     "@types/mocha": "^9.1.0",
     "@types/seedrandom": "^2.4.28",
     "chai": "^4.2.0",
-    "cross-env": "^7.0.3",
     "mocha": "^9.2.0",
     "npm-run-all": "^4.1.5",
-    "rimraf": "^2.7.1",
     "seedrandom": "^3.0.5",
     "ts-node": "^10.1.0",
     "typedoc": "^0.22.11",
@@ -33,7 +31,7 @@
     "build": "npm-run-all build:*",
     "build:ts": "tsc -p tsconfig.json && tsc -p tsconfig.commonjs.json",
     "build:docs": "typedoc --out docs src/index.ts --tsconfig tsconfig.json",
-    "test": "cross-env TS_NODE_PROJECT='./tsconfig.commonjs.json' mocha",
-    "clean": "rimraf build docs"
+    "test": "TS_NODE_PROJECT='./tsconfig.commonjs.json' mocha",
+    "clean": "rm -rf build docs"
   }
 }
