@@ -1,15 +1,16 @@
 # Quick Start
 
-To get started quickly with Collabs, you can use our [app template](https://github.com/composablesys/collabs/tree/master/template-app).
+To get started quickly with Collabs, you can use our [app template](https://github.com/composablesys/collabs-template-app).
 
 This page has instructions for using the template, a walkthrough of its starter code, and next steps for your own collaborative app.
 
 ## Using the Template
 
-1. Download the template from GitHub:
+1. Download the template (or click the "Use this template" button [on GitHub](https://github.com/composablesys/collabs-template-app)):
+
 
 ```bash
-git clone TODO
+git clone https://github.com/composablesys/collabs-template-app.git
 ```
 
 2. Install dependencies:
@@ -38,7 +39,7 @@ First, take a look at `src/index.html`:
 <!DOCTYPE html>
 <html>
   <head>
-    <title>Collabs template-app</title>
+    <title>Collabs app template</title>
   </head>
 
   <body>
@@ -176,7 +177,7 @@ This script runs two servers in parallel (note the single `&`); you can also run
 
 ## Next Steps
 
-You've now completed the walkthrough of template-app's starter code. Hopefully this gave you a taste of Collabs!
+You've now completed the walkthrough of our app template's starter code. Hopefully this gave you a taste of Collabs!
 
 To turn this into your own app, you'll need to replace the "App code" section in `src/main.ts`. By registering more interesting Collabs than CCounter, you can model your app's collaborative state in Collabs, whether it's a [shared whiteboard](https://collabs-demos.herokuapp.com/whiteboard/), [rich-text editor](https://collabs-demos.herokuapp.com/rich-text/), [recipe editor](https://github.com/mweidner037/fileshare-recipe-editor/), etc.
 

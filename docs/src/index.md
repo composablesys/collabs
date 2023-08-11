@@ -27,7 +27,7 @@ api/index
 
 Collabs is written in TypeScript and should work in any JavaScript environment (browser, Node.js, etc.).
 
-Consider using our [app template](https://github.com/composablesys/collabs/tree/master/template-app).
+Consider using our [app template](https://github.com/composablesys/collabs-template-app).
 
 ## Demos
 
@@ -47,7 +47,7 @@ See our talk at [LFW.dev](https://localfirstweb.dev/) meetup #5: [Video](https:/
 - **[Local-first](https://www.inkandswitch.com/local-first/) ready:** Collabs lets users work offline and sync up with collaborators later. We use CRDTs to merge changes even with arbitrary latency and concurrency.
 - **Network- and storage-agnostic:** Collabs generates updates that you must eventually deliver to all collaborators, but you are free to deliver and store these updates however you like. We also publish [providers](./guide/providers.html) that handle this for you.
 - **Keep your data model and type safety:** A key feature of Collabs is that you can organize your collaborative state using [encapsulated, strongly-typed classes](./guide/data_modeling.html).
-- **Flexible and extensible:** Collabs is a library _for_ collaborative data structures, not just a menu of built-in options (but [we provide those too](./guide/built_in_collabs.html)). So if our data structures don't meet your needs, you can create your own and even publish them as 3rd-party libraries: new semantics, faster algorithms, CRDT paper implementations...
+- **Flexible and extensible:** Collabs is a library _for_ collaborative data structures, not just a menu of built-in options (but [we provide those too](./guide/built_in_collabs.html)). So if our data structures don't meet your needs, you can [create your own](https://github.com/composablesys/collabs-template-crdt) and even publish them as 3rd-party libraries: new semantics, faster algorithms, CRDT paper implementations...
 
 ## Community
 

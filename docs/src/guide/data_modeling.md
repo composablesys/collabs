@@ -24,7 +24,9 @@ Notes:
 
 There are some examples below. For more examples, see the source code for our [built-in Collabs](https://github.com/composablesys/collabs/tree/master/crdts/src) or [demos](https://github.com/composablesys/collabs/tree/master/demos/apps).
 
-### [CPairs](https://github.com/composablesys/collabs/blob/master/template-custom-type/src/custom_type.ts)
+### CPairs
+
+This example is copied from the starter code in our [custom CRDT template](https://github.com/composablesys/collabs-template-crdt).
 
 **App:** We want to create a pair of variables.
 

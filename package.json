@@ -16,8 +16,6 @@
     "ws-client",
     "ws-server",
     "matrix-widget",
-    "template-custom-type",
-    "template-app",
     "demos/types/number",
     "demos/types/resettable-counter",
     "demos/apps/counter",
@@ -43,15 +41,6 @@
       "ws-server",
       "matrix-widget"
     ],
-    "noTest": [
-      "template-app",
-      "docs"
-    ],
-    "noFix": [
-      "template-app",
-      "template-custom-type",
-      "docs"
-    ],
     "demoApps": [
       "demos/apps/counter",
       "demos/apps/group",
@@ -69,8 +58,8 @@
     "buildDemoServer": "node foreach-workspace.js publish \"npm run build -w\" && node foreach-workspace.js demoApps \"npm run build -w\"",
     "heroku-postbuild": "npm run buildDemoServer",
     "buildForTypedoc": "node foreach-workspace.js publish \"npm run build -w\"",
-    "test": "node foreach-workspace.js all -s noTest \"npm run test -w\"",
-    "fix": "node foreach-workspace.js all -s noFix \"npm run fix -w\"",
+    "test": "node foreach-workspace.js all \"npm run test -w\"",
+    "fix": "node foreach-workspace.js all \"npm run fix -w\"",
     "version": "bash version_script.sh",
     "publish": "node foreach-workspace.js publish \"npm publish -w\"",
     "clean": "node foreach-workspace.js all \"npm run clean -w\"",
