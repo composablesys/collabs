@@ -1,6 +1,6 @@
 # Horse Color Genetics Demo
 
-A collaborative app where you edit a horse's genes and observe the effects on its coat color, using [@collabs/ws-client](https://www.npmjs.com/package/@collabs/ws-client) and [@collabs/ws-server](https://www.npmjs.com/package/@collabs/ws-server) to connect users via aWebSocket server.
+A collaborative app where you edit a horse's genes and observe the effects on its coat color, using [@collabs/ws-client](https://www.npmjs.com/package/@collabs/ws-client) and [@collabs/ws-server](https://www.npmjs.com/package/@collabs/ws-server) to connect users via a WebSocket server.
 
 This is a collaborative version of an app by [Jennifer Hoffman](http://www.jenniferhoffman.net/). Original app:
 [http://horse.jenniferhoffman.net/horse-color-genetics.html](http://horse.jenniferhoffman.net/horse-color-genetics.html). Since the original app is CC-BY-NC-SA-3.0 licensed, so is this version.

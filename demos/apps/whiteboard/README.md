@@ -1,6 +1,6 @@
 # Whiteboard Demo
 
-A collaborative whiteboard, using [@collabs/ws-client](https://www.npmjs.com/package/@collabs/ws-client) and [@collabs/ws-server](https://www.npmjs.com/package/@collabs/ws-server) to connect users via aWebSocket server.
+A collaborative whiteboard, using [@collabs/ws-client](https://www.npmjs.com/package/@collabs/ws-client) and [@collabs/ws-server](https://www.npmjs.com/package/@collabs/ws-server) to connect users via a WebSocket server.
 
 Author: Ria Pradeep.
 

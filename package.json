@@ -24,6 +24,7 @@
     "demos/apps/horse-color-genetics",
     "demos/apps/minesweeper",
     "demos/apps/plaintext",
+    "demos/apps/recipe-editor",
     "demos/apps/rich-text",
     "demos/apps/whiteboard",
     "demos/apps/server",
@@ -49,6 +50,7 @@
       "demos/apps/horse-color-genetics",
       "demos/apps/minesweeper",
       "demos/apps/plaintext",
+      "demos/apps/recipe-editor",
       "demos/apps/rich-text",
       "demos/apps/whiteboard",
       "demos/apps/server"

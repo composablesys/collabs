@@ -1,0 +1,80 @@
+.outerDiv {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  height: 100%;
+  background-color: rgb(248, 252, 252);
+}
+
+.outerDiv * {
+  font-family: Lato, Arial, sans-serif;
+}
+
+/*
+  For splitting Ingredients & Instructions into two columns.
+  Based on https://www.w3schools.com/howto/howto_css_split_screen.asp.
+*/
+
+/* Viewport for absolutely-positioned elements inside (class "split"). */
+.splitViewport {
+  position: relative;
+  flex: 1 0 auto;
+  width: 100%;
+}
+
+/* Split the screen in half */
+.split {
+  height: 100%;
+  width: 50%;
+  position: absolute;
+  z-index: 1;
+  top: 0;
+  overflow-x: hidden;
+  padding-top: 20px;
+  box-sizing: border-box;
+}
+
+/* Control the left side */
+.left {
+  left: 0;
+  background-color: rgb(225, 238, 233);
+}
+
+.left * {
+  font-size: 14pt;
+}
+
+/* Control the right side */
+.right {
+  right: 0;
+  background-color: rgb(238, 246, 253);
+}
+
+.right * {
+  font-size: 12pt;
+}
+
+/* If you want the content centered horizontally */
+.centered {
+  position: absolute;
+  left: 50%;
+  transform: translate(-50%, 0%);
+}
+
+.title {
+  font-size: 20pt;
+  font-weight: bold;
+  text-align: center;
+}
+
+.instructions {
+  width: 100%;
+  padding: 0 30px 10px 30px;
+  box-sizing: border-box;
+}
+
+/* Mess with Quill's sizing. */
+.ql-container,
+.ql-editor {
+  min-height: 300px;
+}
