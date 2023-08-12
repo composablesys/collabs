@@ -1,6 +1,20 @@
 import { CText, Cursor, Cursors } from "@collabs/collabs";
-import React, { forwardRef, useEffect, useRef, useState } from "react";
+import React, {
+  MutableRefObject,
+  forwardRef,
+  useEffect,
+  useRef,
+  useState,
+} from "react";
 import { useCollab } from "../hooks/use_collab";
+
+// React.ForwardedRef is missing from @types/react v16.8.0. Since it's not
+// part of our exported type signature, we don't really need to bump the
+// peerDep version; instead, we just copy it from DefinitelyTyped.
+type ForwardedRef<T> =
+  | ((instance: T | null) => void)
+  | MutableRefObject<T | null>
+  | null;
 
 export type CollabsTextInputProps = {
   text: CText;
@@ -17,7 +31,7 @@ export type CollabsTextInputProps = {
 
 export const CollabsTextInput = forwardRef(function CollabsTextInput(
   props: CollabsTextInputProps,
-  externalRef: React.ForwardedRef<HTMLInputElement>
+  externalRef: ForwardedRef<HTMLInputElement>
 ) {
   const { text, ...other } = props;
   useCollab(text);

@@ -181,9 +181,6 @@ export interface DocEventsRecord {
   /**
    * Emitted after applying a synchronous set of updates. This
    * is a good time to rerender the GUI.
-   *
-   * Specifically, this event is emitted in a new microtask
-   * scheduled at the end of the first update.
    */
   Change: object;
 }
@@ -374,21 +371,7 @@ export class CRuntime
       senderCounter: crdtMeta.senderCounter,
       isLocalOp: true,
     });
-    this.scheduleChangeEvent();
-  }
-
-  private changePending = false;
-  /**
-   * Emits a change event in a new microtask, if one is not pending already.
-   */
-  private scheduleChangeEvent() {
-    if (!this.changePending) {
-      this.changePending = true;
-      void Promise.resolve().then(() => {
-        this.changePending = false;
-        this.emit("Change", {});
-      });
-    }
+    this.emit("Change", {});
   }
 
   /**
@@ -448,52 +431,54 @@ export class CRuntime
       }
     }
 
-    if (this.meta === null) {
-      // First message in a transaction; tick our current VC etc.
-      // and use the new values to create the transaction's meta.
-      // OPT: avoid this copy (not required by SendCRDTMeta,
-      // but required due to tick()).
-      const causallyMaximalVCKeys = new Set(this.buffer.maximalVCKeys);
-      this.buffer.tick();
+    try {
+      if (this.meta === null) {
+        // First message in a transaction; tick our current VC etc.
+        // and use the new values to create the transaction's meta.
+        // OPT: avoid this copy (not required by SendCRDTMeta,
+        // but required due to tick()).
+        const causallyMaximalVCKeys = new Set(this.buffer.maximalVCKeys);
+        this.buffer.tick();
 
-      this.crdtMeta = new SendCRDTMeta(
-        this.replicaID,
-        this.buffer.vc,
-        causallyMaximalVCKeys,
-        Date.now(),
-        this.buffer.lamportTimestamp
-      );
-      this.meta = {
-        senderID: this.replicaID,
-        updateType: "message",
-        isLocalOp: true,
-        runtimeExtra: this.crdtMeta,
-      };
-    }
+        this.crdtMeta = new SendCRDTMeta(
+          this.replicaID,
+          this.buffer.vc,
+          causallyMaximalVCKeys,
+          Date.now(),
+          this.buffer.lamportTimestamp
+        );
+        this.meta = {
+          senderID: this.replicaID,
+          updateType: "message",
+          isLocalOp: true,
+          runtimeExtra: this.crdtMeta,
+        };
+      }
 
-    // Process meta requests, including automatic mode by default.
-    const crdtMeta = nonNull(this.crdtMeta);
-    crdtMeta.requestAutomatic(true);
-    for (const metaRequest of <CRDTMetaRequest[]>metaRequests) {
-      if (metaRequest.lamportTimestamp) crdtMeta.requestLamportTimestamp();
-      if (metaRequest.wallClockTime) crdtMeta.requestWallClockTime();
-      if (metaRequest.vectorClockKeys) {
-        for (const sender of metaRequest.vectorClockKeys) {
-          crdtMeta.requestVectorClockEntry(sender);
+      // Process meta requests, including automatic mode by default.
+      const crdtMeta = nonNull(this.crdtMeta);
+      crdtMeta.requestAutomatic(true);
+      for (const metaRequest of <CRDTMetaRequest[]>metaRequests) {
+        if (metaRequest.lamportTimestamp) crdtMeta.requestLamportTimestamp();
+        if (metaRequest.wallClockTime) crdtMeta.requestWallClockTime();
+        if (metaRequest.vectorClockKeys) {
+          for (const sender of metaRequest.vectorClockKeys) {
+            crdtMeta.requestVectorClockEntry(sender);
+          }
         }
       }
+
+      // Local echo.
+      this.rootCollab.receive(messageStack.slice(), this.meta);
+
+      // Disable automatic meta request, to prevent accesses outside of
+      // the local echo from changing the meta locally only.
+      crdtMeta.requestAutomatic(false);
+
+      this.messageBatches.push(messageStack);
+    } finally {
+      if (autoEndTransaction) this.endTransaction();
     }
-
-    // Local echo.
-    this.rootCollab.receive(messageStack.slice(), this.meta);
-
-    // Disable automatic meta request, to prevent accesses outside of
-    // the local echo from changing the meta locally only.
-    crdtMeta.requestAutomatic(false);
-
-    this.messageBatches.push(messageStack);
-
-    if (autoEndTransaction) this.endTransaction();
   }
 
   /**
@@ -527,16 +512,18 @@ export class CRuntime
       );
     }
 
+    let changed = false;
     this.inApplyUpdate = true;
     try {
       const [messageStacks, meta] = MessageSerializer.deserialize(message);
       if (this.buffer.process(message, messageStacks, meta, caller)) {
+        changed = true;
         this.buffer.check();
-        this.scheduleChangeEvent();
       }
     } finally {
       this.inApplyUpdate = false;
     }
+    if (changed) this.emit("Change", {});
   }
 
   /**
@@ -620,6 +607,7 @@ export class CRuntime
     }
     this.used = true;
 
+    let changed = false;
     this.inApplyUpdate = true;
     try {
       const savedStateTree =
@@ -655,28 +643,26 @@ export class CRuntime
         // the remote VC was redundant, but it may still have added
         // new messages to the buffer. Check if any of these are ready in
         // our state, and if so, emit a Change event.
-        if (this.buffer.check()) this.scheduleChangeEvent();
+        if (this.buffer.check()) changed = true;
+      } else {
+        this.rootCollab.load(savedStateTree, meta);
+        changed = true;
 
-        return;
+        this.emit("Update", {
+          update: savedState,
+          caller,
+          updateType: "savedState",
+          vectorClock,
+          redundant,
+          isLocalOp: false,
+        });
+
+        this.buffer.check();
       }
-
-      this.rootCollab.load(savedStateTree, meta);
-
-      this.emit("Update", {
-        update: savedState,
-        caller,
-        updateType: "savedState",
-        vectorClock,
-        redundant,
-        isLocalOp: false,
-      });
-
-      this.buffer.check();
-
-      this.scheduleChangeEvent();
     } finally {
       this.inApplyUpdate = false;
     }
+    if (changed) this.emit("Change", {});
   }
 
   /**
