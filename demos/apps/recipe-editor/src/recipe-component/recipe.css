@@ -19,7 +19,7 @@
 .splitViewport {
   position: relative;
   flex: 1 0 auto;
-  width: 100%;
+  width: 900px;
 }
 
 /* Split the screen in half */

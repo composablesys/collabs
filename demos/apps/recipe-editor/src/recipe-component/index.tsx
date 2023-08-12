@@ -17,9 +17,9 @@ export class RecipeDoc extends AbstractDoc {
     // A single ingredient, and a "\n" in the Instructions for Quill.
     // See https://collabs.readthedocs.io/en/latest/advanced/initial_values.html#loading-a-base-state
     // TODO: To get rid of this,
-    // - Work around Quill's need for "\n"
-    // - In a real app, one user will "create" the document. They can do the
-    // insert-first-ingredient app then; we only have to use a base state
+    // - Work around Quill's need for "\n".
+    // - In a real app, one user will "create" the document; they can do the
+    // insert-first-ingredient op then. We only have to use a base state
     // because our demo doc "always exists".
     if (this.replicaID !== "BASE") {
       this.load(RecipeDoc.makeBaseState());
