@@ -1,8 +1,10 @@
 import { CText, Cursor, Cursors } from "@collabs/collabs";
+import { nonNull } from "@collabs/core";
 import React, {
   MutableRefObject,
   forwardRef,
   useEffect,
+  useImperativeHandle,
   useRef,
   useState,
 } from "react";
@@ -26,42 +28,99 @@ export type CollabsTextInputProps = {
   "value" | "type" | "defaultValue" | "ref"
 >;
 
-// TODO: ability to control selection, e.g. select all onFocus, or reset selection
-// to begin/end on focus.
+export class CollabsTextInputRef {
+  constructor(
+    private readonly input: HTMLInputElement,
+    private readonly updateCursors: () => void
+  ) {}
+  get selectionStart(): number | null {
+    return this.input.selectionStart;
+  }
+
+  set selectionStart(s: number | null) {
+    this.input.selectionStart = s;
+    this.updateCursors();
+  }
+
+  get selectionEnd(): number | null {
+    return this.input.selectionEnd;
+  }
+
+  set selectionEnd(s: number | null) {
+    this.input.selectionEnd = s;
+    this.updateCursors();
+  }
+
+  get selectionDirection() {
+    return this.input.selectionDirection;
+  }
+
+  set selectionDirection(s: "forward" | "backward" | "none" | null) {
+    this.input.selectionDirection = s;
+  }
+
+  setSelectionRange(
+    start: number | null,
+    end: number | null,
+    direction?: "forward" | "backward" | "none" | undefined
+  ) {
+    this.input.setSelectionRange(start, end, direction);
+    this.updateCursors();
+  }
+
+  select() {
+    this.input.select();
+    // No need to updateCursors - the onSelect handler will do that.
+  }
+
+  blur() {
+    this.input.blur();
+  }
+
+  click() {
+    this.input.click();
+  }
+
+  focus() {
+    this.input.focus();
+  }
+
+  scrollIntoView() {
+    this.input.scrollIntoView();
+  }
+}
 
 /**
- * An <input type="text" /> component that syncs its state to a Collabs CText,
+ * An `<input type="text" />` component that syncs its state to a Collabs CText,
  * provided in the `text` prop.
- * 
+ *
  * Local changes update `text` collaboratively, and remote updates to `text`
  * show up in the input field. We also manage the local selection in the
- * expected way.
- * 
- * # Props
- * 
+ * usual way for collaborative text editing.
+ *
+ * ## Props
+ *
  * - `text: CText`: The Collabs CText to sync to.
  * - Otherwise the same as HTMLInputElement, except we omit a few
  * that don't make sense (`value`, `defaultValue`, `type`).
- * 
- * # Advanced usage
- * 
- * - You may intercept and prevent events like `onKeyDown`.
+ *
+ * ## Advanced usage
+ *
  * - To change the text programmatically, mutate `text`.
- * - You may pass a ref, which will get the actual HTMLInputElement.
- * Do **not** use this ref to mutate `value`, `selectionStart`, or `selectionEnd`
- * directly.
- *   - To change the value, instead mutate `text`.
- *   - To change the selection, calling methods like `select()` or `blur()`
- * is okay. TODO: how to directly manipulate?
+ * - Passing `readOnly` or `disabled` prevents editing.
+ * - You may intercept and prevent events like `onKeyDown`.
+ * - We expose a number of `<input>` methods through our ref
+ * ([[CollabsTextInputRef]]), including
+ * the ability to set `selectionStart` / `selectionEnd`. Once set,
+ * the selection will move around as usual.
  */
 export const CollabsTextInput = forwardRef(function CollabsTextInput(
   props: CollabsTextInputProps,
-  externalRef: ForwardedRef<HTMLInputElement>
+  ref: ForwardedRef<CollabsTextInputRef>
 ) {
   const { text, ...other } = props;
   useCollab(text);
 
-  const internalRef = useRef<HTMLInputElement | null>(null);
   const [startCursor, setStartCursor] = useState<Cursor>(
     Cursors.fromIndex(0, text)
   );
@@ -72,20 +131,18 @@ export const CollabsTextInput = forwardRef(function CollabsTextInput(
     // Update the selection to match startCursor and endCursor.
     // We do this on every render (no deps) since it is almost as much
     // work to check if it is necessary (= indices changed).
-    if (internalRef.current === null) return;
-    internalRef.current.selectionStart = Cursors.toIndex(startCursor, text);
-    internalRef.current.selectionEnd = Cursors.toIndex(endCursor, text);
+    if (inputRef.current === null) return;
+    inputRef.current.selectionStart = Cursors.toIndex(startCursor, text);
+    inputRef.current.selectionEnd = Cursors.toIndex(endCursor, text);
   });
 
   // Updates startCursor and endCursor to match the current selection.
   function updateCursors() {
-    if (internalRef.current === null) return;
+    if (inputRef.current === null) return;
     setStartCursor(
-      Cursors.fromIndex(internalRef.current.selectionStart ?? 0, text)
+      Cursors.fromIndex(inputRef.current.selectionStart ?? 0, text)
     );
-    setEndCursor(
-      Cursors.fromIndex(internalRef.current.selectionEnd ?? 0, text)
-    );
+    setEndCursor(Cursors.fromIndex(inputRef.current.selectionEnd ?? 0, text));
   }
 
   // Whether we should type e.key.
@@ -104,21 +161,17 @@ export const CollabsTextInput = forwardRef(function CollabsTextInput(
     setEndCursor(Cursors.fromIndex(startIndex + str.length, text));
   }
 
+  const inputRef = useRef<HTMLInputElement | null>(null);
+  useImperativeHandle(
+    ref,
+    () => new CollabsTextInputRef(nonNull(inputRef.current), updateCursors)
+  );
+
   return (
     <input
       {...other}
       type="text"
-      ref={(el) => {
-        // Use both internalRef and externalRef.
-        // TODO: consider only exposing "allowed" methods, e.g., select
-        // and scroll into view (and wrap select so it plays nice with
-        // Cursors). https://react.dev/reference/react/forwardRef#exposing-an-imperative-handle-instead-of-a-dom-node
-        internalRef.current = el;
-        if (externalRef !== null) {
-          if (typeof externalRef === "function") externalRef(el);
-          else externalRef.current = el;
-        }
-      }}
+      ref={inputRef}
       value={text.toString()}
       onChange={
         props.onChange ??
@@ -140,6 +193,7 @@ export const CollabsTextInput = forwardRef(function CollabsTextInput(
           props.onKeyDown(e);
           if (e.defaultPrevented) return;
         }
+        if (props.readOnly || props.disabled) return;
 
         const startIndex = Cursors.toIndex(startCursor, text);
         const endIndex = Cursors.toIndex(endCursor, text);
@@ -177,6 +231,7 @@ export const CollabsTextInput = forwardRef(function CollabsTextInput(
           props.onPaste(e);
           if (e.defaultPrevented) return;
         }
+        if (props.readOnly || props.disabled) return;
 
         if (e.clipboardData) {
           const startIndex = Cursors.toIndex(startCursor, text);
@@ -191,6 +246,7 @@ export const CollabsTextInput = forwardRef(function CollabsTextInput(
           props.onCut(e);
           if (e.defaultPrevented) return;
         }
+        if (props.readOnly || props.disabled) return;
 
         const startIndex = Cursors.toIndex(startCursor, text);
         const endIndex = Cursors.toIndex(endCursor, text);
