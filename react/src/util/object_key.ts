@@ -6,7 +6,7 @@ let counter = 0;
  *
  * This is a workaround to let you use an object as a React key.
  * E.g., in a CList, you should use `objectKey(value: Collab)`
- * as a React key instead of the value's Position, since `CList.move`
+ * as a React key instead of `value`'s Position, since `CList.move`
  * can change a value's position.
  */
 export function objectKey(obj: object): string {

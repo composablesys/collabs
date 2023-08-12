@@ -100,10 +100,9 @@ export class CollabsTextInputHandle {
  * ## Advanced usage
  *
  * - To change the text programmatically, mutate `text`.
- * - Passing `readOnly` or `disabled` prevents editing.
  * - You may intercept and prevent events like `onKeyDown`.
  * - We expose a number of `<input>` methods through our ref
- * ([[CollabsTextInputRef]]), including
+ * ([[CollabsTextInputHandle]]), including
  * the ability to set `selectionStart` / `selectionEnd`. Once set,
  * the selection will move around as usual.
  */

@@ -10,7 +10,7 @@ import { useEffect, useState } from "react";
  *
  * **Warning:** If you define a
  * [custom CObject subclass](https://collabs.readthedocs.io/en/latest/guide/data_modeling.html),
- * it will **not** automatically emit an event each time one its children does.
+ * it will **not** automatically emit an event each time one of its children does.
  * Either call `useCollab` on each child that you read, or have the CObject
  * emit its own events in response to child events.
  */
