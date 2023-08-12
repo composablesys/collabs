@@ -9,6 +9,6 @@ Part of the Collabs library. Main package: [@collabs/collabs](https://www.npmjs.
 
 ## Docs
 
-TODO: guide page
+[React Integration](https://collabs.readthedocs.io/en/latest/guide/react_integration.html)
 
 [API](https://collabs.readthedocs.io/en/latest/api/tab-sync)

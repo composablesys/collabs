@@ -8,6 +8,9 @@ import { RecipeComponent, RecipeDoc } from "./recipe-component";
  *
  * This component also hides the recipe GUI until the doc's
  * initial load. That way, users don't see a confusing blank recipe.
+ *
+ * You can use this as a template for components that convert a docID
+ * into a document of a concrete type.
  */
 export function Loader({
   docID,

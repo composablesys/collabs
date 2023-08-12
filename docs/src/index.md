@@ -42,7 +42,7 @@ Our [built-in CRDTs](./guide/built_in_collabs.html) implement modern [algorithms
 
 ## Principles
 
-See our talk at [LFW.dev](https://localfirstweb.dev/) meetup #5: [Video](https://www.youtube.com/watch?v=Z0nzsxhoToo&t=2346s), [Slides](https://docs.google.com/presentation/d/13I3L76R-wwiXxgTXI2ide3zlbjiWoTWXMSU9YbQdYXU/edit?usp=sharing).
+See our talk at [LFW.dev](https://localfirstweb.dev/) meetup #5: [Video](https://www.youtube.com/watch?v=Z0nzsxhoToo&t=2346s), [Slides](https://docs.google.com/presentation/d/13I3L76R-wwiXxgTXI2ide3zlbjiWoTWXMSU9YbQdYXU/edit?usp=sharing), [Live demo](https://collabs-demos.herokuapp.com/recipe-editor/).
 
 - **[Local-first](https://www.inkandswitch.com/local-first/) ready:** Collabs lets users work offline and sync up with collaborators later. We use CRDTs to merge changes even with arbitrary latency and concurrency.
 - **Network- and storage-agnostic:** Collabs generates updates that you must eventually deliver to all collaborators, but you are free to deliver and store these updates however you like. We also publish [providers](./guide/providers.html) that handle this for you.

@@ -1,11 +1,14 @@
 import { CVar } from "@collabs/collabs";
 import React, { useState } from "react";
 
+import { useCollab } from "@collabs/react";
 import "./recipe_name.css";
 
 const maxNameLength = 25;
 
 export function RecipeName({ recipeName }: { recipeName: CVar<string> }) {
+  useCollab(recipeName);
+
   const [nameEditing, setNameEditing] = useState<string | null>(null);
   const nameValue = nameEditing ?? recipeName.value;
 

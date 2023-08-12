@@ -1,5 +1,4 @@
 import { CList, CObject, CRichText, CVar, InitToken } from "@collabs/collabs";
-import { useCollab } from "@collabs/react";
 import React from "react";
 import { CollabsQuill } from "../collabs-quill";
 import { CIngredient } from "./ingredient";
@@ -39,8 +38,7 @@ export class CRecipe extends CObject {
       (instInit) => new CRichText(instInit)
     );
 
-    // Lazy events for state that the Recipe component displays directly.
-    this.recipeName.on("Any", (e) => this.emit("Any", e));
+    // Expose _ingrs events for ingredients.tsx's useCollab call.
     this._ingrs.on("Any", (e) => this.emit("Any", e));
   }
 
@@ -86,7 +84,8 @@ export class CRecipe extends CObject {
 }
 
 export function Recipe({ recipe }: { recipe: CRecipe }) {
-  useCollab(recipe);
+  // No need to call useCollab(recipe) because this component doesn't
+  // directly read its state.
 
   return (
     <div className="outerDiv">

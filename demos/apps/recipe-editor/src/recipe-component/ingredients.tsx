@@ -1,4 +1,4 @@
-import { objectKey } from "@collabs/react";
+import { objectKey, useCollab } from "@collabs/react";
 import React, { useEffect, useRef, useState } from "react";
 import { CIngredient, Ingredient } from "./ingredient";
 import { CRecipe } from "./recipe";
@@ -7,6 +7,8 @@ import { CollabsTextInputHandle } from "@collabs/react";
 import "./ingredients.css";
 
 export function Ingredients({ recipe }: { recipe: CRecipe }) {
+  useCollab(recipe);
+
   // When the local user adds a new ingredient, scroll to it and
   // select its text.
   const [newIngr, setNewIngr] = useState<CIngredient | null>(null);

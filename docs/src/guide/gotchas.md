@@ -103,7 +103,7 @@ See also: [CAP theorem](https://en.wikipedia.org/wiki/CAP_theorem).
 
 # Next Steps
 
-You've now finished the Guide and learned Collabs's main concepts.
+You've now finished the Guide and learned Collabs's main concepts!
 
 To learn even more, check out the other sections on this site:
 

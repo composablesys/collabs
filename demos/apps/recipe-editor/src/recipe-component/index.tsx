@@ -2,7 +2,19 @@ import { AbstractDoc, DocOptions } from "@collabs/collabs";
 import React from "react";
 import { CRecipe, Recipe } from "./recipe";
 
+/**
+ * The type of document accepted by RecipeComponent.
+ *
+ * We expose this alongside RecipeComponent, so that callers can
+ * construct its `doc` prop. Note that higher-level components
+ * don't interact with the recipe state directly; they just construct
+ * RecipeDoc and subscribe it to providers. Basically,
+ * RecipeDoc serves as an opaque "schema" for RecipeComponent's data.
+ */
 export class RecipeDoc extends AbstractDoc {
+  /**
+   * @ignore
+   */
   readonly recipe: CRecipe;
 
   constructor(options?: DocOptions) {
@@ -38,6 +50,15 @@ export class RecipeDoc extends AbstractDoc {
   }
 }
 
+/**
+ * React component that renders & mutates a RecipeDoc.
+ *
+ * You can use RecipeComponent and RecipeDoc as a template for
+ * how to expose a Collabs-powered React component:
+ * take its doc(s) as input with a specific AbstractDoc type.
+ * That way, your parent can construct the doc, subscribe it
+ * to providers, and then hand it you for everything else.
+ */
 export function RecipeComponent({ doc }: { doc: RecipeDoc }) {
   return <Recipe recipe={doc.recipe} />;
 }
