@@ -483,7 +483,7 @@ export class CRuntime
 
   /**
    * Receives a message from another replica's [[DocEventsRecord.Send]] event.
-   * The message's sender must be a [[CRuntime]] that is a
+   * The message's sender must be a CRuntime that is a
    * replica of this one (i.e., it has the same
    * ["schema"](https://collabs.readthedocs.io/en/latest/guide/documents.html#using-cruntime)).
    *
@@ -576,7 +576,7 @@ export class CRuntime
 
   /**
    * Loads saved state. The saved state must be from
-   * a call to [[load]] on a CRuntime that is a replica
+   * a call to [[save]] on a CRuntime that is a replica
    * of this one (i.e., it has the same
    * ["schema"](https://collabs.readthedocs.io/en/latest/guide/documents.html#using-cruntime)).
    *

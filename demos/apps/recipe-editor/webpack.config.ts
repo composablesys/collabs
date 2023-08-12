@@ -22,6 +22,10 @@ const config: webpack.Configuration = {
         enforce: "pre",
         use: ["source-map-loader"],
       },
+      {
+        test: /\.css$/,
+        use: ["style-loader", "css-loader"],
+      },
     ],
   },
   resolve: {

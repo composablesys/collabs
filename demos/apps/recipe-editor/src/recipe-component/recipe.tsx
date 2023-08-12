@@ -1,12 +1,11 @@
 import { CList, CObject, CRichText, CVar, InitToken } from "@collabs/collabs";
-import React from "react";
-
 import { useCollab } from "@collabs/react";
+import React from "react";
 import { CollabsQuill } from "../collabs-quill";
 import { CIngredient } from "./ingredient";
+import { Ingredients } from "./ingredients";
 import { RecipeName } from "./recipe_name";
 
-import { Ingredients } from "./ingredients";
 import "./recipe.css";
 
 export class CRecipe extends CObject {

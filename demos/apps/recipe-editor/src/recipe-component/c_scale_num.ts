@@ -4,10 +4,10 @@ import {
   IVar,
   InitToken,
   PrimitiveCRDT,
+  StringSerializer,
   UpdateMeta,
   VarEventsRecord,
 } from "@collabs/collabs";
-import { BSON } from "bson";
 
 interface ScaleNumMessage {
   valueWhenSet: number;
@@ -66,7 +66,7 @@ export class CScaleNum
       valueWhenSet: _value,
       scaleWhenSet: this.scaleVar.value,
     };
-    super.sendPrimitive(BSON.serialize(message));
+    super.sendCRDT(JSON.stringify(message));
   }
 
   get value(): number {
@@ -78,7 +78,7 @@ export class CScaleNum
     meta: UpdateMeta,
     crdtMeta: CRDTMessageMeta
   ): void {
-    const decoded = BSON.deserialize(message as Uint8Array) as ScaleNumMessage;
+    const decoded = JSON.parse(message as string) as ScaleNumMessage;
     this.processUpdate(
       decoded.valueWhenSet,
       decoded.scaleWhenSet,
@@ -115,7 +115,7 @@ export class CScaleNum
       lamport: this.lamport,
       lamportSender: this.lamportSender,
     };
-    return BSON.serialize(save);
+    return StringSerializer.instance.serialize(JSON.stringify(save));
   }
 
   protected loadCRDT(
@@ -125,7 +125,9 @@ export class CScaleNum
   ): void {
     if (savedState === null) return;
 
-    const decoded = BSON.deserialize(savedState) as ScaleNumSave;
+    const decoded = JSON.parse(
+      StringSerializer.instance.deserialize(savedState)
+    ) as ScaleNumSave;
     this.processUpdate(
       decoded.valueWhenSet,
       decoded.scaleWhenSet,

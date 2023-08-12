@@ -4,8 +4,8 @@ import {
   CollabsTextInputHandle,
   useCollab,
 } from "@collabs/react";
-import React, { Ref, useEffect, useState } from "react";
-import { CScaleNum } from "../util/c_scale_num";
+import React, { Ref, useEffect, useRef, useState } from "react";
+import { CScaleNum } from "./c_scale_num";
 
 import "./ingredient.css";
 
@@ -53,6 +53,14 @@ export function Ingredient({
   useCollab(ingr.units);
 
   const [amountEditing, setAmountEditing] = useState<string | null>(null);
+  const amountRef = useRef<HTMLInputElement>(null);
+
+  function setAmount(inputStr: string) {
+    const parsed = Number.parseFloat(inputStr);
+    if (!isNaN(parsed) && 0 <= parsed) {
+      ingr.amount.value = parsed;
+    }
+  }
 
   useEffect(() => {
     if (onChange) {
@@ -74,18 +82,21 @@ export function Ingredient({
         step={1}
         value={amountEditing ?? Math.round(ingr.amount.value * 100) / 100}
         onChange={(e) => {
-          setAmountEditing(e.target.value);
+          // If the element is in focus (being typed in), wait until we lose
+          // focus to change the value (onBlur).
+          // Otherwise (changed using up/down arrows), change the value immediately.
+          if (document.activeElement === amountRef.current) {
+            setAmountEditing(e.target.value);
+          } else setAmount(e.target.value);
           if (onChange) onChange();
         }}
         onBlur={() => {
           if (amountEditing === null) return;
-          const parsed = Number.parseFloat(amountEditing);
-          if (!isNaN(parsed) && 0 <= parsed) {
-            ingr.amount.value = parsed;
-          }
+          setAmount(amountEditing);
           setAmountEditing(null);
         }}
         style={{ width: "5ch" }}
+        ref={amountRef}
         // Hide "invalid" tooltip.
         title=""
       />
