@@ -1,7 +1,6 @@
 import { CText, Cursor, Cursors } from "@collabs/collabs";
 import { nonNull } from "@collabs/core";
 import React, {
-  MutableRefObject,
   forwardRef,
   useEffect,
   useImperativeHandle,
@@ -9,14 +8,6 @@ import React, {
   useState,
 } from "react";
 import { useCollab } from "../hooks/use_collab";
-
-// React.ForwardedRef is missing from @types/react v16.8.0. Since it's not
-// part of our exported type signature, we don't really need to bump the
-// peerDep version; instead, we just copy it from DefinitelyTyped.
-type ForwardedRef<T> =
-  | ((instance: T | null) => void)
-  | MutableRefObject<T | null>
-  | null;
 
 export type CollabsTextInputProps = {
   text: CText;
@@ -114,10 +105,10 @@ export class CollabsTextInputRef {
  * the ability to set `selectionStart` / `selectionEnd`. Once set,
  * the selection will move around as usual.
  */
-export const CollabsTextInput = forwardRef(function CollabsTextInput(
-  props: CollabsTextInputProps,
-  ref: ForwardedRef<CollabsTextInputRef>
-) {
+export const CollabsTextInput = forwardRef<
+  CollabsTextInputRef,
+  CollabsTextInputProps
+>(function CollabsTextInput(props, ref) {
   const { text, ...other } = props;
   useCollab(text);
 
