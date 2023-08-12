@@ -4,6 +4,7 @@ import React, {
   forwardRef,
   useEffect,
   useImperativeHandle,
+  useLayoutEffect,
   useRef,
   useState,
 } from "react";
@@ -48,6 +49,7 @@ export class CollabsTextInputHandle {
 
   set selectionDirection(s: "forward" | "backward" | "none" | null) {
     this.input.selectionDirection = s;
+    this.updateCursors();
   }
 
   setSelectionRange(
@@ -118,22 +120,29 @@ export const CollabsTextInput = forwardRef<
   const [endCursor, setEndCursor] = useState<Cursor>(
     Cursors.fromIndex(0, text)
   );
-  useEffect(() => {
+  const [direction, setDirection] = useState<
+    "none" | "forward" | "backward" | null
+  >(null);
+  useLayoutEffect(() => {
     // Update the selection to match startCursor and endCursor.
-    // We do this on every render (no deps) since it is almost as much
-    // work to check if it is necessary (= indices changed).
+    // We useLayoutEffect because rerendering with a changed
+    // value causes the cursor to jump to the end, which is briefly visible
+    // if you useEffect.
     if (inputRef.current === null) return;
     inputRef.current.selectionStart = Cursors.toIndex(startCursor, text);
     inputRef.current.selectionEnd = Cursors.toIndex(endCursor, text);
+    inputRef.current.selectionDirection = direction;
   });
 
   // Updates startCursor and endCursor to match the current selection.
   function updateCursors() {
     if (inputRef.current === null) return;
+
     setStartCursor(
       Cursors.fromIndex(inputRef.current.selectionStart ?? 0, text)
     );
     setEndCursor(Cursors.fromIndex(inputRef.current.selectionEnd ?? 0, text));
+    setDirection(inputRef.current.selectionDirection);
   }
 
   // Whether we should type e.key.
@@ -158,6 +167,16 @@ export const CollabsTextInput = forwardRef<
     () => new CollabsTextInputHandle(nonNull(inputRef.current), updateCursors)
   );
 
+  /**
+   * React appears to give us an onSelect event after we mutate the text,
+   * but that confuses our cursor tracking.
+   * Use this ref to skip those events (first onSelect after each text mutation).
+   */
+  const skipNextSelect = useRef(false);
+  useEffect(() => {
+    return text.on("Any", () => (skipNextSelect.current = true));
+  }, [text]);
+
   return (
     <input
       {...other}
@@ -172,6 +191,11 @@ export const CollabsTextInput = forwardRef<
         })
       }
       onSelect={(e) => {
+        if (skipNextSelect.current) {
+          skipNextSelect.current = false;
+          return;
+        }
+
         if (props.onSelect) {
           props.onSelect(e);
           if (e.defaultPrevented) return;

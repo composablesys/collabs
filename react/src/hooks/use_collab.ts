@@ -20,7 +20,8 @@ export function useCollab(collab: Collab): void {
   let changePending = false;
 
   useEffect(() => {
-    return collab.on("Any", (e) => {
+    let cleanedUp = false;
+    const off = collab.on("Any", (e) => {
       if (e.meta.isLocalOp) setCounter((count) => count + 1);
       else {
         // If we receive a batch of remote events in the same change
@@ -33,7 +34,9 @@ export function useCollab(collab: Collab): void {
           "Change",
           () => {
             changePending = false;
-            setCounter((count) => count + 1);
+            // If cleanup gets called between the Any and Change events,
+            // avoid React warnings from calling setCounter.
+            if (!cleanedUp) setCounter((count) => count + 1);
           },
           { once: true }
         );
@@ -47,5 +50,9 @@ export function useCollab(collab: Collab): void {
         // single "Change" event, to reduce rerenders with React <18.
       }
     });
+    return () => {
+      off();
+      cleanedUp = true;
+    };
   }, [collab]);
 }
