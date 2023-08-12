@@ -29,6 +29,31 @@ export type CollabsTextInputProps = {
 // TODO: ability to control selection, e.g. select all onFocus, or reset selection
 // to begin/end on focus.
 
+/**
+ * An <input type="text" /> component that syncs its state to a Collabs CText,
+ * provided in the `text` prop.
+ * 
+ * Local changes update `text` collaboratively, and remote updates to `text`
+ * show up in the input field. We also manage the local selection in the
+ * expected way.
+ * 
+ * # Props
+ * 
+ * - `text: CText`: The Collabs CText to sync to.
+ * - Otherwise the same as HTMLInputElement, except we omit a few
+ * that don't make sense (`value`, `defaultValue`, `type`).
+ * 
+ * # Advanced usage
+ * 
+ * - You may intercept and prevent events like `onKeyDown`.
+ * - To change the text programmatically, mutate `text`.
+ * - You may pass a ref, which will get the actual HTMLInputElement.
+ * Do **not** use this ref to mutate `value`, `selectionStart`, or `selectionEnd`
+ * directly.
+ *   - To change the value, instead mutate `text`.
+ *   - To change the selection, calling methods like `select()` or `blur()`
+ * is okay. TODO: how to directly manipulate?
+ */
 export const CollabsTextInput = forwardRef(function CollabsTextInput(
   props: CollabsTextInputProps,
   externalRef: ForwardedRef<HTMLInputElement>
@@ -79,13 +104,12 @@ export const CollabsTextInput = forwardRef(function CollabsTextInput(
     setEndCursor(Cursors.fromIndex(startIndex + str.length, text));
   }
 
-  // TODO: other updateCursors triggers if needed, possibly in setTimeout.
   return (
     <input
       {...other}
       type="text"
       ref={(el) => {
-        // Use both internalRef and externalRef as functions.
+        // Use both internalRef and externalRef.
         // TODO: consider only exposing "allowed" methods, e.g., select
         // and scroll into view (and wrap select so it plays nice with
         // Cursors). https://react.dev/reference/react/forwardRef#exposing-an-imperative-handle-instead-of-a-dom-node
@@ -96,14 +120,27 @@ export const CollabsTextInput = forwardRef(function CollabsTextInput(
         }
       }}
       value={text.toString()}
-      // TODO: allow the caller to supply their own replacements/extensions to these,
-      // or remove them from the allowed property list.
-      onChange={() => {
-        // Add dummy onChange to prevent React readonly complaints (invalid
-        // because we edit on keypress using a ref).
+      onChange={
+        props.onChange ??
+        (() => {
+          // Add dummy onChange to prevent React readonly complaints (invalid
+          // because we edit on keypress using a ref).
+        })
+      }
+      onSelect={(e) => {
+        if (props.onSelect) {
+          props.onSelect(e);
+          if (e.defaultPrevented) return;
+        }
+
+        updateCursors();
       }}
-      onSelect={updateCursors}
       onKeyDown={(e) => {
+        if (props.onKeyDown) {
+          props.onKeyDown(e);
+          if (e.defaultPrevented) return;
+        }
+
         const startIndex = Cursors.toIndex(startCursor, text);
         const endIndex = Cursors.toIndex(endCursor, text);
         if (e.key === "Backspace") {
@@ -126,8 +163,8 @@ export const CollabsTextInput = forwardRef(function CollabsTextInput(
         } else {
           // Other events we let happen normally (don't preventDefault).
           // These include selection changes (handled by onSelect), enter/tab
-          // (which just change focus, don't add text), and cut/paste
-          // (handled in their own listeners), and copy (default behavior
+          // (which just change focus, don't add text), Ctrl cut/paste
+          // (handled in their own listeners), and Ctrl copy (default behavior
           // is fine).
           return;
         }
@@ -136,6 +173,11 @@ export const CollabsTextInput = forwardRef(function CollabsTextInput(
         e.preventDefault();
       }}
       onPaste={(e) => {
+        if (props.onPaste) {
+          props.onPaste(e);
+          if (e.defaultPrevented) return;
+        }
+
         if (e.clipboardData) {
           const startIndex = Cursors.toIndex(startCursor, text);
           const endIndex = Cursors.toIndex(endCursor, text);
@@ -144,7 +186,12 @@ export const CollabsTextInput = forwardRef(function CollabsTextInput(
         }
         e.preventDefault();
       }}
-      onCut={() => {
+      onCut={(e) => {
+        if (props.onCut) {
+          props.onCut(e);
+          if (e.defaultPrevented) return;
+        }
+
         const startIndex = Cursors.toIndex(startCursor, text);
         const endIndex = Cursors.toIndex(endCursor, text);
         if (startIndex < endIndex) {
@@ -152,11 +199,17 @@ export const CollabsTextInput = forwardRef(function CollabsTextInput(
           void navigator.clipboard.writeText(selected);
           text.delete(startIndex, endIndex - startIndex);
         }
-        // TODO: prevent default?
+        e.preventDefault();
       }}
-      /* Disable drag & drop. TODO: handle? */
-      onDragStart={(e) => e.preventDefault()}
-      onDrop={(e) => e.preventDefault()}
+      onDrop={(e) => {
+        if (props.onDrop) props.onDrop(e);
+        else {
+          // I don't know how to get the cursor position to drop on,
+          // so for now we just disable drop. But a caller can override
+          // onDrop and update the CText themselves.
+          e.preventDefault();
+        }
+      }}
     />
   );
 });
