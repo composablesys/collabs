@@ -7,11 +7,19 @@ import {
   UpdateMeta,
   VarEventsRecord,
 } from "@collabs/collabs";
-import { int64AsNumber } from "@collabs/core";
-import {
-  ScaleNumMessage,
-  ScaleNumSave,
-} from "../../../../generated/proto_compiled";
+import { BSON } from "bson";
+
+interface ScaleNumMessage {
+  valueWhenSet: number;
+  scaleWhenSet: number;
+}
+
+interface ScaleNumSave {
+  valueWhenSet: number;
+  scaleWhenSet: number;
+  lamport: number;
+  lamportSender: string;
+}
 
 /**
  * A number with a "scale" controlled by an ambient scaleVar (constructor arg).
@@ -54,12 +62,11 @@ export class CScaleNum
   }
 
   set value(_value: number) {
-    // Use an optimized custom binary format, as a demonstration.
-    const message = ScaleNumMessage.encode({
+    const message: ScaleNumMessage = {
       valueWhenSet: _value,
       scaleWhenSet: this.scaleVar.value,
-    }).finish();
-    super.sendPrimitive(message);
+    };
+    super.sendPrimitive(BSON.serialize(message));
   }
 
   get value(): number {
@@ -71,7 +78,7 @@ export class CScaleNum
     meta: UpdateMeta,
     crdtMeta: CRDTMessageMeta
   ): void {
-    const decoded = ScaleNumMessage.decode(<Uint8Array>message);
+    const decoded = BSON.deserialize(message as Uint8Array) as ScaleNumMessage;
     this.processUpdate(
       decoded.valueWhenSet,
       decoded.scaleWhenSet,
@@ -102,13 +109,13 @@ export class CScaleNum
   }
 
   protected saveCRDT(): Uint8Array {
-    // Use an optimized custom binary format, as a demonstration.
-    return ScaleNumSave.encode({
+    const save: ScaleNumSave = {
       valueWhenSet: this.valueWhenSet,
       scaleWhenSet: this.scaleWhenSet,
       lamport: this.lamport,
       lamportSender: this.lamportSender,
-    }).finish();
+    };
+    return BSON.serialize(save);
   }
 
   protected loadCRDT(
@@ -118,11 +125,11 @@ export class CScaleNum
   ): void {
     if (savedState === null) return;
 
-    const decoded = ScaleNumSave.decode(savedState);
+    const decoded = BSON.deserialize(savedState) as ScaleNumSave;
     this.processUpdate(
       decoded.valueWhenSet,
       decoded.scaleWhenSet,
-      int64AsNumber(decoded.lamport),
+      decoded.lamport,
       decoded.lamportSender,
       meta
     );

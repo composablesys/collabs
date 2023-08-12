@@ -1,6 +1,10 @@
 import { CObject, CText, CVar, InitToken, IVar } from "@collabs/collabs";
+import {
+  CollabsTextInput,
+  CollabsTextInputHandle,
+  useCollab,
+} from "@collabs/react";
 import React, { Ref, useEffect, useState } from "react";
-import { CollabsTextInput, useCollab } from "../collabs-react";
 import { CScaleNum } from "../util/c_scale_num";
 
 import "./ingredient.css";
@@ -35,7 +39,7 @@ export function Ingredient({
   onChange,
 }: {
   ingr: CIngredient;
-  textRef?: Ref<HTMLInputElement>;
+  textRef?: Ref<CollabsTextInputHandle>;
   /**
    * Called each time the local user changes the ingredient
    * (including for "prep" edits that don't yet change the Collabs state).

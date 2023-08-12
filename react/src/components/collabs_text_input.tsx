@@ -19,7 +19,7 @@ export type CollabsTextInputProps = {
   "value" | "type" | "defaultValue" | "ref"
 >;
 
-export class CollabsTextInputRef {
+export class CollabsTextInputHandle {
   constructor(
     private readonly input: HTMLInputElement,
     private readonly updateCursors: () => void
@@ -106,7 +106,7 @@ export class CollabsTextInputRef {
  * the selection will move around as usual.
  */
 export const CollabsTextInput = forwardRef<
-  CollabsTextInputRef,
+  CollabsTextInputHandle,
   CollabsTextInputProps
 >(function CollabsTextInput(props, ref) {
   const { text, ...other } = props;
@@ -155,7 +155,7 @@ export const CollabsTextInput = forwardRef<
   const inputRef = useRef<HTMLInputElement | null>(null);
   useImperativeHandle(
     ref,
-    () => new CollabsTextInputRef(nonNull(inputRef.current), updateCursors)
+    () => new CollabsTextInputHandle(nonNull(inputRef.current), updateCursors)
   );
 
   return (

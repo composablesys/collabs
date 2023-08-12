@@ -1,8 +1,8 @@
 import { CList, CObject, CRichText, CVar, InitToken } from "@collabs/collabs";
 import React from "react";
 
+import { useCollab } from "@collabs/react";
 import { CollabsQuill } from "../collabs-quill";
-import { useCollab } from "../collabs-react";
 import { CIngredient } from "./ingredient";
 import { RecipeName } from "./recipe_name";
 
@@ -80,8 +80,8 @@ export class CRecipe extends CObject {
     if (factor < 0) throw new Error("Invalid factor: less than 0");
     if (factor === 0) throw new Error("Not yet implemented: scale by 0");
 
-    // Note this is an LWW set - concurrent scales don't stack,
-    // which is probably what the users expect.
+    // Note this is an LWW set - concurrent scales don't multiply.
+    // That is probably what the users expect.
     this._scaleVar.value *= factor;
   }
 }

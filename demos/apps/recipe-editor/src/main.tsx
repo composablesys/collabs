@@ -1,7 +1,7 @@
 import { WebSocketNetwork } from "@collabs/ws-client";
 import React from "react";
 import ReactDOM from "react-dom";
-import { App } from "./components/app";
+import { Loader } from "./loader";
 
 // --- Network/storage setup ---
 
@@ -49,4 +49,9 @@ connected.addEventListener("click", () => {
 
 // --- App code ---
 
-ReactDOM.render(<App wsNetwork={wsNetwork} />, document.getElementById("app")!);
+const docID = "recipe-editor";
+
+ReactDOM.render(
+  <Loader docID={docID} wsNetwork={wsNetwork} />,
+  document.getElementById("app")!
+);

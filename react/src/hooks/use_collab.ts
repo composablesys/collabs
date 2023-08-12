@@ -25,7 +25,7 @@ export function useCollab(collab: Collab): void {
         if (e.meta.isLocalOp) rerender();
         else {
           // If we receive a batch of remote events in the same change
-          // (e.g. during loading), wait until the end of the change,
+          // (e.g. during merging), wait until the end of the change,
           // so we rerender only once for the whole batch.
           // (React <18 usually won't batch rerenders for us in this case.)
           (collab.runtime as CRuntime).on("Change", rerender, { once: true });

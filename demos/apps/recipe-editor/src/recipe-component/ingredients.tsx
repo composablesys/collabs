@@ -1,15 +1,16 @@
+import { objectKey } from "@collabs/react";
 import React, { useEffect, useRef, useState } from "react";
-import { reactKey } from "../util/react_key";
 import { CIngredient, Ingredient } from "./ingredient";
 import { CRecipe } from "./recipe";
 
+import { CollabsTextInputHandle } from "@collabs/react";
 import "./ingredients.css";
 
 export function Ingredients({ recipe }: { recipe: CRecipe }) {
   // When the local user adds a new ingredient, scroll to it and
   // select its text.
   const [newIngr, setNewIngr] = useState<CIngredient | null>(null);
-  const newIngrTextRef = useRef<HTMLInputElement>(null);
+  const newIngrTextRef = useRef<CollabsTextInputHandle>(null);
   useEffect(() => {
     if (newIngrTextRef.current === null) return;
     newIngrTextRef.current.select();
@@ -26,7 +27,7 @@ export function Ingredients({ recipe }: { recipe: CRecipe }) {
         // Use ingr "itself" as a React key instead of Position, so that
         // React remembers component state even during move ops.
         // TODO: scroll-to-ingredient if the one you're editing is moved.
-        <div key={reactKey(ingr)} className="ingredientWrapper">
+        <div key={objectKey(ingr)} className="ingredientWrapper">
           <div style={{ display: "flex", flexDirection: "column" }}>
             <button
               style={{ alignSelf: "flex-start" }}
