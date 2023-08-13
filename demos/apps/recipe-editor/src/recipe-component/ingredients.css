@@ -1,0 +1,32 @@
+.ingredientWrapper {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  padding-bottom: 5px;
+}
+
+.deleteButton {
+  color: white;
+  background-color: rgb(179, 0, 0);
+  border-radius: 3px;
+}
+
+.addButton {
+  color: white;
+  background-color: green;
+  border-radius: 5px;
+  width: 120px;
+  height: 30px;
+  /* Right align */
+  margin-left: auto;
+  margin-right: 0;
+  display: block;
+}
+
+.scaleButton {
+  background-color: rgb(158, 201, 190);
+  border-width: 0px;
+  border-radius: 5px;
+  font-size: 14pt;
+  padding: 4px 4px 4px 4px;
+}

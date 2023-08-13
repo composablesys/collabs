@@ -79,9 +79,14 @@ export abstract class AbstractDoc extends EventEmitter<DocEventsRecord> {
    * reordering, and delivery of (redundant) messages from this replica
    * are acceptable. Two replicas will be in the same
    * state once they have the same set of received (or sent) messages.
+   *
+   * @param caller Optionally, a value to use as the "Update" event's
+   * [[MessageEvent.caller]] field.
+   * A caller can use that field to distinguish its own updates from updates
+   * delivered by other sources.
    */
-  receive(message: Uint8Array): void {
-    this.runtime.receive(message);
+  receive(message: Uint8Array, caller?: unknown): void {
+    this.runtime.receive(message, caller);
   }
 
   /**
@@ -98,7 +103,7 @@ export abstract class AbstractDoc extends EventEmitter<DocEventsRecord> {
 
   /**
    * Loads saved state. The saved state must be from
-   * a call to [[load]] on an AbstractDoc that is a replica
+   * a call to [[save]] on an AbstractDoc that is a replica
    * of this one (i.e., it has the same
    * ["schema"](https://collabs.readthedocs.io/en/latest/guide/documents.html#using-cruntime)).
    *
@@ -112,9 +117,13 @@ export abstract class AbstractDoc extends EventEmitter<DocEventsRecord> {
    * but it is typically much more efficient.
    *
    * @param savedState Saved state from another replica's [[save]] call.
+   * @param caller Optionally, a value to use as the "Update" event's
+   * [[SavedStateEvent.caller]] field.
+   * A caller can use that field to distinguish its own updates from updates
+   * delivered by other sources.
    */
-  load(savedState: Uint8Array): void {
-    this.runtime.load(savedState);
+  load(savedState: Uint8Array, caller?: unknown): void {
+    this.runtime.load(savedState, caller);
   }
 
   /**

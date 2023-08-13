@@ -1,6 +1,6 @@
 # Minesweeper Demo
 
-Collaborative Minesweeper, using [@collabs/ws-client](https://www.npmjs.com/package/@collabs/ws-client) and [@collabs/ws-server](https://www.npmjs.com/package/@collabs/ws-server) to connect users via aWebSocket server.
+Collaborative Minesweeper, using [@collabs/ws-client](https://www.npmjs.com/package/@collabs/ws-client) and [@collabs/ws-server](https://www.npmjs.com/package/@collabs/ws-server) to connect users via a WebSocket server.
 
 Authors: Ignacio Maronna and Matthew Weidner.
 

@@ -14,4 +14,5 @@ Guide
    built_in_collabs
    collections
    data_modeling
+   react_integration
    gotchas
