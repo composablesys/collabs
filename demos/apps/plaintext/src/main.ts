@@ -117,11 +117,7 @@ textarea.addEventListener("cut", () => {
   }
 });
 
-// TODO: allow drag+drop text?  Currently we just
-// disable it.
-textarea.addEventListener("dragstart", (e) => {
-  e.preventDefault();
-});
+// Disable drop, since we don't know what index it's dropping on.
 textarea.addEventListener("drop", (e) => {
   e.preventDefault();
 });

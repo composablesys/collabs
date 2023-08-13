@@ -38,11 +38,8 @@ To the set the initial value of such a document's Collabs, you can create an ide
 function makeBaseState(): Uint8Array {
   // Set up your CRuntime + Collabs (or AbstractDoc) as usual, but
   // with replicaID "BASE".
-  const doc = new collabs.CRuntime({ debugReplicaID: "BASE" });
-  const text = doc.registerCollab(
-    "text",
-    (init) => new collabs.CRichText(init)
-  );
+  const doc = new CRuntime({ debugReplicaID: "BASE" });
+  const text = doc.registerCollab("text", (init) => new CRichText(init));
 
   // Now perform operations to set your initial value.
   // In this case, we need an initial "\n" to match Quill's initial state.
@@ -52,8 +49,7 @@ function makeBaseState(): Uint8Array {
   return doc.save();
 }
 
-// At the start of the app, after registering Collabs on doc,
-// load the base state:
+// After registering Collabs on doc, load the base state:
 doc.load(makeBaseState());
 ```
 

@@ -67,13 +67,15 @@ export interface CollabEventsRecord {
    * ```ts
    * let isDirty = false;
    * collab.on("Any", () => { isDirty = true; });
-   * runtime.on("Change", () => {
+   * doc.on("Change", () => {
    *   if (isDirty) {
    *     refreshDisplay();
    *     isDirty = false;
    *   }
    * })
    * ```
+   * Or, in a React component, use @collabs/react's
+   * [useCollab](https://collabs.readthedocs.io/en/latest/api/react/modules.html#useCollab).
    */
   Any: CollabEvent;
 }

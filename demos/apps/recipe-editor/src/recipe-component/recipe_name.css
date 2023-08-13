@@ -1,0 +1,22 @@
+.recipe-name {
+  border: none;
+  font-size: 32pt;
+  font-weight: bold;
+  font-family: inherit;
+}
+
+.recipe-name-wrapper {
+  flex: 0 0 content;
+  display: inline-block;
+}
+
+.recipe-name-wrapper,
+.recipe-name {
+  background-color: inherit;
+}
+
+/* Hidden div used to size the input based on its content. */
+.hidden {
+  visibility: hidden;
+  line-height: 0;
+}

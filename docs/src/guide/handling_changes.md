@@ -15,7 +15,7 @@ function refreshDisplay() {
 doc.on("Change", refreshDisplay);
 ```
 
-Here `doc` can be a [CRuntime](../api/collabs/classes/CRuntime.html) or [AbstractDoc](../api/collabs/classes/AbstractDoc.html). This "Change" event is emitted after each task in which the document's state changes, as described in [our API documentation](../api/collabs/interfaces/DocEventsRecord.html#Change).
+Here `doc` can be a [CRuntime](../api/collabs/classes/CRuntime.html) or [AbstractDoc](../api/collabs/classes/AbstractDoc.html). This "Change" event is emitted after each synchronous set of changes, as described in [our API documentation](../api/collabs/interfaces/DocEventsRecord.html#Change).
 
 For example, in the [Quick Start](../quick_start.html), we did:
 
@@ -53,6 +53,26 @@ boardState.on("Delete", (event) => {
 ```
 
 Each of our built-in Collabs emits events like these that completely describe how its state changes over time. You can find a Collab's event names and types in the API docs for its `on` method (click the `...EventsRecord` type name). E.g., here is [CValueMap.on](../api/collabs/classes/CValueMap.html#on), and here is its [MapEventsRecord](../api/collabs/interfaces/MapEventsRecord.html).
+
+## useCollab React Hook
+
+In a React component, call [useCollab(collab)](../api/react/modules.html#useCollab) to trigger a rerender whenever `collab`'s state changes (specifically, when it emits an event):
+
+```tsx
+import { useCollab } from "@collabs/react";
+import React from "react";
+
+function BoardInspector({
+  boardState,
+}: {
+  boardState: CValueMap<[x: number, y: number], Color>;
+}) {
+  // Rerender when boardState changes.
+  useCollab(boardState);
+
+  return <p>The corner pixel is {boardState.get([0, 0])}.</p>;
+}
+```
 
 ## Next Steps
 

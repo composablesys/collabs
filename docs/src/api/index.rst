@@ -12,6 +12,7 @@ TypeScript API documentation generated with Typedoc.
    indexeddb/index
    local-storage/index
    matrix-widget/index
+   react/index
    tab-sync/index
    ws-client/index
    ws-server/index

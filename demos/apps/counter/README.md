@@ -1,6 +1,6 @@
 # Counter Demo
 
-A collaborative counter, using [@collabs/ws-client](https://www.npmjs.com/package/@collabs/ws-client) and [@collabs/ws-server](https://www.npmjs.com/package/@collabs/ws-server) to connect users via aWebSocket server.
+A collaborative counter, using [@collabs/ws-client](https://www.npmjs.com/package/@collabs/ws-client) and [@collabs/ws-server](https://www.npmjs.com/package/@collabs/ws-server) to connect users via a WebSocket server.
 
 This is the same collaborative app described in the [Quick Start](https://collabs.readthedocs.io/en/latest/quick_start.html), but with a different network/storage setup:
 

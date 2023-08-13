@@ -1,0 +1,22 @@
+{
+  "compilerOptions": {
+    "target": "ES2021",
+    /* Recommend by Webpack. */
+    "module": "ES6",
+    /* Needed with module: ES6 or else compilation breaks. */
+    "moduleResolution": "node",
+    /* Enable strict type checking. */
+    "strict": true,
+    /* Prevent errors caused by other libraries. */
+    "skipLibCheck": true,
+    /* Enable interop with dependencies using different module systems. */
+    "esModuleInterop": true,
+    /* We don't need to emit declarations. */
+    "declaration": false,
+    /* Emit sourcemap files. */
+    "sourceMap": true,
+    /* React components. */
+    "jsx": "react"
+  },
+  "include": ["src"]
+}

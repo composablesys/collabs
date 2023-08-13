@@ -358,4 +358,6 @@ doc.on("Change", () => {
 
 ## Next Steps
 
-Finish the guide with [Gotchas](./gotchas.html).
+If your app uses React, continue with [React Integration](./react_integration.html).
+
+Otherwise, skip to [Gotchas](./gotchas.html).
