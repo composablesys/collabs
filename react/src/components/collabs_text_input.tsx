@@ -10,6 +10,9 @@ import React, {
 } from "react";
 import { useCollab } from "../hooks/use_collab";
 
+/**
+ * Props for [[CollabsTextInput]].
+ */
 export type CollabsTextInputProps = {
   text: CText;
 } & Omit<
@@ -20,11 +23,15 @@ export type CollabsTextInputProps = {
   "value" | "type" | "defaultValue" | "ref"
 >;
 
+/**
+ * Type for [[CollabTextInput]]'s ref.
+ */
 export class CollabsTextInputHandle {
   constructor(
     private readonly input: HTMLInputElement,
     private readonly updateCursors: () => void
   ) {}
+
   get selectionStart(): number | null {
     return this.input.selectionStart;
   }
@@ -237,7 +244,7 @@ export const CollabsTextInput = forwardRef<
           return;
         }
 
-        // Don't let the browser type the key, we do it for them.
+        // Don't let the browser type the key - we did it for them.
         e.preventDefault();
       }}
       onPaste={(e) => {

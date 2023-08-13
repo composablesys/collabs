@@ -1,9 +1,8 @@
-import { objectKey, useCollab } from "@collabs/react";
+import { CollabsTextInputHandle, objectKey, useCollab } from "@collabs/react";
 import React, { useEffect, useRef, useState } from "react";
 import { CIngredient, Ingredient } from "./ingredient";
 import { CRecipe } from "./recipe";
 
-import { CollabsTextInputHandle } from "@collabs/react";
 import "./ingredients.css";
 
 export function Ingredients({ recipe }: { recipe: CRecipe }) {
