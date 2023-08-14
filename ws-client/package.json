@@ -1,6 +1,6 @@
 {
   "name": "@collabs/ws-client",
-  "version": "0.12.0",
+  "version": "0.13.0",
   "description": "Collabs WebSocket client",
   "author": "Collabs contributors",
   "license": "Apache-2.0",
@@ -34,7 +34,7 @@
   },
   "sideEffects": false,
   "dependencies": {
-    "@collabs/collabs": "^0.12.0",
+    "@collabs/collabs": "^0.13.0",
     "protobufjs": "~6.9.0",
     "tslib": "^2.0.1"
   },

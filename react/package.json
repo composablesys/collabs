@@ -1,6 +1,6 @@
 {
   "name": "@collabs/react",
-  "version": "0.12.0",
+  "version": "0.13.0",
   "description": "React hooks and components for Collabs",
   "author": "Collabs contributors",
   "license": "Apache-2.0",
@@ -34,7 +34,7 @@
   },
   "sideEffects": false,
   "dependencies": {
-    "@collabs/collabs": "^0.12.0"
+    "@collabs/collabs": "^0.13.0"
   },
   "peerDependencies": {
     "@types/react": "^16.8.0 || ^17.0.0 || ^18.0.0",
