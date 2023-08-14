@@ -1,6 +1,6 @@
 {
   "name": "@collabs/collabs",
-  "version": "0.13.0",
+  "version": "0.13.1",
   "description": "A collections library for collaborative data structures",
   "author": "collabs contributors",
   "license": "Apache-2.0",
@@ -36,8 +36,8 @@
   },
   "sideEffects": false,
   "dependencies": {
-    "@collabs/core": "0.13.0",
-    "@collabs/crdts": "0.13.0",
+    "@collabs/core": "0.13.1",
+    "@collabs/crdts": "0.13.1",
     "tslib": "^2.0.1"
   },
   "devDependencies": {

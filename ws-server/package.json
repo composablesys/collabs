@@ -1,6 +1,6 @@
 {
   "name": "@collabs/ws-server",
-  "version": "0.13.0",
+  "version": "0.13.1",
   "description": "Collabs WebSocket server",
   "author": "Collabs contributors",
   "license": "Apache-2.0",
@@ -38,8 +38,8 @@
   },
   "sideEffects": false,
   "dependencies": {
-    "@collabs/ws-client": "0.13.0",
     "@types/ws": "^8.5.5",
+    "protobufjs": "~6.9.0",
     "tslib": "^2.0.1",
     "ws": "^8.13.0"
   },
@@ -53,7 +53,11 @@
     "start": "bin/collabs-ws-server.js",
     "prepack": "npm run clean && npm run build && npm run test",
     "build": "npm-run-all build:*",
-    "build:ts": "tsc -p tsconfig.json && tsc -p tsconfig.commonjs.json",
+    "build:protobuf": "npm-run-all build:protobuf:*",
+    "build:protobuf:prepare": "mkdirp generated_esm generated build/esm/generated",
+    "build:protobuf:js": "pbjs -t static-module -w es6 -o generated_esm/proto_compiled.js `find ../ws-client/common-proto -name '*.proto'` && pbjs -t static-module -w commonjs -o generated/proto_compiled.js `find ../ws-client/common-proto -name '*.proto'`",
+    "build:protobuf:ts": "pbts -o generated/proto_compiled.d.ts generated/proto_compiled.js",
+    "build:ts": "tsc -p tsconfig.json && tsc -p tsconfig.commonjs.json && cp generated_esm/proto_compiled.js build/esm/generated/proto_compiled.js",
     "test": "npm-run-all test:*",
     "test:format": "prettier --check .",
     "fix": "npm-run-all fix:*",

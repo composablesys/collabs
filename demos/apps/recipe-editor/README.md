@@ -5,7 +5,7 @@ A collaborative recipe editor, using [@collabs/ws-client](https://www.npmjs.com/
 This demo uses React and [@collabs/react](https://www.npmjs.com/package/@collabs/react):
 
 - [useCollab](https://collabs.readthedocs.io/en/latest/api/react/modules.html#useCollab) to control rerenders.
-- [CollabsTextInput](https://collabs.readthedocs.io/en/latest/api/react/classes/CollabsTextInput.html) for each Ingredient text field.
+- [CollabsTextInput](https://collabs.readthedocs.io/en/latest/api/react/modules.html#CollabsTextInput) for each Ingredient text field.
 
 It also uses a copy of our [rich-text demo](../rich-text) for the Instructions editor.
 

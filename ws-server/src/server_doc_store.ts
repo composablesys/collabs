@@ -1,7 +1,3 @@
-import { UpdateType } from "@collabs/ws-client/src/update_type";
-
-export { UpdateType };
-
 /**
  * Interface for a class that stores documents on behalf of a
  * [[WebSocketNetworkServer]].
@@ -17,8 +13,8 @@ export { UpdateType };
  * like a database transaction log.
  *
  * Each update passed to [[addUpdate]] should be stored immediately.
- * It consists of a Uint8Array and an [[UpdateType]] (which you can
- * treat as opaque).
+ * It consists of a Uint8Array and an update type (an opaque integer between
+ * 1 and 3).
  *
  * When an update is stored, you may choose to request a checkpoint;
  * this is smaller and loads faster than the raw update log.
@@ -45,12 +41,12 @@ export interface ServerDocStore {
    * @return
    * - `checkpoint`: The checkpoint, if any.
    * - `updates`: The uncompacted updates.
-   * - `updateTypes`: The [[UpdateType]] corresponding to each update in `updates`.
+   * - `updateTypes`: The update types corresponding to each update in `updates`.
    */
   load(docID: string): Promise<{
     checkpoint: Uint8Array | null;
     updates: Uint8Array[];
-    updateTypes: UpdateType[];
+    updateTypes: number[];
   }>;
 
   /**
@@ -64,7 +60,7 @@ export interface ServerDocStore {
   addUpdate(
     docID: string,
     update: Uint8Array,
-    updateType: UpdateType
+    updateType: number
   ): Promise<string | null>;
 
   /**

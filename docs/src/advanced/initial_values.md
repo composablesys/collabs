@@ -30,7 +30,7 @@ Similar to the previous technique, if an entire collaborative _document_ is crea
 
 ### Loading a Base State
 
-Finally, sometimes neither Collabs nor documents have a specific creator. For example, our [rich text demo](https://github.com/composablesys/collabs/blob/master/demos/apps/rich-text/src/rich_text.ts) features a single document that always exists, with a single `text: CRichText` Collab synced to Quill.
+Finally, sometimes neither Collabs nor documents have a specific creator. For example, our [rich text demo](https://github.com/composablesys/collabs/blob/master/demos/apps/rich-text/src/main.ts) features a single document that always exists, with a single `text: CRichText` Collab synced to Quill.
 
 To the set the initial value of such a document's Collabs, you can create an identical "base" saved state on all users, then load that state before performing any operations (but after registering Collabs). For example:
 

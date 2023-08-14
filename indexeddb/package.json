@@ -1,6 +1,6 @@
 {
   "name": "@collabs/indexeddb",
-  "version": "0.13.0",
+  "version": "0.13.1",
   "description": "Collabs doc storage via IndexedDB",
   "author": "Collabs contributors",
   "license": "Apache-2.0",
