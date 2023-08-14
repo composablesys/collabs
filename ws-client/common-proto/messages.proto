@@ -1,5 +1,5 @@
 // This file is used by both @collabs/ws-client and @collabs/ws-server,
-// hence the "common-proto" directly.
+// hence the "common-proto" directory.
 // Each package builds it from protobuf separately and publishes
 // its own copy of the generated ts/js files.
 
