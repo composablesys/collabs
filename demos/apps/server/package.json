@@ -1,7 +1,7 @@
 {
   "license": "Apache-2.0",
   "dependencies": {
-    "@collabs/ws-server": "0.13.0",
+    "@collabs/ws-server": "0.13.1",
     "@types/express": "^4.17.17",
     "@types/node": "^15.6.1",
     "express": "^4.17.1",
