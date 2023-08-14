@@ -1,3 +1,8 @@
+// This file is used by both @collabs/ws-client and @collabs/ws-server,
+// hence the "common-proto" directly.
+// Each package builds it from protobuf separately and publishes
+// its own copy of the generated ts/js files.
+
 message Subscribe {
   repeated string docIDs = 1;
 }

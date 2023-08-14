@@ -1,4 +1,3 @@
-import { UpdateType } from "@collabs/ws-client/src/update_type";
 import { ServerDocStore } from "./server_doc_store";
 
 /** How many updates before we consider a checkpoint. */
@@ -10,7 +9,7 @@ interface StoredDoc {
   checkpoint: Uint8Array | null;
   /** Updates not included in savedState (the last checkpoint). */
   updates: Uint8Array[];
-  updateTypes: UpdateType[];
+  updateTypes: number[];
   /**
    * The number of our all-time updates included in savedState
    * (the last checkpoint).
@@ -49,7 +48,7 @@ export class InMemoryDocStore implements ServerDocStore {
   async load(docID: string): Promise<{
     checkpoint: Uint8Array | null;
     updates: Uint8Array[];
-    updateTypes: UpdateType[];
+    updateTypes: number[];
   }> {
     const info = this.getInfo(docID);
     return {
@@ -62,7 +61,7 @@ export class InMemoryDocStore implements ServerDocStore {
   async addUpdate(
     docID: string,
     update: Uint8Array,
-    updateType: UpdateType
+    updateType: number
   ): Promise<string | null> {
     const info = this.getInfo(docID);
     info.updates.push(update);

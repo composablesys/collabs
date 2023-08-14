@@ -16,6 +16,8 @@
     "strict": true,
     /* Prevent errors caused by other libraries. */
     "skipLibCheck": true,
+    /* Include generated .js files. */
+    "allowJs": true,
     /* Enable interop with dependencies using different module systems. */
     "esModuleInterop": true,
     /* Emit .d.ts files. */

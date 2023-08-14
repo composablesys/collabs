@@ -1,3 +1,4 @@
+import { WebSocket, WebSocketServer } from "ws";
 import {
   CheckpointResponse,
   IWSMessage,
@@ -5,8 +6,7 @@ import {
   Subscribe,
   Unsubscribe,
   WSMessage,
-} from "@collabs/ws-client/generated/proto_compiled";
-import { WebSocket, WebSocketServer } from "ws";
+} from "../generated/proto_compiled";
 import { InMemoryDocStore } from "./in_memory_doc_store";
 import { ServerDocStore } from "./server_doc_store";
 
