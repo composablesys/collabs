@@ -193,6 +193,9 @@ export interface DocEventsRecord {
   /**
    * Emitted after applying a synchronous set of updates. This
    * is a good time to rerender the GUI.
+   * 
+   * When delivering remote updates, you can reduce the number of Change
+   * events using [[AbstractDoc.batchRemoteUpdates]]/[[CRuntime.batchRemoteUpdates]].
    */
   Change: ChangeEvent;
 }

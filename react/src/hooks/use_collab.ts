@@ -45,9 +45,6 @@ export function useCollab(collab: Collab): void {
         // by React (all versions).
         // 2. Waiting until the "Change" event would break React <18's batching,
         // since for local ops, the "Change" event is usually async.
-
-        // OPT: Allow providers to batch multiple receive/load calls into a
-        // single "Change" event, to reduce rerenders with React <18.
       }
     });
     return () => {

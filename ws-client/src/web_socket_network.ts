@@ -315,26 +315,28 @@ export class WebSocketNetwork extends EventEmitter<WebSocketNetworkEventsRecord>
       // Skip if we've been unsubscribed already.
       if (info.unsubscribed) return;
 
-      // Make us up-to-date with the server:
-      //   1. Load the welcome state.
-      if (protobufHas(message, "savedState")) {
-        doc.load(message.savedState, this);
-      }
-      //   2. Load the further updates.
-      for (let i = 0; i < message.updates.length; i++) {
-        const update = message.updates[i];
-        const updateType = message.updateTypes[i];
-        switch (updateType) {
-          case UpdateType.Message:
-            doc.receive(update, this);
-            break;
-          case UpdateType.SavedState:
-            doc.load(update, this);
-            break;
-          default:
-            throw new Error("Unrecognized UpdateType: " + updateType);
+      doc.batchRemoteUpdates(() => {
+        // Make us up-to-date with the server:
+        //   1. Load the welcome state.
+        if (protobufHas(message, "savedState")) {
+          doc.load(message.savedState, this);
         }
-      }
+        //   2. Load the further updates.
+        for (let i = 0; i < message.updates.length; i++) {
+          const update = message.updates[i];
+          const updateType = message.updateTypes[i];
+          switch (updateType) {
+            case UpdateType.Message:
+              doc.receive(update, this);
+              break;
+            case UpdateType.SavedState:
+              doc.load(update, this);
+              break;
+            default:
+              throw new Error("Unrecognized UpdateType: " + updateType);
+          }
+        }
+      });
 
       this.emit("Load", { doc, docID: message.docID });
 

@@ -53,16 +53,43 @@ export abstract class AbstractDoc extends EventEmitter<DocEventsRecord> {
    * Wraps `f`'s operations in a
    * [transaction](https://collabs.readthedocs.io/en/latest/advanced/updates.html#terminology).
    *
-   * This method begins a transaction (if needed), calls `f()`,
-   * then ends its transaction (if begun). Operations
-   * not wrapped in a `transact` call use the constructor's
-   * [[DocOptions.autoTransactions]] option.
+   * `f()` is called immediately, then if it performed any local Collab operations,
+   * their transaction is ended (emitting "Send", "Update", and "Change" events).
    *
-   * If there are nested `transact` calls (possibly due to [[DocOptions.autoTransactions]]),
-   * only the outermost one matters.
+   * Notes:
+   * - Operations not wrapped in a `transact` call use the constructor's
+   * [[DocOptions.autoTransactions]] option.
+   * - If there are nested `transact` calls (possibly due to
+   * DocOptions.autoTransactions), only the outermost one matters.
+   *
+   * See also: [[batchRemoteUpdates]], a similar method for remote updates.
    */
   transact(f: () => void) {
     this.runtime.transact(f);
+  }
+  /**
+   * Delivers remotes updates (receive/load calls) in a *batch*,
+   * so that only a single "Change" event is emitted for the entire batch.
+   *
+   * `f()` is called immediately, then if it delivered any remote updates,
+   * a single "Change" event is emitted.
+   * That way, "Change" listeners know that they only need
+   * to refresh the display once at the end, instead of once per receive/load
+   * call.
+   *
+   * Notes:
+   * - Each delivered update still emits its own "Update" event immediately,
+   * as usual.
+   * - If there are nested batchRemoteUpdates calls, only the outermost
+   * one matters.
+   *
+   * See also: [[transact]], a similar method for local operations.
+   *
+   * @param f A callback that delivers the remote updates by calling
+   * [[receive]]/[[load]].
+   */
+  batchRemoteUpdates(f: () => void): void {
+    this.runtime.batchRemoteUpdates(f);
   }
 
   /**
