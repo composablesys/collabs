@@ -123,16 +123,22 @@ function updateContents(delta: DeltaStatic) {
   ourChange = false;
 }
 
+let pendingDelta: DeltaStatic = new Delta();
+
 text.on("Insert", (e) => {
   if (e.meta.isLocalOp) return;
 
-  updateContents(new Delta().retain(e.index).insert(e.values, e.format));
+  pendingDelta = pendingDelta.compose(
+    new Delta().retain(e.index).insert(e.values, e.format)
+  );
 });
 
 text.on("Delete", (e) => {
   if (e.meta.isLocalOp) return;
 
-  updateContents(new Delta().retain(e.index).delete(e.values.length));
+  pendingDelta = pendingDelta.compose(
+    new Delta().retain(e.index).delete(e.values.length)
+  );
 });
 
 text.on("Format", (e) => {
@@ -157,9 +163,22 @@ text.on("Format", (e) => {
     format[e.key] = e.value ?? null;
   }
 
-  updateContents(
+  pendingDelta = pendingDelta.compose(
     new Delta().retain(e.startIndex).retain(e.endIndex - e.startIndex, format)
   );
+});
+
+(text.runtime as CRuntime).on("Change", (e) => {
+  if (!e.isLocalOp) {
+    // Send the pendingDelta to Quill.
+    // We wait until "Change" so this only happens once per batch.
+    // We don't risk interleaving with local updates (which would require
+    // transforming later deltas) because CRuntime doesn't allow local ops
+    // during a batch.
+    const delta = pendingDelta;
+    pendingDelta = new Delta();
+    updateContents(delta);
+  }
 });
 
 // Convert user inputs to Collab operations.
@@ -283,7 +302,7 @@ function moveCursor(replicaID: string): void {
       // Position, causing an error.
       // For now, just ignore the cursor movement.
       // See https://github.com/composablesys/collabs/issues/262
-      console.error("Error updating shared cursor:", err);
+      console.error("Error updating shared cursor: " + err);
     }
   }
 }
