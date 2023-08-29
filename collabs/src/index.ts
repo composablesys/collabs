@@ -77,6 +77,7 @@ export {
   CValueMap,
   CValueSet,
   CVar,
+  ChangeEvent,
   CounterAddEvent,
   CounterEventsRecord,
   DocEventsRecord,

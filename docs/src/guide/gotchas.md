@@ -101,7 +101,7 @@ Do not attempt operations that require [strong consistency](https://en.wikipedia
 
 See also: [CAP theorem](https://en.wikipedia.org/wiki/CAP_theorem).
 
-# Next Steps
+## Next Steps
 
 You've now finished the Guide and learned Collabs's main concepts!
 

@@ -274,13 +274,15 @@ export class LocalStorageDocStore extends EventEmitter<LocalStorageDocStoreEvent
 
       // 3. Load the updates into doc.
 
-      // Load saved states first, to reduce causal buffering of updates.
-      for (const savedState of savedStates) {
-        doc.load(savedState, this);
-      }
-      for (const message of messages) {
-        doc.receive(message, this);
-      }
+      doc.batchRemoteUpdates(() => {
+        // Load saved states first, to reduce causal buffering of updates.
+        for (const savedState of savedStates) {
+          doc.load(savedState, this);
+        }
+        for (const message of messages) {
+          doc.receive(message, this);
+        }
+      });
       this.emit("Load", { doc, docID });
 
       // Do the next part's save() in a separate task to avoid blocking

@@ -92,7 +92,7 @@ export interface MessageEvent {
    */
   senderCounter: number;
   /**
-   * Whether the message is for a local transaction, i.e., it results
+   * Whether the update is from a local transaction, i.e., it results
    * from calling Collab methods on this replica.
    */
   isLocalOp: boolean;
@@ -148,7 +148,7 @@ export interface SavedStateEvent {
    */
   redundant: Map<string, number>;
   /**
-   * Whether the message is for a local transaction, i.e., it results
+   * Whether the update is from a local transaction, i.e., it results
    * from calling Collab methods on this replica.
    */
   isLocalOp: false;
@@ -159,6 +159,18 @@ export interface SavedStateEvent {
  * after applying an update.
  */
 export type UpdateEvent = MessageEvent | SavedStateEvent;
+
+/**
+ * Event emitted by [[CRuntime]]/[[AbstractDoc]]
+ * after applying a synchronous set of updates.
+ */
+export interface ChangeEvent {
+  /**
+   * Whether the change is from a local transaction, i.e., it results
+   * from calling Collab methods on this replica.
+   */
+  isLocalOp: boolean;
+}
 
 /**
  * Events record for a
@@ -181,8 +193,11 @@ export interface DocEventsRecord {
   /**
    * Emitted after applying a synchronous set of updates. This
    * is a good time to rerender the GUI.
+   *
+   * When delivering remote updates, you can reduce the number of Change
+   * events using [[AbstractDoc.batchRemoteUpdates]]/[[CRuntime.batchRemoteUpdates]].
    */
-  Change: object;
+  Change: ChangeEvent;
 }
 
 /**
@@ -269,13 +284,17 @@ export class CRuntime
 
   // State vars.
   private used = false;
-  private inApplyUpdate = false;
+  private inReceiveOrLoad = false;
 
   // Transaction vars.
   private inTransaction = false;
   private crdtMeta: SendCRDTMeta | null = null;
   private meta: MessageMeta | null = null;
   private messageBatches: (Uint8Array | string)[][] = [];
+
+  // batchDeliveries() vars.
+  private inBatchRemote = false;
+  private batchChanged = false;
 
   readonly isCRDTRuntime = true;
 
@@ -332,6 +351,10 @@ export class CRuntime
   }
 
   private beginTransaction() {
+    // We don't ban local ops during batchRemoteUpdates but outside
+    // of a receive/load call (e.g., during the "Change" event handler -
+    // a reasonable place to update CPresence state).
+
     this.inTransaction = true;
     // Wait to set meta until we actually send a message, if we do.
     // messageBatches was already cleared by the previous endTransaction.
@@ -371,28 +394,33 @@ export class CRuntime
       senderCounter: crdtMeta.senderCounter,
       isLocalOp: true,
     });
-    this.emit("Change", {});
+    this.emit("Change", { isLocalOp: true });
   }
 
   /**
    * Wraps `f`'s operations in a
    * [transaction](https://collabs.readthedocs.io/en/latest/advanced/updates.html#terminology).
    *
-   * This method begins a transaction (if needed), calls `f()`,
-   * then ends its transaction (if begun). Operations
-   * not wrapped in a `transact` call use the constructor's
-   * [[DocOptions.autoTransactions]] option.
+   * `f()` is called immediately, then if it performed any local Collab operations,
+   * their transaction is ended (emitting "Send", "Update", and "Change" events).
    *
-   * If there are nested `transact` calls (possibly due to
-   * [[DocOptions.autoTransactions]]), only the outermost one matters.
+   * Notes:
+   * - Operations not wrapped in a `transact` call use the constructor's
+   * [[DocOptions.autoTransactions]] option.
+   * - If there are nested `transact` calls (possibly due to
+   * DocOptions.autoTransactions), only the outermost one matters.
+   *
+   * See also: [[batchRemoteUpdates]], a similar method for remote updates.
    */
   transact(f: () => void) {
-    const alreadyInTransaction = this.inTransaction;
-    if (!alreadyInTransaction) this.beginTransaction();
-    try {
-      f();
-    } finally {
-      if (!alreadyInTransaction) this.endTransaction();
+    if (this.inTransaction) f();
+    else {
+      this.beginTransaction();
+      try {
+        f();
+      } finally {
+        this.endTransaction();
+      }
     }
   }
 
@@ -404,7 +432,7 @@ export class CRuntime
     if (child !== this.rootCollab) {
       throw new Error(`childSend called by non-root: ${child}`);
     }
-    if (this.inApplyUpdate) {
+    if (this.inReceiveOrLoad) {
       throw new Error(
         "CRuntime.send called during a receive/load call;" +
           " did you try to perform an operation in an event handler?"
@@ -415,6 +443,8 @@ export class CRuntime
     let autoEndTransaction = false;
     if (!this.inTransaction) {
       // Create a transaction according to options.autoTransactions.
+      // Note that calls to transact() inside this transaction do nothing,
+      // so we don't have to worry about ending them early or double-ending.
       switch (this.autoTransactions) {
         case "microtask":
           this.beginTransaction();
@@ -482,6 +512,49 @@ export class CRuntime
   }
 
   /**
+   * Delivers remotes updates (receive/load calls) in a *batch*,
+   * so that only a single "Change" event is emitted for the entire batch.
+   *
+   * `f()` is called immediately, then if it delivered any remote updates,
+   * a single "Change" event is emitted.
+   * That way, "Change" listeners know that they only need
+   * to refresh the display once at the end, instead of once per receive/load
+   * call.
+   *
+   * Notes:
+   * - Each delivered update still emits its own "Update" event immediately,
+   * as usual.
+   * - If there are nested batchRemoteUpdates calls, only the outermost
+   * one matters.
+   *
+   * See also: [[transact]], a similar method for local operations.
+   *
+   * @param f A callback that delivers the remote updates by calling
+   * [[receive]]/[[load]].
+   */
+  batchRemoteUpdates(f: () => void): void {
+    if (this.inTransaction) {
+      throw new Error("Cannot apply remote updates during a local transaction");
+      // That would violate the constraint that all ops during a transaction
+      // have the same metadata, including the same vector clock.
+    }
+
+    if (this.inBatchRemote) f();
+    else {
+      this.inBatchRemote = true;
+      this.batchChanged = false;
+      try {
+        f();
+      } finally {
+        this.inBatchRemote = false;
+        if (this.batchChanged) {
+          this.emit("Change", { isLocalOp: false });
+        }
+      }
+    }
+  }
+
+  /**
    * Receives a message from another replica's [[DocEventsRecord.Send]] event.
    * The message's sender must be a CRuntime that is a
    * replica of this one (i.e., it has the same
@@ -505,31 +578,33 @@ export class CRuntime
     if (this.inTransaction) {
       throw new Error("Cannot call receive() during a transaction");
     }
-    if (this.inApplyUpdate) {
+    if (this.inReceiveOrLoad) {
       throw new Error(
         "Cannot call receive() during another receive/load call;" +
           " did you try to deliver a message in a Collab's event handler?"
       );
     }
+    this.used = true;
 
-    let changed = false;
-    this.inApplyUpdate = true;
-    try {
-      const [messageStacks, meta] = MessageSerializer.deserialize(message);
-      if (this.buffer.process(message, messageStacks, meta, caller)) {
-        changed = true;
-        this.buffer.check();
+    this.batchRemoteUpdates(() => {
+      this.inReceiveOrLoad = true;
+      try {
+        const [messageStacks, meta] = MessageSerializer.deserialize(message);
+        if (this.buffer.process(message, messageStacks, meta, caller)) {
+          this.batchChanged = true;
+          this.buffer.check();
+        }
+      } finally {
+        this.inReceiveOrLoad = false;
       }
-    } finally {
-      this.inApplyUpdate = false;
-    }
-    if (changed) this.emit("Change", {});
+    });
   }
 
   /**
    * Called by this.buffer when a (remote) transaction is ready for delivery.
    * This is always within our call to this.buffer.check() in [[receive]]
-   * or [[load]], so errors will propagate to there.
+   * or [[load]], so that method handles thrown errors and calls
+   * batchRemoteUpdates.
    */
   private deliverFromBuffer(
     message: Uint8Array,
@@ -564,7 +639,7 @@ export class CRuntime
     if (this.inTransaction) {
       throw new Error("Cannot call save() during a transaction");
     }
-    if (this.inApplyUpdate) {
+    if (this.inReceiveOrLoad) {
       throw new Error("Cannot call save() during a load/receive call");
     }
 
@@ -599,7 +674,7 @@ export class CRuntime
     if (this.inTransaction) {
       throw new Error("Cannot call load() during a transaction");
     }
-    if (this.inApplyUpdate) {
+    if (this.inReceiveOrLoad) {
       throw new Error(
         "Cannot call load() during another receive/load call;" +
           " did you try to load in a Collab's event handler?"
@@ -607,62 +682,62 @@ export class CRuntime
     }
     this.used = true;
 
-    let changed = false;
-    this.inApplyUpdate = true;
-    try {
-      const savedStateTree =
-        SavedStateTreeSerializer.instance.deserialize(savedState);
-      const loadCRDTMeta = this.buffer.load(
-        nonNull(savedStateTree.self),
-        caller
-      );
-      savedStateTree.self = undefined;
-      const meta: SavedStateMeta = {
-        updateType: "savedState",
-        runtimeExtra: loadCRDTMeta,
-        isLocalOp: false,
-      };
-
-      let isRedundant = true;
-      const vectorClock = new Map<string, number>();
-      const redundant = new Map<string, number>();
-      for (const [replicaID, remote] of loadCRDTMeta.remoteVectorClock
-        .vcEntries) {
-        vectorClock.set(replicaID, remote);
-        const local = loadCRDTMeta.localVectorClock.get(replicaID);
-        // If local > remote (fully redundant), set to remote, so that
-        // redundant.get(replicaID) == vectorClock.get(replicaID).
-        redundant.set(replicaID, Math.min(local, remote));
-        if (local < remote) isRedundant = false;
-      }
-
-      if (isRedundant && !this.allowRedundantLoads) {
-        // The saved state is redundant. Don't load or emit events.
-
-        // We did still call buffer.load. This doesn't affect our VC because
-        // the remote VC was redundant, but it may still have added
-        // new messages to the buffer. Check if any of these are ready in
-        // our state, and if so, emit a Change event.
-        if (this.buffer.check()) changed = true;
-      } else {
-        this.rootCollab.load(savedStateTree, meta);
-        changed = true;
-
-        this.emit("Update", {
-          update: savedState,
-          caller,
+    this.batchRemoteUpdates(() => {
+      this.inReceiveOrLoad = true;
+      try {
+        const savedStateTree =
+          SavedStateTreeSerializer.instance.deserialize(savedState);
+        const loadCRDTMeta = this.buffer.load(
+          nonNull(savedStateTree.self),
+          caller
+        );
+        savedStateTree.self = undefined;
+        const meta: SavedStateMeta = {
           updateType: "savedState",
-          vectorClock,
-          redundant,
+          runtimeExtra: loadCRDTMeta,
           isLocalOp: false,
-        });
+        };
 
-        this.buffer.check();
+        let isRedundant = true;
+        const vectorClock = new Map<string, number>();
+        const redundant = new Map<string, number>();
+        for (const [replicaID, remote] of loadCRDTMeta.remoteVectorClock
+          .vcEntries) {
+          vectorClock.set(replicaID, remote);
+          const local = loadCRDTMeta.localVectorClock.get(replicaID);
+          // If local > remote (fully redundant), set to remote, so that
+          // redundant.get(replicaID) == vectorClock.get(replicaID).
+          redundant.set(replicaID, Math.min(local, remote));
+          if (local < remote) isRedundant = false;
+        }
+
+        if (isRedundant && !this.allowRedundantLoads) {
+          // The saved state is redundant. Don't load or emit events.
+
+          // We did still call buffer.load. This doesn't affect our VC because
+          // the remote VC was redundant, but it may still have added
+          // new messages to the buffer. Check if any of these are ready in
+          // our state, and if so, emit a Change event.
+          if (this.buffer.check()) this.batchChanged = true;
+        } else {
+          this.rootCollab.load(savedStateTree, meta);
+          this.batchChanged = true;
+
+          this.emit("Update", {
+            update: savedState,
+            caller,
+            updateType: "savedState",
+            vectorClock,
+            redundant,
+            isLocalOp: false,
+          });
+
+          this.buffer.check();
+        }
+      } finally {
+        this.inReceiveOrLoad = false;
       }
-    } finally {
-      this.inApplyUpdate = false;
-    }
-    if (changed) this.emit("Change", {});
+    });
   }
 
   /**

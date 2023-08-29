@@ -6,7 +6,7 @@ const {
   WebSocketNetworkServer,
 } = require("../build/commonjs/src/web_socket_network_server");
 
-const hostname = process.env.HOSTNAME || "localhost";
+const host = process.env.HOST || "localhost";
 const port = process.env.PORT || 3001;
 
 const server = http.createServer((req, res) => {
@@ -18,6 +18,6 @@ const server = http.createServer((req, res) => {
 const wss = new WebSocketServer({ server });
 new WebSocketNetworkServer(wss);
 
-server.listen(port, hostname, () => {
-  console.log(`collabs-ws-server running at http://${hostname}:${port}/`);
+server.listen(port, host, () => {
+  console.log(`collabs-ws-server running at http://${host}:${port}/`);
 });

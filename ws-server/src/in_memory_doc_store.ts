@@ -1,7 +1,7 @@
 import { ServerDocStore } from "./server_doc_store";
 
 /** How many updates before we consider a checkpoint. */
-const updatesBeforeCheckpoint = 100;
+const updatesBeforeCheckpoint = 500;
 /** The minimum time between checkpoints. */
 const checkpointInterval = 10000;
 
@@ -69,13 +69,14 @@ export class InMemoryDocStore implements ServerDocStore {
 
     // Do checkpoint request if:
     // - There are at least 100 pending updates in the log.
-    // - It has been at least 10 seconds since the last save request,
+    // - It has been at least 10 seconds since the last checkpoint request,
     // including potential failed or long-latency requests.
     if (info.updates.length >= updatesBeforeCheckpoint) {
       if (
         info.lastCheckpointRequestTime === null ||
         info.lastCheckpointRequestTime + checkpointInterval <= Date.now()
       ) {
+        info.lastCheckpointRequestTime = Date.now();
         // The number of our all-time updates included in savedState + updates.
         const updateCount = info.lastCheckpointCounter + info.updates.length;
         return `${updateCount}`;

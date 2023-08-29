@@ -123,16 +123,22 @@ function updateContents(delta: DeltaStatic) {
   ourChange = false;
 }
 
+let pendingDelta: DeltaStatic = new Delta();
+
 text.on("Insert", (e) => {
   if (e.meta.isLocalOp) return;
 
-  updateContents(new Delta().retain(e.index).insert(e.values, e.format));
+  pendingDelta = pendingDelta.compose(
+    new Delta().retain(e.index).insert(e.values, e.format)
+  );
 });
 
 text.on("Delete", (e) => {
   if (e.meta.isLocalOp) return;
 
-  updateContents(new Delta().retain(e.index).delete(e.values.length));
+  pendingDelta = pendingDelta.compose(
+    new Delta().retain(e.index).delete(e.values.length)
+  );
 });
 
 text.on("Format", (e) => {
@@ -157,9 +163,24 @@ text.on("Format", (e) => {
     format[e.key] = e.value ?? null;
   }
 
-  updateContents(
+  pendingDelta = pendingDelta.compose(
     new Delta().retain(e.startIndex).retain(e.endIndex - e.startIndex, format)
   );
+});
+
+(text.runtime as CRuntime).on("Change", (e) => {
+  if (!e.isLocalOp) {
+    // Send the pendingDelta to Quill.
+    // We wait until "Change" so this only happens once per batch.
+    // We don't risk interleaving with Quill's updates because batches
+    // are always synchronous, while Quill-driven updates always occur
+    // in a DOM event.
+    // TODO: will need to adjust this strategy if we allow programmatic ops
+    // via CText or Quill manipulation.
+    const delta = pendingDelta;
+    pendingDelta = new Delta();
+    updateContents(delta);
+  }
 });
 
 // Convert user inputs to Collab operations.
@@ -283,7 +304,7 @@ function moveCursor(replicaID: string): void {
       // Position, causing an error.
       // For now, just ignore the cursor movement.
       // See https://github.com/composablesys/collabs/issues/262
-      console.error("Error updating shared cursor:", err);
+      console.error("Error updating shared cursor: " + err);
     }
   }
 }
@@ -351,8 +372,8 @@ wsNetwork.on("Disconnect", (e) => {
     wsNetwork.connect();
   }, 2000);
 });
-wsNetwork.subscribe(doc, docID);
-wsNetwork.subscribe(presenceDoc, presenceDocID);
+wsNetwork.subscribe(doc, docID, { batchRemoteMS: 50 });
+wsNetwork.subscribe(presenceDoc, presenceDocID, { batchRemoteMS: 50 });
 
 // In a real app, you would probably also add on-device storage
 // (@collabs/indexeddb or @collabs/local-storage)
