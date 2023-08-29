@@ -10,6 +10,7 @@ This page has instructions for using the template, a walkthrough of its starter 
 
 ```bash
 git clone https://github.com/composablesys/collabs-template-app.git
+cd collabs-template-app
 ```
 
 2. Install dependencies:

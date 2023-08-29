@@ -92,7 +92,7 @@ export interface MessageEvent {
    */
   senderCounter: number;
   /**
-   * Whether the message is for a local transaction, i.e., it results
+   * Whether the update is from a local transaction, i.e., it results
    * from calling Collab methods on this replica.
    */
   isLocalOp: boolean;
@@ -148,7 +148,7 @@ export interface SavedStateEvent {
    */
   redundant: Map<string, number>;
   /**
-   * Whether the message is for a local transaction, i.e., it results
+   * Whether the update is from a local transaction, i.e., it results
    * from calling Collab methods on this replica.
    */
   isLocalOp: false;
@@ -159,6 +159,18 @@ export interface SavedStateEvent {
  * after applying an update.
  */
 export type UpdateEvent = MessageEvent | SavedStateEvent;
+
+/**
+ * Event emitted by [[CRuntime]]/[[AbstractDoc]]
+ * after applying a synchronous set of updates.
+ */
+export interface ChangeEvent {
+  /**
+   * Whether the change is from a local transaction, i.e., it results
+   * from calling Collab methods on this replica.
+   */
+  isLocalOp: boolean;
+}
 
 /**
  * Events record for a
@@ -182,7 +194,7 @@ export interface DocEventsRecord {
    * Emitted after applying a synchronous set of updates. This
    * is a good time to rerender the GUI.
    */
-  Change: object;
+  Change: ChangeEvent;
 }
 
 /**
@@ -371,7 +383,7 @@ export class CRuntime
       senderCounter: crdtMeta.senderCounter,
       isLocalOp: true,
     });
-    this.emit("Change", {});
+    this.emit("Change", { isLocalOp: true });
   }
 
   /**
@@ -523,7 +535,7 @@ export class CRuntime
     } finally {
       this.inApplyUpdate = false;
     }
-    if (changed) this.emit("Change", {});
+    if (changed) this.emit("Change", { isLocalOp: false });
   }
 
   /**
@@ -662,7 +674,7 @@ export class CRuntime
     } finally {
       this.inApplyUpdate = false;
     }
-    if (changed) this.emit("Change", {});
+    if (changed) this.emit("Change", { isLocalOp: false });
   }
 
   /**
