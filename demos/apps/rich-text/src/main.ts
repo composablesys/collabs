@@ -172,9 +172,11 @@ text.on("Format", (e) => {
   if (!e.isLocalOp) {
     // Send the pendingDelta to Quill.
     // We wait until "Change" so this only happens once per batch.
-    // We don't risk interleaving with local updates (which would require
-    // transforming later deltas) because CRuntime doesn't allow local ops
-    // during a batch.
+    // We don't risk interleaving with Quill's updates because batches
+    // are always synchronous, while Quill-driven updates always occur
+    // in a DOM event.
+    // TODO: will need to adjust this strategy if we allow programmatic ops
+    // via CText or Quill manipulation.
     const delta = pendingDelta;
     pendingDelta = new Delta();
     updateContents(delta);

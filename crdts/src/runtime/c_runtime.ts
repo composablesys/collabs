@@ -351,14 +351,9 @@ export class CRuntime
   }
 
   private beginTransaction() {
-    if (this.inBatchRemote) {
-      throw new Error(
-        "Cannot perform local updates during a remote batch (receive/load)"
-      );
-      // That could confuse event listeners who accumulate events during a
-      // remote batch, then apply them all sequentially at the end (on "Change"):
-      // accumulated events would need to be "transformed" against the local ops.
-    }
+    // We don't ban local ops during batchRemoteUpdates but outside
+    // of a receive/load call (e.g., during the "Change" event handler -
+    // a reasonable place to update CPresence state).
 
     this.inTransaction = true;
     // Wait to set meta until we actually send a message, if we do.
