@@ -603,7 +603,8 @@ export class CRuntime
   /**
    * Called by this.buffer when a (remote) transaction is ready for delivery.
    * This is always within our call to this.buffer.check() in [[receive]]
-   * or [[load]], so that method handles thrown errors and batches deliveries.
+   * or [[load]], so that method handles thrown errors and calls
+   * batchRemoteUpdates.
    */
   private deliverFromBuffer(
     message: Uint8Array,

@@ -216,8 +216,8 @@ export class WebSocketNetwork extends EventEmitter<WebSocketNetworkEventsRecord>
    * @param doc The document to subscribe.
    * @param docID An arbitrary string that identifies which updates to use.
    * @param options.batchRemoteMS If set, remote updates to doc are
-   * delivered at most once every batchRemoteMS, emitting only a single
-   * doc "Change" event. Set this to reduce redundant renders.
+   * delivered at most once every `batchRemoteMS` ms, emitting only a single
+   * doc "Change" event. This limits render frequency.
    * @throws If `doc` is already subscribed to a docID.
    * @throws If another doc is subscribed to `docID`.
    */
