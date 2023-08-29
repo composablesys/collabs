@@ -1,7 +1,7 @@
 import { ServerDocStore } from "./server_doc_store";
 
 /** How many updates before we consider a checkpoint. */
-const updatesBeforeCheckpoint = 100;
+const updatesBeforeCheckpoint = 500;
 /** The minimum time between checkpoints. */
 const checkpointInterval = 10000;
 
