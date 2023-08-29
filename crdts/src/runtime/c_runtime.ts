@@ -193,7 +193,7 @@ export interface DocEventsRecord {
   /**
    * Emitted after applying a synchronous set of updates. This
    * is a good time to rerender the GUI.
-   * 
+   *
    * When delivering remote updates, you can reduce the number of Change
    * events using [[AbstractDoc.batchRemoteUpdates]]/[[CRuntime.batchRemoteUpdates]].
    */
@@ -351,9 +351,14 @@ export class CRuntime
   }
 
   private beginTransaction() {
-    // For now, we allow local ops when inBatchDeliveries = true,
-    // in case you react to remote updates with your own.
-    // (However, local ops are not allowed inside an actual receive/load call).
+    if (this.inBatchRemote) {
+      throw new Error(
+        "Cannot perform local updates during a remote batch (receive/load)"
+      );
+      // That could confuse event listeners who accumulate events during a
+      // remote batch, then apply them all sequentially at the end (on "Change"):
+      // accumulated events would need to be "transformed" against the local ops.
+    }
 
     this.inTransaction = true;
     // Wait to set meta until we actually send a message, if we do.
