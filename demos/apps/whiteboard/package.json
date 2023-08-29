@@ -1,9 +1,9 @@
 {
   "license": "Apache-2.0",
   "dependencies": {
-    "@collabs/collabs": "0.13.1",
-    "@collabs/ws-client": "0.13.1",
-    "@collabs/ws-server": "0.13.1",
+    "@collabs/collabs": "0.13.2",
+    "@collabs/ws-client": "0.13.2",
+    "@collabs/ws-server": "0.13.2",
     "express": "^4.18.2",
     "jquery": "^3.6.0",
     "ws": "^8.13.0"

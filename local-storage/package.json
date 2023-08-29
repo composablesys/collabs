@@ -1,6 +1,6 @@
 {
   "name": "@collabs/local-storage",
-  "version": "0.13.1",
+  "version": "0.13.2",
   "description": "Collabs doc storage via localStorage",
   "author": "Collabs contributors",
   "license": "Apache-2.0",
@@ -34,7 +34,7 @@
   },
   "sideEffects": false,
   "dependencies": {
-    "@collabs/collabs": "^0.13.0",
+    "@collabs/collabs": "^0.13.2",
     "base64-js": "^1.5.1"
   },
   "devDependencies": {
