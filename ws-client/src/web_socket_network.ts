@@ -56,8 +56,11 @@ export interface WebSocketNetworkEventsRecord {
 
 interface DocInfo {
   readonly docID: string;
+  readonly batchRemoteMS: number | null;
   /** The WebSocketNetwork.localCounter value of our last sent message. */
   lastSent: number;
+  /** Pending updates, to be applied in the next batch. */
+  nextBatch: Receive[];
   off?: () => void;
   subscribeDenied?: true;
   unsubscribed?: true;
@@ -212,10 +215,17 @@ export class WebSocketNetwork extends EventEmitter<WebSocketNetworkEventsRecord>
    *
    * @param doc The document to subscribe.
    * @param docID An arbitrary string that identifies which updates to use.
+   * @param options.batchRemoteMS If set, remote updates to doc are
+   * delivered at most once every batchRemoteMS, emitting only a single
+   * doc "Change" event. Set this to reduce redundant renders.
    * @throws If `doc` is already subscribed to a docID.
    * @throws If another doc is subscribed to `docID`.
    */
-  subscribe(doc: AbstractDoc | CRuntime, docID: string) {
+  subscribe(
+    doc: AbstractDoc | CRuntime,
+    docID: string,
+    options: { batchRemoteMS?: number } = {}
+  ) {
     if (this.closed) throw new Error("Already closed");
     if (this.subs.has(doc)) {
       throw new Error("doc is already subscribed to a docID");
@@ -224,7 +234,12 @@ export class WebSocketNetwork extends EventEmitter<WebSocketNetworkEventsRecord>
       throw new Error("Unsupported: multiple docs with same docID");
     }
 
-    this.subs.set(doc, { docID, lastSent: 0 });
+    this.subs.set(doc, {
+      docID,
+      lastSent: 0,
+      nextBatch: [],
+      batchRemoteMS: options.batchRemoteMS ?? null,
+    });
     this.docsByID.set(docID, doc);
     this.sendInternal({ subscribe: { docIDs: [docID] } });
 
@@ -370,7 +385,35 @@ export class WebSocketNetwork extends EventEmitter<WebSocketNetworkEventsRecord>
   private onReceive(message: Receive): void {
     const doc = this.docsByID.get(message.docID);
     if (doc === undefined) return;
+    const info = nonNull(this.subs.get(doc));
 
+    if (info.batchRemoteMS === null) this.deliver(doc, message);
+    else {
+      if (info.nextBatch.length === 0) {
+        // Start of a new batch.
+        setTimeout(() => this.deliverBatch(doc, info), info.batchRemoteMS);
+      }
+      info.nextBatch.push(message);
+    }
+  }
+
+  private deliverBatch(doc: Doc, info: DocInfo): void {
+    if (info.unsubscribed) return;
+
+    doc.batchRemoteUpdates(() => {
+      for (const message of info.nextBatch)
+        try {
+          this.deliver(doc, message);
+        } catch (err) {
+          // We display this error but let future messages go through,
+          // to match non-batched behavior.
+          console.error(err);
+        }
+    });
+    info.nextBatch = [];
+  }
+
+  private deliver(doc: Doc, message: Receive): void {
     // Note: we might get this update before the room Welcome.
     // That is fine; if the update causally depends on existing state,
     // doc will buffer it.

@@ -351,8 +351,8 @@ wsNetwork.on("Disconnect", (e) => {
     wsNetwork.connect();
   }, 2000);
 });
-wsNetwork.subscribe(doc, docID);
-wsNetwork.subscribe(presenceDoc, presenceDocID);
+wsNetwork.subscribe(doc, docID, { batchRemoteMS: 50 });
+wsNetwork.subscribe(presenceDoc, presenceDocID, { batchRemoteMS: 50 });
 
 // In a real app, you would probably also add on-device storage
 // (@collabs/indexeddb or @collabs/local-storage)
