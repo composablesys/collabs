@@ -10,8 +10,22 @@ import {
 import { InMemoryDocStore } from "./in_memory_doc_store";
 import { ServerDocStore } from "./server_doc_store";
 
+/** Info about a (WebSocket, docID) pair. */
+interface ClientInRoomInfo {
+  welcomed: boolean;
+  /**
+   * (update, updateType) pairs that we would have echoed to the WebSocket,
+   * except we hadn't sent the Welcome yet (due to waiting on docStore).
+   * We send these as part of the Welcome instead, so that clients always
+   * receive updates in causal order (in case they want to
+   * enable causalityGuaranteed in CRuntime).
+   */
+  preWelcomeUpdates: Uint8Array[] | null;
+  preWelcomeUpdateTypes: number[] | null;
+}
+
 interface RoomInfo {
-  readonly clients: Set<WebSocket>;
+  readonly clients: Map<WebSocket, ClientInRoomInfo>;
 }
 
 const defaultHeartbeatIntervalMS = 30000;
@@ -160,18 +174,28 @@ export class WebSocketNetworkServer {
 
       let room = this.rooms.get(docID);
       if (room === undefined) {
-        room = { clients: new Set() };
+        room = { clients: new Map() };
         this.rooms.set(docID, room);
       }
-      room.clients.add(ws);
-      wsRooms.add(docID);
 
       // Note that we may already think ws is subscribed to a room.
-      // Re-send the state anyway, in case they were offline and missed some
-      // messages.
-      const { checkpoint, updates, updateTypes } = await this.docStore.load(
+      // Reset ClientInRoomInfo and re-send the Welcome anyway,
+      // in case they were offline and missed some updates.
+      const info: ClientInRoomInfo = {
+        welcomed: false,
+        preWelcomeUpdates: [],
+        preWelcomeUpdateTypes: [],
+      };
+      room.clients.set(ws, info);
+      wsRooms.add(docID);
+
+      let { checkpoint, updates, updateTypes } = await this.docStore.load(
         docID
       );
+      if (info.preWelcomeUpdates!.length !== 0) {
+        updates = updates.concat(info.preWelcomeUpdates!);
+        updateTypes = updateTypes.concat(info.preWelcomeUpdateTypes!);
+      }
       this.sendInternal(ws, {
         welcome: {
           docID,
@@ -180,6 +204,9 @@ export class WebSocketNetworkServer {
           updateTypes,
         },
       });
+      info.welcomed = true;
+      info.preWelcomeUpdates = null;
+      info.preWelcomeUpdateTypes = null;
     });
   }
 
@@ -206,13 +233,13 @@ export class WebSocketNetworkServer {
           updateType: message.updateType,
         },
       }).finish();
-      for (const client of room.clients) {
-        if (client !== ws && client.readyState === WebSocket.OPEN) {
-          // Note: peer might get this update before the room Welcome,
-          // since loading the state from docStore is async.
-          // That is fine; if the update depends on existing state,
-          // peer's doc will buffer it.
-          client.send(echo);
+      for (const [client, info] of room.clients) {
+        if (client !== ws) {
+          if (!info.welcomed) {
+            // Wait to send the update along with the Welcome.
+            info.preWelcomeUpdates!.push(message.update);
+            info.preWelcomeUpdateTypes!.push(message.updateType);
+          } else if (client.readyState === WebSocket.OPEN) client.send(echo);
         }
       }
     }

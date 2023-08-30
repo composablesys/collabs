@@ -267,6 +267,91 @@ describe("CRuntime", () => {
       }
     });
 
+    describe("startup sim", () => {
+      // Simulate a possible ws-client startup sequence: queue a bunch of
+      // messages (from live updates), then get the welcome (= saved state
+      // plus a bunch of messages) and check that the queue is unblocked.
+      it("3 senders", () => {
+        // Prepare the saved state.
+        for (let i = 0; i < 100; i++) {
+          const messages: Uint8Array[] = [];
+          alice.transact(() => aliceC.add(1));
+          messages.push(lastMessage());
+          bob.transact(() => bobC.add(1));
+          messages.push(lastMessage());
+          charlie.transact(() => charlieC.add(1));
+          messages.push(lastMessage());
+
+          for (const message of messages) {
+            for (const user of [alice, bob, charlie]) user.receive(message);
+          }
+        }
+
+        assert.strictEqual(aliceC.value, 300);
+        assert.strictEqual(bobC.value, 300);
+        assert.strictEqual(charlieC.value, 300);
+        assert.strictEqual(daveC.value, 0);
+        const savedState = alice.save();
+
+        // Prepare the further messages.
+        const furtherMessages: Uint8Array[] = [];
+        for (let i = 0; i < 100; i++) {
+          const messages: Uint8Array[] = [];
+          alice.transact(() => aliceC.add(1));
+          messages.push(lastMessage());
+          bob.transact(() => bobC.add(1));
+          messages.push(lastMessage());
+          charlie.transact(() => charlieC.add(1));
+          messages.push(lastMessage());
+
+          furtherMessages.push(...messages);
+
+          for (const message of messages) {
+            for (const user of [alice, bob, charlie]) user.receive(message);
+          }
+        }
+
+        assert.strictEqual(aliceC.value, 600);
+        assert.strictEqual(bobC.value, 600);
+        assert.strictEqual(charlieC.value, 600);
+        assert.strictEqual(daveC.value, 0);
+
+        // Queue more messages.
+        for (let i = 0; i < 100; i++) {
+          const messages: Uint8Array[] = [];
+          alice.transact(() => aliceC.add(1));
+          messages.push(lastMessage());
+          bob.transact(() => bobC.add(1));
+          messages.push(lastMessage());
+          charlie.transact(() => charlieC.add(1));
+          messages.push(lastMessage());
+
+          for (const message of messages) {
+            // Include dave this time.
+            for (const user of [alice, bob, charlie, dave]) {
+              user.receive(message);
+            }
+          }
+        }
+
+        assert.strictEqual(aliceC.value, 900);
+        assert.strictEqual(bobC.value, 900);
+        assert.strictEqual(charlieC.value, 900);
+        assert.strictEqual(daveC.value, 0);
+
+        // Deliver the saved state and further messages to Dave, which should
+        // unblock everything.
+        dave.load(savedState);
+        assert.strictEqual(daveC.value, 300);
+        for (let i = 0; i < furtherMessages.length - 1; i++) {
+          dave.receive(furtherMessages[i]);
+          assert.strictEqual(daveC.value, 301 + i);
+        }
+        dave.receive(furtherMessages[furtherMessages.length - 1]);
+        assert.strictEqual(daveC.value, 900);
+      });
+    });
+
     describe("buffer load", () => {
       it("self-merge skips redundant", () => {
         const msgs: Uint8Array[] = [];
