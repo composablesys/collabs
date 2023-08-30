@@ -1,9 +1,9 @@
 {
   "license": "CC-BY-NC-SA-3.0",
   "dependencies": {
-    "@collabs/collabs": "0.13.2",
-    "@collabs/ws-client": "0.13.2",
-    "@collabs/ws-server": "0.13.2",
+    "@collabs/collabs": "0.13.3",
+    "@collabs/ws-client": "0.13.3",
+    "@collabs/ws-server": "0.13.3",
     "express": "^4.18.2",
     "ws": "^8.13.0"
   },
