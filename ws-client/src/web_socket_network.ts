@@ -414,12 +414,28 @@ export class WebSocketNetwork extends EventEmitter<WebSocketNetworkEventsRecord>
   }
 
   private deliver(doc: Doc, message: Receive): void {
-    // Note: we might get this update before the room Welcome.
-    // That is fine; if the update causally depends on existing state,
-    // doc will buffer it.
-    if (message.updateType === UpdateType.Message)
-      doc.receive(message.update, this);
-    else doc.load(message.update, this);
+    // Note: it is guaranteed that this method is only ever called with
+    // causally-ready messages. Indeed:
+    // 1. Other WebSocketNetwork clients only send/forward messages to the
+    // server after sending all of their causal dependencies.
+    // 2. The server echos messages in the order it receives them, which
+    // is in causal order by (1).
+    // 3. The server always sends the Welcome (encompassing all prior updates)
+    // before echoing any new messages.
+    // 4. Our batching preserves message order.
+    //
+    // Thus it is safe to use CRuntime's causalityGuaranteed option
+    // if WebSocketNetwork is your only network.
+    switch (message.updateType) {
+      case UpdateType.Message:
+        doc.receive(message.update, this);
+        break;
+      case UpdateType.SavedState:
+        doc.load(message.update, this);
+        break;
+      default:
+        throw new Error("Unrecognized UpdateType: " + message.updateType);
+    }
   }
 
   private onAck(message: Ack): void {
