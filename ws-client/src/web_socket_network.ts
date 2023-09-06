@@ -276,7 +276,7 @@ export class WebSocketNetwork extends EventEmitter<WebSocketNetworkEventsRecord>
     const info = this.subs.get(doc);
     if (info === undefined) return;
 
-    if ((batchSendMS ?? 0) < (info.batchSendMS ?? 0)) {
+    if (batchSendMS === null || batchSendMS < (info.batchSendMS ?? 0)) {
       // The new batch length is shorter than the old one.
       // To prevent unexpected delays, send the current batch now.
       if (info.sendBatchTimeout !== undefined) {
