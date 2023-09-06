@@ -1,7 +1,7 @@
 import {
+  MessageMeta,
   MessageStacksSerializer,
   Serializer,
-  MessageMeta,
 } from "@collabs/core";
 import { RuntimeMetaSerializer } from "./crdt_meta_implementations";
 
@@ -9,12 +9,17 @@ import { RuntimeMetaSerializer } from "./crdt_meta_implementations";
  * Serializer for the messages sent by CRuntime.
  */
 export const MessageSerializer: Serializer<
-  [messageStacks: (Uint8Array | string)[][], meta: MessageMeta]
+  [messageStacks: (Uint8Array | string)[][], meta: MessageMeta][]
 > = {
-  /** Note: this mutates messageStacks. */
-  serialize([messageStacks, meta]) {
-    messageStacks.push([RuntimeMetaSerializer.serialize(meta)]);
-    return MessageStacksSerializer.instance.serialize(messageStacks);
+  /** Note: this mutates value internally. */
+  serialize(value) {
+    if (value.length === 1) {
+      const [messageStacks, meta] = value[0];
+      messageStacks.push([RuntimeMetaSerializer.serialize(meta)]);
+      return MessageStacksSerializer.instance.serialize(messageStacks);
+    } else {
+      throw new Error("Not yet implemented");
+    }
   },
 
   deserialize(message) {
@@ -22,6 +27,6 @@ export const MessageSerializer: Serializer<
     const meta = RuntimeMetaSerializer.deserialize(
       (<Uint8Array[]>messageStacks.pop())[0]
     );
-    return [messageStacks, meta];
+    return [[messageStacks, meta]];
   },
 } as const;
