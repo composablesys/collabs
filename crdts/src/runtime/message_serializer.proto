@@ -1,0 +1,7 @@
+message MessageSerializerMergeInfo {
+  // replicaID decoder.
+  repeated string replicaIDs = 1;
+  // The lengths of each transaction's messageStacks, excluding
+  // its RuntimeMetaSerializer message.
+  repeated uint32 lengths = 2 [packed=true];
+}
