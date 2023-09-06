@@ -102,4 +102,5 @@ export {
   UpdateEvent,
   VectorClock,
   Waypoint,
+  mergeMessages,
 } from "@collabs/crdts";

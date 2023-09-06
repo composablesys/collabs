@@ -1,7 +1,7 @@
 import { ReplicaIDs } from "@collabs/core";
 import { assert } from "chai";
 import seedrandom from "seedrandom";
-import { CCounter, CRuntime } from "../../src";
+import { CCounter, CRuntime, mergeMessages } from "../../src";
 
 describe("CRuntime", () => {
   let rng!: seedrandom.prng;
@@ -491,8 +491,280 @@ describe("CRuntime", () => {
       });
     });
   });
+
+  describe("mergeMessages", () => {
+    let alice!: CRuntime;
+    let bob!: CRuntime;
+    let charlie!: CRuntime;
+    let dave!: CRuntime;
+
+    let _lastMessage: Uint8Array | undefined = undefined;
+    function lastMessage(): Uint8Array {
+      // If you get this error, you probably need to wrap your op in
+      // transact(), so that it gets delivered now (instead of the
+      // next microtask). Also check that you transact with the right
+      // replica.
+      assert.isDefined(_lastMessage, "No last message to return");
+      const ans = _lastMessage!;
+      _lastMessage = undefined;
+      return ans;
+    }
+
+    let aliceC!: CCounter;
+    let bobC!: CCounter;
+    let charlieC!: CCounter;
+    let daveC!: CCounter;
+
+    beforeEach(() => {
+      alice = new CRuntime({ debugReplicaID: ReplicaIDs.pseudoRandom(rng) });
+      bob = new CRuntime({ debugReplicaID: ReplicaIDs.pseudoRandom(rng) });
+      charlie = new CRuntime({ debugReplicaID: ReplicaIDs.pseudoRandom(rng) });
+      dave = new CRuntime({ debugReplicaID: ReplicaIDs.pseudoRandom(rng) });
+      for (const runtime of [alice, bob, charlie, dave]) {
+        runtime.on("Send", (e) => {
+          _lastMessage = e.message;
+        });
+      }
+
+      aliceC = alice.registerCollab("counter", (init) => new CCounter(init));
+      bobC = bob.registerCollab("counter", (init) => new CCounter(init));
+      charlieC = charlie.registerCollab(
+        "counter",
+        (init) => new CCounter(init)
+      );
+      daveC = dave.registerCollab("counter", (init) => new CCounter(init));
+
+      // Fill in some VC entries to start with.
+      const vcMessages: Uint8Array[] = [];
+      alice.transact(() => aliceC.add(7));
+      vcMessages.push(lastMessage());
+      bob.transact(() => bobC.add(8));
+      vcMessages.push(lastMessage());
+      charlie.transact(() => charlieC.add(-5));
+      vcMessages.push(lastMessage());
+      charlie.transact(() => charlieC.add(-10));
+      vcMessages.push(lastMessage());
+      for (const runtime of [alice, bob, charlie, dave]) {
+        for (const vcMessage of vcMessages) runtime.receive(vcMessage);
+      }
+    });
+
+    for (const order of ["sequential", "out-of-order"]) {
+      it(`merges ${order} messages`, () => {
+        alice.transact(() => aliceC.add(1));
+        const message1 = lastMessage();
+        alice.transact(() => aliceC.add(2));
+        const message2 = lastMessage();
+        alice.transact(() => aliceC.add(3));
+        const message3 = lastMessage();
+
+        const allMessages = [message1, message2, message3];
+        if (order === "out-of-order") allMessages.reverse();
+        const merged = mergeMessages(allMessages);
+
+        bob.receive(merged);
+        assert.strictEqual(bobC.value, 6);
+
+        // Okay to receive some of the messages first.
+        charlie.receive(message1);
+        assert.strictEqual(charlieC.value, 1);
+        charlie.receive(merged);
+        assert.strictEqual(charlieC.value, 6);
+
+        // dave receives messages normally.
+        // alice, bob, and dave should still be able to collaborate.
+        for (const message of allMessages) dave.receive(message);
+        assert.strictEqual(daveC.value, 6);
+
+        bob.transact(() => bobC.add(4));
+        const bobMessage = lastMessage();
+        dave.transact(() => daveC.add(5));
+        const daveMessage = lastMessage();
+
+        bob.receive(daveMessage);
+        dave.receive(bobMessage);
+        assert.strictEqual(bobC.value, 15);
+        assert.strictEqual(daveC.value, 15);
+
+        alice.receive(daveMessage);
+        alice.receive(bobMessage);
+        assert.strictEqual(aliceC.value, 15);
+      });
+    }
+
+    it("merges different-sender messages", () => {
+      alice.transact(() => aliceC.add(1));
+      const message1 = lastMessage();
+      charlie.transact(() => charlieC.add(2));
+      const message2 = lastMessage();
+      alice.transact(() => aliceC.add(3));
+      const message3 = lastMessage();
+
+      const allMessages = [message1, message2, message3];
+      const merged = mergeMessages(allMessages);
+
+      bob.receive(merged);
+      assert.strictEqual(bobC.value, 6);
+
+      // Okay to receive some of the messages first.
+      charlie.receive(message1);
+      assert.strictEqual(charlieC.value, 3);
+      charlie.receive(merged);
+      assert.strictEqual(charlieC.value, 6);
+
+      alice.receive(merged);
+      assert.strictEqual(aliceC.value, 6);
+
+      // dave receives messages normally.
+      // alice, bob, and dave should still be able to collaborate.
+      for (const message of allMessages) dave.receive(message);
+      assert.strictEqual(daveC.value, 6);
+
+      bob.transact(() => bobC.add(4));
+      const bobMessage = lastMessage();
+      dave.transact(() => daveC.add(5));
+      const daveMessage = lastMessage();
+
+      bob.receive(daveMessage);
+      dave.receive(bobMessage);
+      assert.strictEqual(bobC.value, 15);
+      assert.strictEqual(daveC.value, 15);
+
+      alice.receive(daveMessage);
+      alice.receive(bobMessage);
+      assert.strictEqual(aliceC.value, 15);
+    });
+
+    it("merges multi-op transactions", () => {
+      alice.transact(() => aliceC.add(1));
+      const message1 = lastMessage();
+      alice.transact(() => {
+        aliceC.add(2);
+        aliceC.add(10);
+      });
+      const message2 = lastMessage();
+      alice.transact(() => aliceC.add(3));
+      const message3 = lastMessage();
+
+      const allMessages = [message1, message2, message3];
+      const merged = mergeMessages(allMessages);
+
+      bob.receive(merged);
+      assert.strictEqual(bobC.value, 16);
+
+      // Okay to receive some of the messages first.
+      charlie.receive(message1);
+      assert.strictEqual(charlieC.value, 1);
+      charlie.receive(merged);
+      assert.strictEqual(charlieC.value, 16);
+
+      // dave receives messages normally.
+      // alice, bob, and dave should still be able to collaborate.
+      for (const message of allMessages) dave.receive(message);
+      assert.strictEqual(daveC.value, 16);
+
+      bob.transact(() => bobC.add(4));
+      const bobMessage = lastMessage();
+      dave.transact(() => daveC.add(5));
+      const daveMessage = lastMessage();
+
+      bob.receive(daveMessage);
+      dave.receive(bobMessage);
+      assert.strictEqual(bobC.value, 25);
+      assert.strictEqual(daveC.value, 25);
+
+      alice.receive(daveMessage);
+      alice.receive(bobMessage);
+      assert.strictEqual(aliceC.value, 25);
+    });
+
+    it("deduplicates vector clocks", () => {
+      const replicas: CRuntime[] = [];
+      const counters: CCounter[] = [];
+      for (let i = 0; i < 100; i++) {
+        const replica = new CRuntime({
+          debugReplicaID: ReplicaIDs.pseudoRandom(rng),
+        });
+        replica.on("Send", (e) => {
+          alice.receive(e.message);
+          bob.receive(e.message);
+        });
+        replicas.push(replica);
+        counters.push(
+          replica.registerCollab("counter", (init) => new CCounter(init))
+        );
+      }
+
+      const aliceMessages: Uint8Array[] = [];
+      for (let count = 0; count < 3; count++) {
+        // All replicas send a message to alice (& bob, so he can
+        // receive alice's messages).
+        for (let i = 0; i < 100; i++) {
+          replicas[i].transact(() => counters[i].add(1));
+        }
+        // alice sends a message.
+        alice.transact(() => aliceC.add(2));
+        aliceMessages.push(lastMessage());
+      }
+      assert.strictEqual(aliceC.value, 3 * (100 + 2));
+
+      // The original messages include 100 VC entries, each ~13 bytes.
+      for (const aliceMessage of aliceMessages) {
+        assert.isAtLeast(aliceMessage.byteLength, 12 * 100);
+      }
+
+      // The merged message should be not much longer than any one message.
+      // In particular, the encodedVCKeys + vcValues should contribute
+      // ~2 bytes per sender per message, instead of ~13.
+      // We also allow 100 bytes for the CRDT message content.
+      const merged = mergeMessages(aliceMessages);
+      assert.isAtMost(
+        merged.byteLength,
+        aliceMessages[0].byteLength + 3 * 100 * 2 + 100
+      );
+
+      bob.receive(merged);
+      assert.strictEqual(bobC.value, 3 * (100 + 2));
+    });
+
+    it.skip("respects causality", () => {});
+
+    it("allows nested merges", () => {
+      alice.transact(() => {
+        aliceC.add(1);
+        aliceC.add(2);
+      });
+      const outer1 = lastMessage();
+
+      alice.transact(() => {
+        aliceC.add(3);
+        aliceC.add(4);
+      });
+      const inner1 = lastMessage();
+      alice.transact(() => aliceC.add(5));
+      const inner2 = lastMessage();
+
+      for (const message of [outer1, inner1, inner2]) bob.receive(message);
+      bob.transact(() => bobC.add(6));
+      const outer2 = lastMessage();
+
+      const innerMerged = mergeMessages([inner1, inner2]);
+      const nestedMerged = mergeMessages([outer1, outer2, innerMerged]);
+
+      alice.receive(nestedMerged);
+      charlie.receive(nestedMerged);
+      dave.receive(innerMerged);
+      dave.receive(nestedMerged);
+
+      assert.strictEqual(aliceC.value, 21);
+      assert.strictEqual(bobC.value, 21);
+      assert.strictEqual(charlieC.value, 21);
+      assert.strictEqual(daveC.value, 21);
+    });
+  });
 });
 
 // TODO: metadata requests, CRDT meta (x3) features, transaction modes,
 // redundant loads skipped without issue, buffered messages in redundant
-// loads are still added to the buffer & potentially delivered
+// loads are still added to the buffer & potentially delivered,
+// mergeMessages vs saving (saved buffered messages should be okay - trMessages stuff)

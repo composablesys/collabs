@@ -3,9 +3,11 @@ import {
   MessageMeta,
   nonNull,
   protobufHas,
-  Serializer,
 } from "@collabs/core";
-import { CRDTMessageMetaMessage } from "../../generated/proto_compiled";
+import {
+  CRDTMessageMetaMessage,
+  ICRDTMessageMetaMessage,
+} from "../../generated/proto_compiled";
 import { CRDTMessageMeta, CRDTSavedStateMeta, VectorClock } from "./crdt_meta";
 
 export class BasicVectorClock implements VectorClock {
@@ -198,11 +200,18 @@ export class ReceiveCRDTMeta implements CRDTMessageMeta {
  *
  * runtimeExtra field must be either ReceiveCRDTMeta
  * or a frozen SendCRDTMeta.
+ *
+ * Implements Serializer<MessageMeta>.
  */
-export const RuntimeMetaSerializer: Serializer<MessageMeta> = {
-  serialize(value: MessageMeta): Uint8Array {
+export const RuntimeMetaSerializer = {
+  serialize(
+    value: MessageMeta,
+    replicaIDEncoder?: (replicaID: string) => number
+  ): Uint8Array {
     const crdtMeta = value.runtimeExtra as SendCRDTMeta | ReceiveCRDTMeta;
-    const vcKeys = new Array<string>(crdtMeta.vcEntries.size - 1);
+    const vcKeysMaybeEncoded = new Array<string | number>(
+      crdtMeta.vcEntries.size - 1
+    );
     const vcValues = new Array<number>(crdtMeta.vcEntries.size - 1);
     // Write vc entries in the order they were set, skipping senderID
     // (which is first).
@@ -210,14 +219,15 @@ export const RuntimeMetaSerializer: Serializer<MessageMeta> = {
     let i = 0;
     for (const [key, value] of crdtMeta.vcEntries) {
       if (key === crdtMeta.senderID) continue;
-      vcKeys[i] = key;
+
+      if (replicaIDEncoder) vcKeysMaybeEncoded[i] = replicaIDEncoder(key);
+      else vcKeysMaybeEncoded[i] = key;
       vcValues[i] = value;
       i++;
     }
-    const message = CRDTMessageMetaMessage.create({
+    const message: ICRDTMessageMetaMessage = {
       senderID: crdtMeta.senderID,
       senderCounter: crdtMeta.senderCounter,
-      vcKeys,
       vcValues,
       maximalVcKeyCount:
         crdtMeta.maximalVCKeyCount === 0
@@ -225,16 +235,23 @@ export const RuntimeMetaSerializer: Serializer<MessageMeta> = {
           : crdtMeta.maximalVCKeyCount,
       wallClockTime: crdtMeta.wallClockTime,
       lamportTimestamp: crdtMeta.lamportTimestamp,
-    });
+    };
+    if (replicaIDEncoder)
+      message.encodedVcKeys = vcKeysMaybeEncoded as number[];
+    else message.vcKeys = vcKeysMaybeEncoded as string[];
+
     return CRDTMessageMetaMessage.encode(message).finish();
   },
 
-  deserialize(message: Uint8Array): MessageMeta {
+  deserialize(message: Uint8Array, replicaIDDecoder?: string[]): MessageMeta {
     const decoded = CRDTMessageMetaMessage.decode(message);
     const vc = new Map<string, number>();
     vc.set(decoded.senderID, decoded.senderCounter);
-    for (let i = 0; i < decoded.vcKeys.length; i++) {
-      vc.set(decoded.vcKeys[i], decoded.vcValues[i]);
+    for (let i = 0; i < decoded.vcValues.length; i++) {
+      const vcKey = replicaIDDecoder
+        ? replicaIDDecoder[decoded.encodedVcKeys[i]]
+        : decoded.vcKeys[i];
+      vc.set(vcKey, decoded.vcValues[i]);
     }
     const crdtMeta = new ReceiveCRDTMeta(
       decoded.senderID,

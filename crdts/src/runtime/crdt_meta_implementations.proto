@@ -1,6 +1,8 @@
 message CRDTMessageMetaMessage {
+  // OPT: allow encoded version of this.
   required string senderID = 1;
   required uint32 senderCounter = 2;
+  // If a replicaIDEncoder is provided, encodedVcKeys is used instead.
   repeated string vcKeys = 3;
   repeated uint32 vcValues = 4 [packed=true];
   // The first maximalVcKeyCount entries in vcKeys are
@@ -9,4 +11,6 @@ message CRDTMessageMetaMessage {
   optional uint32 maximalVcKeyCount = 5;
   optional uint64 wallClockTime = 6;
   optional uint64 lamportTimestamp = 7;
+  // Alternate for vcKeys when a replicaIDEncoder is provided.
+  repeated uint32 encodedVcKeys = 8 [packed=true];
 }

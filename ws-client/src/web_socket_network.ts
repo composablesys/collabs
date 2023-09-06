@@ -1,4 +1,9 @@
-import { AbstractDoc, CRuntime, EventEmitter } from "@collabs/collabs";
+import {
+  AbstractDoc,
+  CRuntime,
+  EventEmitter,
+  mergeMessages,
+} from "@collabs/collabs";
 import { nonNull, protobufHas } from "@collabs/core";
 import {
   Ack,
@@ -57,10 +62,14 @@ export interface WebSocketNetworkEventsRecord {
 interface DocInfo {
   readonly docID: string;
   readonly batchRemoteMS: number | null;
+  batchSendMS: number | null;
   /** The WebSocketNetwork.localCounter value of our last sent message. */
   lastSent: number;
-  /** Pending updates, to be applied in the next batch. */
-  nextBatch: Receive[];
+  /** Pending remote updates, to be delivered in the next remote batch. */
+  nextRemoteBatch: Receive[];
+  /** Pending local messages, to be sent in the next send batch. */
+  nextSendBatch: Uint8Array[];
+  sendBatchTimeout?: ReturnType<typeof setTimeout>;
   off?: () => void;
   subscribeDenied?: true;
   unsubscribed?: true;
@@ -218,13 +227,17 @@ export class WebSocketNetwork extends EventEmitter<WebSocketNetworkEventsRecord>
    * @param options.batchRemoteMS If set, remote updates to doc are
    * delivered at most once every `batchRemoteMS` ms, emitting only a single
    * doc "Change" event. This limits render frequency.
+   * @param options.batchSendMS **Experimental** If set, local updates to
+   * doc are pushed to the server at most once every `batchSendMS` ms.
+   * This reduces the load on the server and on remote users, but increases
+   * the time before a local update is saved and visible remotely.
    * @throws If `doc` is already subscribed to a docID.
    * @throws If another doc is subscribed to `docID`.
    */
   subscribe(
     doc: AbstractDoc | CRuntime,
     docID: string,
-    options: { batchRemoteMS?: number } = {}
+    options: { batchRemoteMS?: number; batchSendMS?: number } = {}
   ) {
     if (this.closed) throw new Error("Already closed");
     if (this.subs.has(doc)) {
@@ -237,8 +250,10 @@ export class WebSocketNetwork extends EventEmitter<WebSocketNetworkEventsRecord>
     this.subs.set(doc, {
       docID,
       lastSent: 0,
-      nextBatch: [],
+      nextRemoteBatch: [],
+      nextSendBatch: [],
       batchRemoteMS: options.batchRemoteMS ?? null,
+      batchSendMS: options.batchSendMS ?? null,
     });
     this.docsByID.set(docID, doc);
     this.sendInternal({ subscribe: { docIDs: [docID] } });
@@ -248,13 +263,62 @@ export class WebSocketNetwork extends EventEmitter<WebSocketNetworkEventsRecord>
   }
 
   /**
+   * **Experimental**
+   *
+   * Changes the `batchSendMS` for a subscribed doc.
+   *
+   * See [[subscribe]]'s `options.batchSendMS`.
+   */
+  setBatchSendMS(
+    doc: AbstractDoc | CRuntime,
+    batchSendMS: number | null
+  ): void {
+    const info = this.subs.get(doc);
+    if (info === undefined) return;
+
+    if (batchSendMS === null || batchSendMS < (info.batchSendMS ?? 0)) {
+      // The new batch length is shorter than the old one.
+      // To prevent unexpected delays, send the current batch now.
+      if (info.sendBatchTimeout !== undefined) {
+        clearTimeout(info.sendBatchTimeout);
+      }
+      this.sendBatch(info);
+    }
+    info.batchSendMS = batchSendMS;
+  }
+
+  private sendBatch(info: DocInfo): void {
+    // Skip if we've been unsubscribed already.
+    if (info.unsubscribed) return;
+
+    if (info.nextSendBatch.length === 0) return;
+
+    const merged = mergeMessages(info.nextSendBatch);
+    info.nextSendBatch = [];
+    info.sendBatchTimeout = undefined;
+
+    this.sendInternal({
+      send: {
+        docID: info.docID,
+        update: merged,
+        updateType: UpdateType.Message,
+        localCounter: ++this.localCounter,
+      },
+    });
+    info.lastSent = this.localCounter;
+  }
+
+  /**
    * Unsubscribes `doc` from its subscribed `docID` (if any).
    *
    * `doc` will no longer send or receive updates with the server.
    */
   unsubscribe(doc: AbstractDoc | CRuntime) {
     const info = this.subs.get(doc);
-    if (info === undefined) return;
+    if (info === undefined || info.unsubscribed) return;
+
+    // Push out the pending send batch.
+    this.sendBatch(info);
 
     info.unsubscribed = true;
     this.subs.delete(doc);
@@ -310,6 +374,26 @@ export class WebSocketNetwork extends EventEmitter<WebSocketNetworkEventsRecord>
         )
           return;
 
+        if (info.batchSendMS !== null) {
+          if (e.updateType === "message") {
+            // Just add to the pending send batch.
+            if (info.nextSendBatch.length === 0) {
+              // Schedule send.
+              info.sendBatchTimeout = setTimeout(
+                () => this.sendBatch(info),
+                info.batchSendMS
+              );
+            }
+            info.nextSendBatch.push(e.update);
+            return;
+          } else {
+            // Send immediately as usual (below).
+            // To guarantee causal-order sending, first push out the pending
+            // send batch early.
+            this.sendBatch(info);
+          }
+        }
+
         // OPT: if it's a saved state, only send the delta on top of our
         // old state to the server (skipping the delta computation if disconnected).
         this.sendInternal({
@@ -356,7 +440,9 @@ export class WebSocketNetwork extends EventEmitter<WebSocketNetworkEventsRecord>
       this.emit("Load", { doc, docID: message.docID });
 
       // Make the server up-to-date with us.
-      // OPT: use a delta on top of ourOldState instead.
+      // OPT: use a delta on top of ourOldState instead,
+      // or mergeMessages applied to all not-acked updates.
+      // OPT: cancel pending send batch?
       this.sendInternal({
         send: {
           docID: message.docID,
@@ -389,19 +475,22 @@ export class WebSocketNetwork extends EventEmitter<WebSocketNetworkEventsRecord>
 
     if (info.batchRemoteMS === null) this.deliver(doc, message);
     else {
-      if (info.nextBatch.length === 0) {
+      if (info.nextRemoteBatch.length === 0) {
         // Start of a new batch.
-        setTimeout(() => this.deliverBatch(doc, info), info.batchRemoteMS);
+        setTimeout(
+          () => this.deliverRemoteBatch(doc, info),
+          info.batchRemoteMS
+        );
       }
-      info.nextBatch.push(message);
+      info.nextRemoteBatch.push(message);
     }
   }
 
-  private deliverBatch(doc: Doc, info: DocInfo): void {
+  private deliverRemoteBatch(doc: Doc, info: DocInfo): void {
     if (info.unsubscribed) return;
 
     doc.batchRemoteUpdates(() => {
-      for (const message of info.nextBatch)
+      for (const message of info.nextRemoteBatch)
         try {
           this.deliver(doc, message);
         } catch (err) {
@@ -410,7 +499,7 @@ export class WebSocketNetwork extends EventEmitter<WebSocketNetworkEventsRecord>
           console.error(err);
         }
     });
-    info.nextBatch = [];
+    info.nextRemoteBatch = [];
   }
 
   private deliver(doc: Doc, message: Receive): void {

@@ -1,9 +1,9 @@
 {
   "license": "Apache-2.0",
   "dependencies": {
-    "@collabs/collabs": "0.13.3",
-    "@collabs/ws-client": "0.13.3",
-    "@collabs/ws-server": "0.13.3",
+    "@collabs/collabs": "0.13.4",
+    "@collabs/ws-client": "0.13.4",
+    "@collabs/ws-server": "0.13.4",
     "express": "^4.18.2",
     "seedrandom": "^3.0.5",
     "ws": "^8.13.0"

@@ -372,7 +372,9 @@ export class CRuntime
     const crdtMeta = nonNull(this.crdtMeta);
     crdtMeta.freeze();
 
-    const message = MessageSerializer.serialize([this.messageBatches, meta]);
+    const message = MessageSerializer.instance.serialize([
+      { messageStacks: this.messageBatches, meta },
+    ]);
 
     this.messageBatches = [];
     this.meta = null;
@@ -589,11 +591,17 @@ export class CRuntime
     this.batchRemoteUpdates(() => {
       this.inReceiveOrLoad = true;
       try {
-        const [messageStacks, meta] = MessageSerializer.deserialize(message);
-        if (this.buffer.process(message, messageStacks, meta, caller)) {
-          this.batchChanged = true;
-          this.buffer.check();
+        const decoded = MessageSerializer.instance.deserialize(message, true);
+        let anyDelivered = false;
+        // If message is a merged-message, then decoded will have more
+        // than one transaction-message. We process them one at a time.
+        for (const { trMessage, messageStacks, meta } of decoded) {
+          if (this.buffer.process(trMessage, messageStacks, meta, caller)) {
+            anyDelivered = true;
+            this.batchChanged = true;
+          }
         }
+        if (anyDelivered) this.buffer.check();
       } finally {
         this.inReceiveOrLoad = false;
       }

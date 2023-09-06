@@ -86,6 +86,7 @@ export class CausalMessageBuffer {
    * - Else if ready for delivery, delivers it.
    * - Else adds it to the buffer.
    *
+   * @param message Must be a transaction-message, not a merged-message.
    * @returns Whether the message was delivered.
    */
   process(
@@ -317,7 +318,9 @@ export class CausalMessageBuffer {
     // and delete already-received messages.
     for (let i = 0; i < decoded.bufferMessages.length; i++) {
       const message = decoded.bufferMessages[i];
-      const [messageStacks, meta] = MessageSerializer.deserialize(message);
+      // Buffer messages are always transaction-messages (not merged).
+      const { messageStacks, meta } =
+        MessageSerializer.instance.deserialize(message)[0];
       const dot = this.encodeDot(<CRDTMessageMeta>meta.runtimeExtra);
       if (!this.buffer.has(dot)) {
         this.buffer.set(dot, {
