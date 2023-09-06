@@ -16,6 +16,7 @@ export function mergeMessages(messages: Uint8Array[]): Uint8Array {
   if (messages.length === 0) {
     throw new Error("messages.length is 0");
   }
+  if (messages.length === 1) return messages[0];
 
   const originals: {
     messageStacks: (Uint8Array | string)[][];
