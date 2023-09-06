@@ -139,6 +139,7 @@ export class MessageSerializer
                 { messageStacks: messageStacks.slice(), meta },
               ]);
             }
+            ans.push(tr);
 
             nextStart += length + 1;
           }

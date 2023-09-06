@@ -2,6 +2,8 @@ import { MessageMeta } from "@collabs/core";
 import { MessageSerializer } from "./message_serializer";
 
 /**
+ * **Experimental** - message format is unstable.
+ *
  * Merges the given messages, returning a single message that incorporates
  * all of their transactions. This message may be passed to
  * [[AbstractDoc.receive]]/[[CRuntime.receive]] as usual.
