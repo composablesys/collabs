@@ -372,7 +372,9 @@ export class CRuntime
     const crdtMeta = nonNull(this.crdtMeta);
     crdtMeta.freeze();
 
-    const message = MessageSerializer.serialize([[this.messageBatches, meta]]);
+    const message = MessageSerializer.serialize([
+      { messageStacks: this.messageBatches, meta },
+    ]);
 
     this.messageBatches = [];
     this.meta = null;
@@ -593,14 +595,7 @@ export class CRuntime
         let anyDelivered = false;
         // If message is a merged-message, then decoded will have more
         // than one transaction-message. We process them one at a time.
-        for (const [messageStacks, meta] of decoded) {
-          // buffer.process wants the transaction-message as its first arg.
-          // If message is a merged-message, we need to recompute that.
-          // OPT: Find a way to work around this (expensive).
-          const trMessage =
-            decoded.length === 1
-              ? message
-              : MessageSerializer.serialize([[messageStacks, meta]]);
+        for (const { trMessage, messageStacks, meta } of decoded) {
           if (this.buffer.process(trMessage, messageStacks, meta, caller)) {
             anyDelivered = true;
             this.batchChanged = true;
