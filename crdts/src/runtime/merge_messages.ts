@@ -9,7 +9,7 @@ import { MessageSerializer } from "./message_serializer";
  * [[AbstractDoc.receive]]/[[CRuntime.receive]] as usual.
  *
  * @param messages The messages to merge. These must come from either
- * [[RuntimeEventsRecord.Send]] events or previous `mergeMessages` calls.
+ * [[DocEventsRecord.Send]] events or previous `mergeMessages` calls.
  * @throws If `messages.length` is 0.
  */
 export function mergeMessages(messages: Uint8Array[]): Uint8Array {
