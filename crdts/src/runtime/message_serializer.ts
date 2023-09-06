@@ -1,13 +1,25 @@
-import { MessageMeta, MessageStacksSerializer } from "@collabs/core";
+import {
+  MessageMeta,
+  MessageStacksSerializer,
+  Serializer,
+} from "@collabs/core";
 import { RuntimeMetaSerializer } from "./crdt_meta_implementations";
 
 /**
  * Serializer for the messages sent by CRuntime.
- *
- * Not actually a Serializer because the input/output types are different.
  */
-export const MessageSerializer = {
-  /** Note: this mutates value internally. */
+export class MessageSerializer
+  implements
+    Serializer<
+      { messageStacks: (Uint8Array | string)[][]; meta: MessageMeta }[]
+    >
+{
+  private constructor() {
+    // Singleton class - use instance instead.
+  }
+
+  static readonly instance = new this();
+
   serialize(
     value: { messageStacks: (Uint8Array | string)[][]; meta: MessageMeta }[]
   ): Uint8Array {
@@ -18,10 +30,31 @@ export const MessageSerializer = {
     } else {
       throw new Error("Not yet implemented");
     }
-  },
+  }
 
-  deserialize(message: Uint8Array): {
+  deserialize(
+    message: Uint8Array
+  ): { messageStacks: (Uint8Array | string)[][]; meta: MessageMeta }[] {
+    return this.deserializeInternal(message, false);
+  }
+
+  deserializeWithTrMessages(message: Uint8Array): {
     trMessage: Uint8Array;
+    messageStacks: (Uint8Array | string)[][];
+    meta: MessageMeta;
+  }[] {
+    return this.deserializeInternal(message, true) as {
+      trMessage: Uint8Array;
+      messageStacks: (Uint8Array | string)[][];
+      meta: MessageMeta;
+    }[];
+  }
+
+  private deserializeInternal(
+    message: Uint8Array,
+    trMessages: boolean
+  ): {
+    trMessage?: Uint8Array;
     messageStacks: (Uint8Array | string)[][];
     meta: MessageMeta;
   }[] {
@@ -29,6 +62,8 @@ export const MessageSerializer = {
     const meta = RuntimeMetaSerializer.deserialize(
       (<Uint8Array[]>messageStacks.pop())[0]
     );
-    return [{ trMessage: message, messageStacks, meta }];
-  },
-} as const;
+    return [
+      { trMessage: trMessages ? message : undefined, messageStacks, meta },
+    ];
+  }
+}

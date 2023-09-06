@@ -319,7 +319,8 @@ export class CausalMessageBuffer {
     for (let i = 0; i < decoded.bufferMessages.length; i++) {
       const message = decoded.bufferMessages[i];
       // Buffer messages are always transaction-messages (not merged).
-      const { messageStacks, meta } = MessageSerializer.deserialize(message)[0];
+      const { messageStacks, meta } =
+        MessageSerializer.instance.deserialize(message)[0];
       const dot = this.encodeDot(<CRDTMessageMeta>meta.runtimeExtra);
       if (!this.buffer.has(dot)) {
         this.buffer.set(dot, {
