@@ -75,26 +75,20 @@ export class MessageSerializer
   }
 
   deserialize(
-    message: Uint8Array
-  ): { messageStacks: (Uint8Array | string)[][]; meta: MessageMeta }[] {
-    return this.deserializeInternal(message, false);
-  }
-
-  deserializeWithTrMessages(message: Uint8Array): {
+    message: Uint8Array,
+    trMessages?: false
+  ): { messageStacks: (Uint8Array | string)[][]; meta: MessageMeta }[];
+  deserialize(
+    message: Uint8Array,
+    trMessages: true
+  ): {
     trMessage: Uint8Array;
     messageStacks: (Uint8Array | string)[][];
     meta: MessageMeta;
-  }[] {
-    return this.deserializeInternal(message, true) as {
-      trMessage: Uint8Array;
-      messageStacks: (Uint8Array | string)[][];
-      meta: MessageMeta;
-    }[];
-  }
-
-  private deserializeInternal(
+  }[];
+  deserialize(
     message: Uint8Array,
-    trMessages: boolean
+    trMessages = false
   ): {
     trMessage?: Uint8Array;
     messageStacks: (Uint8Array | string)[][];

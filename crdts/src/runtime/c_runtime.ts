@@ -591,8 +591,7 @@ export class CRuntime
     this.batchRemoteUpdates(() => {
       this.inReceiveOrLoad = true;
       try {
-        const decoded =
-          MessageSerializer.instance.deserializeWithTrMessages(message);
+        const decoded = MessageSerializer.instance.deserialize(message, true);
         let anyDelivered = false;
         // If message is a merged-message, then decoded will have more
         // than one transaction-message. We process them one at a time.
