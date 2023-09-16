@@ -11,6 +11,7 @@ import QuillCursors from "quill-cursors";
 
 // Include CSS
 import "quill/dist/quill.snow.css";
+import { animalNames } from "./animal_names";
 
 // --- App code ---
 
@@ -30,7 +31,7 @@ const noGrowAtEnd = [
  */
 const exclusiveBlocks = new Set(["blockquote", "header", "list", "code-block"]);
 
-const nameParts = ["Cat", "Dog", "Rabbit", "Mouse", "Elephant"];
+const nameParts = animalNames;
 
 interface PresenceState {
   name: string;
