@@ -3,7 +3,9 @@ import { Data, uuidv4 } from "../../../util";
 import { Replica } from "../../replica_benchmark";
 
 export abstract class AutomergeReplica<T> implements Replica {
-  doc!: automerge.Doc<T>;
+  /* Only for reads and loads. For mutations, use mutableDoc instead. */
+  readDoc!: automerge.Doc<T>;
+  writeDoc!: T;
   protected readonly actorId: string;
   private readonly applyOptions: automerge.ApplyOptions<T>;
 
@@ -22,21 +24,26 @@ export abstract class AutomergeReplica<T> implements Replica {
   }
 
   /**
-   * doOps should change this.doc using automerge.change.
+   * doOps should change this.doc by mutating this.writeDoc, trusting
+   * that it is inside a call to automerge.change.
    */
   transact(doOps: () => void): void {
-    const oldDoc = this.doc;
-    doOps();
-    // TODO: getChanges is currently unfairly slow:
+    this.readDoc = automerge.change(this.readDoc, (doc) => {
+      this.writeDoc = doc;
+      doOps();
+      // @ts-expect-error
+      this.writeDoc = undefined;
+    });
+    // Use getLastLocalChange because it is faster than getChanges:
     // https://github.com/automerge/automerge/issues/748
-    // getLastLocalChange is faster, but it does not work for e.g. MicroMapRolling,
-    // which calls automerge.change multiple times in one transaction.
-    this.onsend(automerge.getChanges(oldDoc, this.doc));
+    // However then we must do the this.writeDoc weirdness above, to handle traces
+    // that call multiple ops in one transact() call (e.g. MicroMapRolling).
+    this.onsend([automerge.getLastLocalChange(this.readDoc)!]);
   }
 
   receive(msg: automerge.Change[]): void {
-    const ans = automerge.applyChanges(this.doc, msg, this.applyOptions);
-    this.doc = ans[0];
+    const ans = automerge.applyChanges(this.readDoc, msg, this.applyOptions);
+    this.readDoc = ans[0];
   }
 
   /**
@@ -49,11 +56,11 @@ export abstract class AutomergeReplica<T> implements Replica {
   ): void {}
 
   save(): Data {
-    return automerge.save(this.doc);
+    return automerge.save(this.readDoc);
   }
 
   load(savedState: Uint8Array): void {
-    this.doc = automerge.load(savedState, this.actorId);
+    this.readDoc = automerge.load(savedState, this.actorId);
   }
 
   /**
@@ -70,6 +77,6 @@ export abstract class AutomergeReplica<T> implements Replica {
   }
 
   free(): void {
-    automerge.free(this.doc);
+    automerge.free(this.readDoc);
   }
 }

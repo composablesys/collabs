@@ -7,7 +7,6 @@ import {
 import { AutomergeMap } from "./replica-benchmark/implementations/automerge/map";
 import { AutomergeText } from "./replica-benchmark/implementations/automerge/text";
 import { AutomergeTextWithCursor } from "./replica-benchmark/implementations/automerge/text_with_cursor";
-import { AutomergeTodoList } from "./replica-benchmark/implementations/automerge/todo_list";
 import { AutomergeVariable } from "./replica-benchmark/implementations/automerge/variable";
 import { CollabsMap } from "./replica-benchmark/implementations/collabs/map";
 import { CollabsNestedNoop } from "./replica-benchmark/implementations/collabs/nested_noop";
@@ -53,7 +52,6 @@ const implementations: { [name: string]: Implementation<unknown> } = {
   AutomergeVariable: AutomergeVariable,
   AutomergeText: AutomergeText,
   AutomergeTextWithCursor: AutomergeTextWithCursor,
-  AutomergeTodoList: AutomergeTodoList,
   // For Collabs, we have two versions of each benchmark:
   // a default version that enforces causal ordering, and a
   // CG ("causality guaranteed") version that does not, i.e., it

@@ -11,26 +11,22 @@ export class AutomergeText
   });
 
   skipLoad() {
-    this.doc = automerge.load(AutomergeText.fakeInitialSave, this.actorId);
+    this.readDoc = automerge.load(AutomergeText.fakeInitialSave, this.actorId);
   }
 
   insert(index: number, char: string): void {
-    this.doc = automerge.change(this.doc, (d) => {
-      automerge.splice(d, ["v"], index, 0, char);
-    });
+    automerge.splice(this.writeDoc, ["v"], index, 0, char);
   }
 
   delete(index: number): void {
-    this.doc = automerge.change(this.doc, (d) => {
-      automerge.splice(d, ["v"], index, 1);
-    });
+    automerge.splice(this.writeDoc, ["v"], index, 1);
   }
 
   getText(): string {
-    return this.doc.v.toString();
+    return this.readDoc.v.toString();
   }
 
   get length(): number {
-    return this.doc.v.length;
+    return this.readDoc.v.length;
   }
 }

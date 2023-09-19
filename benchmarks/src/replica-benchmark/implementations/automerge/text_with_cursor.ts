@@ -30,7 +30,7 @@ export class AutomergeTextWithCursor
   }
 
   skipLoad() {
-    this.doc = automerge.load(
+    this.readDoc = automerge.load(
       AutomergeTextWithCursor.fakeInitialSave,
       this.actorId
     );
@@ -45,24 +45,20 @@ export class AutomergeTextWithCursor
   }
 
   insert(char: string): void {
-    this.doc = automerge.change(this.doc, (d) => {
-      automerge.splice(d, ["v"], this.cursor, 0, char);
-    });
+    automerge.splice(this.writeDoc, ["v"], this.cursor, 0, char);
     this.cursor++;
   }
 
   delete(): void {
-    this.doc = automerge.change(this.doc, (d) => {
-      automerge.splice(d, ["v"], this.cursor, 1);
-    });
+    automerge.splice(this.writeDoc, ["v"], this.cursor, 1);
     this.cursor--;
   }
 
   getText(): string {
-    return this.doc.v.toString();
+    return this.readDoc.v.toString();
   }
 
   get length(): number {
-    return this.doc.v.length;
+    return this.readDoc.v.length;
   }
 }

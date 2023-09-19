@@ -101,8 +101,9 @@ go
 trace="TodoList"
 oursSingle=("CollabsTodoList")
 oursMulti=("CollabsTodoList" "CollabsNoVCTodoList")
-othersSingle=("AutomergeTodoList" "YjsTodoList")
-othersMulti=("AutomergeTodoList" "YjsTodoList")
+# TODO: implement AutomergeTodoList
+othersSingle=("YjsTodoList")
+othersMulti=("YjsTodoList")
 go
 
 trace="RealText"
