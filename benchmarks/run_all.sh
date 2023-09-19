@@ -3,8 +3,8 @@
 if [ -z "$4" ]
 then
   echo "Usage: ./run_all.sh <out folder> <version> <warmup trials> <recorded trials> [--oursOnly | --othersOnly]"
-  echo "If --oursOnly is set, only our library's tests are run."
-  echo "If --othersOnly is set, only other libraries' tests are run."
+  echo "If --oursOnly is set, only Collabs's tests are run."
+  echo "If --othersOnly is set, only other frameworks' tests are run."
   exit 1
 fi
 
@@ -62,11 +62,11 @@ function go {
   done
 }
 
-# Skip "single" mode for CollabsCG, since it's not interesting.
+# Skip "single" mode for CollabsNoVC, since it's not interesting.
 
 trace="MicroMap"
 oursSingle=("CollabsMap")
-oursMulti=("CollabsMap" "CollabsCGMap")
+oursMulti=("CollabsMap" "CollabsNoVCMap")
 othersSingle=("AutomergeMap" "YjsMap")
 othersMulti=("AutomergeMap" "YjsMap")
 go
@@ -76,38 +76,38 @@ go
 
 trace="MicroVariable"
 oursSingle=("CollabsVariable")
-oursMulti=("CollabsVariable" "CollabsCGVariable")
+oursMulti=("CollabsVariable" "CollabsNoVCVariable")
 othersSingle=("AutomergeVariable" "YjsVariable")
 othersMulti=("AutomergeVariable" "YjsVariable")
 go
 
-trace="RealText"
-oursSingle=("CollabsRichTextWithCursor")
-oursMulti=("CollabsRichTextWithCursor" "CollabsCGRichTextWithCursor")
-othersSingle=("AutomergeTextWithCursor" "YjsTextWithCursor")
-othersMulti=("AutomergeTextWithCursor" "YjsTextWithCursor")
-go
-
-trace="TodoList"
-oursSingle=("CollabsTodoList")
-oursMulti=("CollabsTodoList" "CollabsCGTodoList")
-othersSingle=("AutomergeTodoList" "YjsTodoList")
-othersMulti=("AutomergeTodoList" "YjsTodoList")
-go
-
 trace="Noop"
 oursSingle=("CollabsNoop" "CollabsNestedNoop")
-oursMulti=("CollabsNoop" "CollabsCGNoop" "CollabsNestedNoop" "CollabsCGNestedNoop")
+oursMulti=("CollabsNoop" "CollabsNoVCNoop" "CollabsNestedNoop" "CollabsNoVCNestedNoop")
 othersSingle=()
 othersMulti=()
 go
 
 trace="MicroTextLtr"
 oursSingle=("CollabsText")
-oursMulti=("CollabsText" "CollabsCGText")
+oursMulti=("CollabsText" "CollabsNoVCText")
 othersSingle=("AutomergeText" "YjsText")
 othersMulti=("AutomergeText" "YjsText")
 go
 
 trace="MicroTextRandom"
+go
+
+trace="TodoList"
+oursSingle=("CollabsTodoList")
+oursMulti=("CollabsTodoList" "CollabsNoVCTodoList")
+othersSingle=("AutomergeTodoList" "YjsTodoList")
+othersMulti=("AutomergeTodoList" "YjsTodoList")
+go
+
+trace="RealText"
+oursSingle=("CollabsRichTextWithCursor")
+oursMulti=("CollabsRichTextWithCursor" "CollabsNoVCRichTextWithCursor")
+othersSingle=("AutomergeTextWithCursor" "YjsTextWithCursor")
+othersMulti=("AutomergeTextWithCursor" "YjsTextWithCursor")
 go

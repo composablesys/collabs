@@ -22,13 +22,16 @@ export abstract class AutomergeReplica<T> implements Replica {
   }
 
   /**
-   * doOps should change this.doc using Automerge.change.
+   * doOps should change this.doc using automerge.change.
    */
   transact(doOps: () => void): void {
     const oldDoc = this.doc;
     doOps();
-    const msg = automerge.getChanges(oldDoc, this.doc);
-    this.onsend(msg);
+    // TODO: getChanges is currently unfairly slow:
+    // https://github.com/automerge/automerge/issues/748
+    // getLastLocalChange is faster, but it does not work for e.g. MicroMapRolling,
+    // which calls automerge.change multiple times in one transaction.
+    this.onsend(automerge.getChanges(oldDoc, this.doc));
   }
 
   receive(msg: automerge.Change[]): void {
