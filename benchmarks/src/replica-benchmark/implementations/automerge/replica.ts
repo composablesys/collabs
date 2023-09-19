@@ -27,8 +27,6 @@ export abstract class AutomergeReplica<T> implements Replica {
   transact(doOps: () => void): void {
     const oldDoc = this.doc;
     doOps();
-    // TODO: can we use Automerge.getLastLocalChange instead?
-    // Might be faster, but it's possible doOps does multiple changes.
     const msg = automerge.getChanges(oldDoc, this.doc);
     this.onsend(msg);
   }

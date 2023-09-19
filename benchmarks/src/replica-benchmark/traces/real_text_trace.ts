@@ -18,9 +18,6 @@ export class RealTextTrace implements Trace<ITextWithCursor> {
     const length = replica.length;
 
     // Infer whether the edit requires a cursor movement.
-    // In principle we can get this info from the other automerge-perf data
-    // file, but this code is easier than trying to parse that file
-    // (which is in Automerge's change format).
     let cursorMovement = true;
     if (!replica.needsCursor() && opNum !== 0) {
       const prevEdit = edits[opNum - 1];

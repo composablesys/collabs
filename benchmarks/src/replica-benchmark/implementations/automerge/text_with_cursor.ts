@@ -14,15 +14,17 @@ export class AutomergeTextWithCursor
 
   protected onRemoteChange(patches: automerge.Patch[]) {
     // Maintain cursor position.
-    // We use the fact that all ops are single character insertions/deletions
-    // at "v".
+    // We use the fact that all ops are at path "v".
     for (const patch of patches) {
-      if (patch.action === "insert") {
+      if (patch.action === "splice") {
         const index = patch.path[1] as number;
-        if (index < this.cursor) this.cursor++;
+        if (index < this.cursor) this.cursor += patch.value.length;
+      } else if (patch.action === "insert") {
+        const index = patch.path[1] as number;
+        if (index < this.cursor) this.cursor += patch.values.length;
       } else if (patch.action === "del") {
         const index = patch.path[1] as number;
-        if (index < this.cursor) this.cursor--;
+        if (index < this.cursor) this.cursor -= patch.length ?? 1;
       }
     }
   }

@@ -3,11 +3,12 @@
 import { assert } from "chai";
 import seedrandom from "seedrandom";
 import { getRecordedTrials, getWarmupTrials, record } from "../record";
-import { byteLength, Data, getMemoryUsed } from "../util";
+import { Data, byteLength, getMemoryUsed } from "../util";
 
 const SEED = "42";
-const CONCURRENT_NUM_DEVICES = 100;
-const ROTATE_NUM_DEVICES = 1000;
+const CONCURRENT_NUM_DEVICES = 20;
+const CONCURRENT_MAX_OPS = 10000;
+const ROTATE_NUM_DEVICES = 100;
 
 export interface Replica {
   /**
@@ -23,8 +24,7 @@ export interface Replica {
 
   load(savedState: Data): void;
 
-  // TODO: shouldn't need this anymore, since Collab doesn't require
-  // load() to always be called.
+  // TODO: shouldn't need this anymore.
   // For fake initial states, can just always load them in the constructor,
   // then merge in the actual savedState if load is called.
   skipLoad(): void;
@@ -53,9 +53,6 @@ export interface Trace<I> {
    * expect you to need any Replica methods. In particular, don't call
    * transact (we'll call it for you as needed, possibly transacting
    * more than one op at a time).
-   *
-   * TODO: opNum guarantees (unique; mostly in-order on
-   * same replica)
    */
   doOp(replica: I, rng: seedrandom.prng, opNum: number): void;
 
@@ -70,6 +67,9 @@ export interface Trace<I> {
 
   /**
    * The intended number of ops.
+   *
+   * For concurrent benchmarks, we cap this at 10,000, to prevent them
+   * from taking too long.
    */
   readonly numOps: number;
 
@@ -83,10 +83,6 @@ export interface Trace<I> {
 export type Mode = "single" | "rotate" | "concurrent";
 
 export class ReplicaBenchmark<I> {
-  // TODO: mention measurement.csv used as file name
-  // (e.g. sendTime.csv). Method name convention (lowerCamelCase).
-  // Label used for method params (e.g. ops), space-separated.
-  // Describe full file/folder name.
   constructor(
     private readonly trace: Trace<I>,
     /**
@@ -198,9 +194,11 @@ export class ReplicaBenchmark<I> {
 
       // Each device performs a contiguous range of ops. If the ops do not
       // divide evenly, then the last concurrer performs fewer ops.
-      const numRounds = Math.ceil(this.trace.numOps / CONCURRENT_NUM_DEVICES);
+      // We cap the # of ops to prevent the benchmark from taking too long.
+      const numOps = Math.min(this.trace.numOps, CONCURRENT_MAX_OPS);
+      const numRounds = Math.ceil(numOps / CONCURRENT_NUM_DEVICES);
       const lastConcurrerOps =
-        this.trace.numOps - numRounds * (CONCURRENT_NUM_DEVICES - 1);
+        numOps - numRounds * (CONCURRENT_NUM_DEVICES - 1);
 
       const roundsPerPrint = Math.floor(numRounds / 10);
 
@@ -384,7 +382,7 @@ export class ReplicaBenchmark<I> {
       "receiveNetwork/" + this.traceName,
       this.implementationName,
       mode,
-      this.trace.numOps,
+      msgs.length,
       [bytesSent]
     );
   }
@@ -437,7 +435,7 @@ export class ReplicaBenchmark<I> {
       "receiveTime/" + this.traceName,
       this.implementationName,
       mode,
-      this.trace.numOps,
+      msgs.length,
       values
     );
   }
@@ -490,7 +488,7 @@ export class ReplicaBenchmark<I> {
       "receiveMemory/" + this.traceName,
       this.implementationName,
       mode,
-      this.trace.numOps,
+      msgs.length,
       values,
       bases
     );
@@ -506,21 +504,32 @@ export class ReplicaBenchmark<I> {
     }
 
     // Measure save time, save size, and load time for receiver.
-    await this.saveTime(receiver, "receiveSaveTime", mode);
+    await this.saveTime(receiver, "receiveSaveTime", mode, msgs.length);
 
     const savedState = receiver.save();
     record(
       "receiveSaveSize/" + this.traceName,
       this.implementationName,
       mode,
-      this.trace.numOps,
+      msgs.length,
       [byteLength(savedState)]
     );
 
-    await this.loadTime(savedState, finalState, "receiveLoadTime", mode);
+    await this.loadTime(
+      savedState,
+      finalState,
+      "receiveLoadTime",
+      mode,
+      msgs.length
+    );
   }
 
-  private async saveTime(saver: Replica, metric: string, label: string) {
+  private async saveTime(
+    saver: Replica,
+    metric: string,
+    label: string,
+    numOps: number
+  ) {
     const values = new Array<number>(getRecordedTrials());
     values.fill(0);
 
@@ -549,7 +558,7 @@ export class ReplicaBenchmark<I> {
       metric + "/" + this.traceName,
       this.implementationName,
       label,
-      this.trace.numOps,
+      numOps,
       values
     );
   }
@@ -558,7 +567,8 @@ export class ReplicaBenchmark<I> {
     savedState: Data,
     saverState: unknown,
     metric: string,
-    label: string
+    label: string,
+    numOps: number
   ) {
     const values = new Array<number>(getRecordedTrials());
     values.fill(0);
@@ -599,7 +609,7 @@ export class ReplicaBenchmark<I> {
       metric + "/" + this.traceName,
       this.implementationName,
       label,
-      this.trace.numOps,
+      numOps,
       values
     );
   }
