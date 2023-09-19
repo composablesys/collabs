@@ -27,21 +27,21 @@ import {
   ReplicaBenchmark,
   Trace,
 } from "./replica-benchmark/replica_benchmark";
-import { MicroMapRollingTrace } from "./replica-benchmark/traces/micro_map_rolling_trace";
-import { MicroMapTrace } from "./replica-benchmark/traces/micro_map_trace";
-import { MicroTextLtrTrace } from "./replica-benchmark/traces/micro_text_ltr_trace";
-import { MicroTextRandomTrace } from "./replica-benchmark/traces/micro_text_random_trace";
-import { MicroVariableTrace } from "./replica-benchmark/traces/micro_variable_trace";
+import { MapRollingTrace } from "./replica-benchmark/traces/map_rolling_trace";
+import { MapTrace } from "./replica-benchmark/traces/map_trace";
+import { TextLtrTrace } from "./replica-benchmark/traces/text_ltr_trace";
+import { TextRandomTrace } from "./replica-benchmark/traces/text_random_trace";
+import { VariableTrace } from "./replica-benchmark/traces/variable_trace";
 import { NoopTrace } from "./replica-benchmark/traces/noop_trace";
 import { RealTextTrace } from "./replica-benchmark/traces/real_text_trace";
 import { TodoListTrace } from "./replica-benchmark/traces/todo_list_trace";
 
 const traces: { [name: string]: Trace<unknown> } = {
-  MicroMapRolling: new MicroMapRollingTrace(),
-  MicroMap: new MicroMapTrace(),
-  MicroVariable: new MicroVariableTrace(),
-  MicroTextLtr: new MicroTextLtrTrace(),
-  MicroTextRandom: new MicroTextRandomTrace(),
+  MapRolling: new MapRollingTrace(),
+  Map: new MapTrace(),
+  Variable: new VariableTrace(),
+  TextLtr: new TextLtrTrace(),
+  TextRandom: new TextRandomTrace(),
   RealText: new RealTextTrace(),
   TodoList: new TodoListTrace(),
   Noop: new NoopTrace(),

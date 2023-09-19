@@ -37,7 +37,7 @@ export abstract class AutomergeReplica<T> implements Replica {
     // Use getLastLocalChange because it is faster than getChanges:
     // https://github.com/automerge/automerge/issues/748
     // However then we must do the this.writeDoc weirdness above, to handle traces
-    // that call multiple ops in one transact() call (e.g. MicroMapRolling).
+    // that call multiple ops in one transact() call (e.g. MapRolling).
     this.onsend([automerge.getLastLocalChange(this.readDoc)!]);
   }
 

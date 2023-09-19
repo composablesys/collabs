@@ -64,17 +64,17 @@ function go {
 
 # Skip "single" mode for CollabsNoVC, since it's not interesting.
 
-trace="MicroMap"
+trace="Map"
 oursSingle=("CollabsMap")
 oursMulti=("CollabsMap" "CollabsNoVCMap")
 othersSingle=("AutomergeMap" "YjsMap")
 othersMulti=("AutomergeMap" "YjsMap")
 go
 
-trace="MicroMapRolling"
+trace="MapRolling"
 go
 
-trace="MicroVariable"
+trace="Variable"
 oursSingle=("CollabsVariable")
 oursMulti=("CollabsVariable" "CollabsNoVCVariable")
 othersSingle=("AutomergeVariable" "YjsVariable")
@@ -88,14 +88,14 @@ othersSingle=()
 othersMulti=()
 go
 
-trace="MicroTextLtr"
+trace="TextLtr"
 oursSingle=("CollabsText")
 oursMulti=("CollabsText" "CollabsNoVCText")
 othersSingle=("AutomergeText" "YjsText")
 othersMulti=("AutomergeText" "YjsText")
 go
 
-trace="MicroTextRandom"
+trace="TextRandom"
 go
 
 trace="TodoList"

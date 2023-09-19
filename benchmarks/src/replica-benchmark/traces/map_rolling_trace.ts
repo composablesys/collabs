@@ -1,7 +1,7 @@
 import { IMap } from "../interfaces/map";
 import { MicroTrace } from "./micro_trace";
 
-export class MicroMapRollingTrace extends MicroTrace<IMap> {
+export class MapRollingTrace extends MicroTrace<IMap> {
   constructor() {
     super({
       Roll: [
