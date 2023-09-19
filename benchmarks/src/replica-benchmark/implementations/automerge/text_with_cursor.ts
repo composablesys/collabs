@@ -1,13 +1,13 @@
-import * as automerge from "@automerge/automerge";
+import { next as automerge } from "@automerge/automerge";
 import { ITextWithCursor } from "../../interfaces/text_with_cursor";
 import { AutomergeReplica } from "./replica";
 
 export class AutomergeTextWithCursor
-  extends AutomergeReplica<{ v: automerge.Text }>
+  extends AutomergeReplica<{ v: string }>
   implements ITextWithCursor
 {
   private static fakeInitialSave = AutomergeReplica.getFakeInitialSave({
-    v: new automerge.Text(),
+    v: "",
   });
 
   private cursor = -1;
@@ -43,14 +43,16 @@ export class AutomergeTextWithCursor
   }
 
   insert(char: string): void {
-    this.doc = automerge.change(this.doc, (d) =>
-      d.v.insertAt(this.cursor, char)
-    );
+    this.doc = automerge.change(this.doc, (d) => {
+      automerge.splice(d, ["v"], this.cursor, 0, char);
+    });
     this.cursor++;
   }
 
   delete(): void {
-    this.doc = automerge.change(this.doc, (d) => d.v.deleteAt(this.cursor, 1));
+    this.doc = automerge.change(this.doc, (d) => {
+      automerge.splice(d, ["v"], this.cursor, 1);
+    });
     this.cursor--;
   }
 

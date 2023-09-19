@@ -1,4 +1,4 @@
-import * as automerge from "@automerge/automerge";
+import { next as automerge } from "@automerge/automerge";
 import { Data, uuidv4 } from "../../../util";
 import { Replica } from "../../replica_benchmark";
 
@@ -15,7 +15,10 @@ export abstract class AutomergeReplica<T> implements Replica {
     // so we need to do a PRNG version instead.
     this.actorId = uuidv4(replicaIdRng).replace(/-/g, "");
 
-    this.applyOptions = { patchCallback: this.onRemoteChange.bind(this) };
+    this.applyOptions = {
+      patchCallback: (patches, { before, after }) =>
+        this.onRemoteChange(patches, before, after),
+    };
   }
 
   /**

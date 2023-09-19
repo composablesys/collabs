@@ -1,4 +1,4 @@
-import * as automerge from "@automerge/automerge";
+import { next as automerge } from "@automerge/automerge";
 import { IVariable } from "../../interfaces/variable";
 import { AutomergeReplica } from "./replica";
 

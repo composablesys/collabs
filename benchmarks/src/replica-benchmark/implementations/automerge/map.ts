@@ -1,4 +1,4 @@
-import * as automerge from "@automerge/automerge";
+import { next as automerge } from "@automerge/automerge";
 import { IMap } from "../../interfaces/map";
 import { AutomergeReplica } from "./replica";
 

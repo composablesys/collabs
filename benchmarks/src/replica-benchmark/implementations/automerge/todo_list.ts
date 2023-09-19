@@ -1,4 +1,4 @@
-import * as automerge from "@automerge/automerge";
+import { next as automerge } from "@automerge/automerge";
 import { Data } from "../../../util";
 import { ITodoList, ITodoListInternal } from "../../interfaces/todo_list";
 import { AutomergeReplica } from "./replica";
@@ -9,7 +9,7 @@ class AutomergeTodoListInternal implements ITodoListInternal {
    */
   constructor(
     private readonly replica: AutomergeReplica<any>,
-    private readonly cursor: readonly number[]
+    private readonly cursor: number[]
   ) {}
 
   private getThis(doc: any): any {
@@ -24,7 +24,7 @@ class AutomergeTodoListInternal implements ITodoListInternal {
     this.replica.doc = automerge.change(this.replica.doc, (d) => {
       const thisDoc = this.getThis(d);
       thisDoc.items.insertAt(index, {
-        text: new automerge.Text(text),
+        text,
         done: false,
         items: [],
       });
@@ -59,24 +59,22 @@ class AutomergeTodoListInternal implements ITodoListInternal {
 
   insertText(index: number, text: string): void {
     this.replica.doc = automerge.change(this.replica.doc, (d) => {
-      const thisDoc = this.getThis(d);
-      (thisDoc.text as automerge.Text).insertAt(index, ...text);
+      automerge.splice(d, [...this.cursor, "text"], index, 0, text);
     });
   }
 
   deleteText(index: number, count: number): void {
     this.replica.doc = automerge.change(this.replica.doc, (d) => {
-      const thisDoc = this.getThis(d);
-      (thisDoc.text as automerge.Text).deleteAt(index, count);
+      automerge.splice(d, [...this.cursor, "text"], index, count);
     });
   }
 
   get textSize(): number {
-    return (this.getThis(this.replica.doc).text as automerge.Text).length;
+    return (this.getThis(this.replica.doc).text as string).length;
   }
 
   getText(): string {
-    return (this.getThis(this.replica.doc).text as automerge.Text).toString();
+    return this.getThis(this.replica.doc).text as string;
   }
 }
 
