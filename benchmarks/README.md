@@ -12,3 +12,5 @@ Benchmark subsets:
 
 - `./run_short.sh`: Shorter sample of benchmarks.
 - `./run_text_short.sh`: Runs RealText (automerge-perf text trace) for a single sender on the given implementation, for quickly benchmarking a text CRDT.
+
+Like `npm start` but you don't have to build first (useful for testing, slow for actual scripts): `npm run debug`.

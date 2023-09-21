@@ -8,26 +8,29 @@
      */
     "rootDir": ".",
     "outDir": "build",
-    "target": "es2019",
-    /* Specify lib manually so we can exclude DOM. */
-    "lib": ["es2019"],
     "module": "commonjs",
+    "target": "es2019",
     /* Enable strict type checking. */
     "strict": true,
     /* Prevent errors caused by other libraries. */
     "skipLibCheck": true,
     /* Enable interop with dependencies using different module systems. */
     "esModuleInterop": true,
-    /* Include automerge_perf benchmark js file. */
-    "allowJs": true,
     /* We don't need to emit declarations. */
     "declaration": false,
     /* Emit sourcemap files. */
     "sourceMap": true,
-    /* Use tslib to reduce generated js file sizes. */
-    "importHelpers": true,
     /* Allow importing real_text_trace_edits.json. */
-    "resolveJsonModule": true
+    "resolveJsonModule": true,
+    /*
+     * Something that ts-node needs even though tsc doesn't; see
+     * https://github.com/TypeStrong/ts-node/issues/782
+     */
+    "typeRoots": [
+      "./src/@types",
+      "../node_modules/@types",
+      "./node_modules/@types"
+    ]
   },
   "include": ["src"]
 }

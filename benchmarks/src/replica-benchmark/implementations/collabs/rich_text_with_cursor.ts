@@ -21,7 +21,6 @@ export function CollabsRichTextWithCursor(causalityGuaranteed: boolean) {
 
       // Maintain cursor position.
       // We use the fact that all ops are single character insertions/deletions.
-      // TODO: use position-based cursors instead?
       this.richText.on("Insert", (e) => {
         if (!e.meta.isLocalOp && e.index < this.cursor) this.cursor++;
       });

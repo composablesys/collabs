@@ -1,9 +1,11 @@
-import * as automerge from "@automerge/automerge";
+import { next as automerge } from "@automerge/automerge";
 import { Data, uuidv4 } from "../../../util";
 import { Replica } from "../../replica_benchmark";
 
 export abstract class AutomergeReplica<T> implements Replica {
-  doc!: automerge.Doc<T>;
+  /* Only for reads and loads. For mutations, use mutableDoc instead. */
+  readDoc!: automerge.Doc<T>;
+  writeDoc!: T;
   protected readonly actorId: string;
   private readonly applyOptions: automerge.ApplyOptions<T>;
 
@@ -15,24 +17,33 @@ export abstract class AutomergeReplica<T> implements Replica {
     // so we need to do a PRNG version instead.
     this.actorId = uuidv4(replicaIdRng).replace(/-/g, "");
 
-    this.applyOptions = { patchCallback: this.onRemoteChange.bind(this) };
+    this.applyOptions = {
+      patchCallback: (patches, { before, after }) =>
+        this.onRemoteChange(patches, before, after),
+    };
   }
 
   /**
-   * doOps should change this.doc using Automerge.change.
+   * doOps should change this.doc by mutating this.writeDoc, trusting
+   * that it is inside a call to automerge.change.
    */
   transact(doOps: () => void): void {
-    const oldDoc = this.doc;
-    doOps();
-    // TODO: can we use Automerge.getLastLocalChange instead?
-    // Might be faster, but it's possible doOps does multiple changes.
-    const msg = automerge.getChanges(oldDoc, this.doc);
-    this.onsend(msg);
+    this.readDoc = automerge.change(this.readDoc, (doc) => {
+      this.writeDoc = doc;
+      doOps();
+      // @ts-expect-error
+      this.writeDoc = undefined;
+    });
+    // Use getLastLocalChange because it is faster than getChanges:
+    // https://github.com/automerge/automerge/issues/748
+    // However then we must do the this.writeDoc weirdness above, to handle traces
+    // that call multiple ops in one transact() call (e.g. MapRolling).
+    this.onsend([automerge.getLastLocalChange(this.readDoc)!]);
   }
 
   receive(msg: automerge.Change[]): void {
-    const ans = automerge.applyChanges(this.doc, msg, this.applyOptions);
-    this.doc = ans[0];
+    const ans = automerge.applyChanges(this.readDoc, msg, this.applyOptions);
+    this.readDoc = ans[0];
   }
 
   /**
@@ -45,11 +56,11 @@ export abstract class AutomergeReplica<T> implements Replica {
   ): void {}
 
   save(): Data {
-    return automerge.save(this.doc);
+    return automerge.save(this.readDoc);
   }
 
   load(savedState: Uint8Array): void {
-    this.doc = automerge.load(savedState, this.actorId);
+    this.readDoc = automerge.load(savedState, this.actorId);
   }
 
   /**
@@ -66,6 +77,6 @@ export abstract class AutomergeReplica<T> implements Replica {
   }
 
   free(): void {
-    automerge.free(this.doc);
+    automerge.free(this.readDoc);
   }
 }

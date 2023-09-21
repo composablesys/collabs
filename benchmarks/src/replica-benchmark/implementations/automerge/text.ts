@@ -1,32 +1,32 @@
-import * as automerge from "@automerge/automerge";
+import { next as automerge } from "@automerge/automerge";
 import { IText } from "../../interfaces/text";
 import { AutomergeReplica } from "./replica";
 
 export class AutomergeText
-  extends AutomergeReplica<{ v: automerge.Text }>
+  extends AutomergeReplica<{ v: string }>
   implements IText
 {
   private static fakeInitialSave = AutomergeReplica.getFakeInitialSave({
-    v: new automerge.Text(),
+    v: "",
   });
 
   skipLoad() {
-    this.doc = automerge.load(AutomergeText.fakeInitialSave, this.actorId);
+    this.readDoc = automerge.load(AutomergeText.fakeInitialSave, this.actorId);
   }
 
   insert(index: number, char: string): void {
-    this.doc = automerge.change(this.doc, (d) => d.v.insertAt(index, char));
+    automerge.splice(this.writeDoc, ["v"], index, 0, char);
   }
 
   delete(index: number): void {
-    this.doc = automerge.change(this.doc, (d) => d.v.deleteAt(index, 1));
+    automerge.splice(this.writeDoc, ["v"], index, 1);
   }
 
   getText(): string {
-    return this.doc.v.toString();
+    return this.readDoc.v.toString();
   }
 
   get length(): number {
-    return this.doc.v.length;
+    return this.readDoc.v.length;
   }
 }

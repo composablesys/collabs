@@ -1,7 +1,7 @@
 import { IMap } from "../interfaces/map";
 import { MicroTrace } from "./micro_trace";
 
-export class MicroMapTrace extends MicroTrace<IMap> {
+export class MapTrace extends MicroTrace<IMap> {
   constructor() {
     super({
       Toggle: [

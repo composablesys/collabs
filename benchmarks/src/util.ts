@@ -1,5 +1,5 @@
 import memwatch from "@airbnb/node-memwatch";
-import * as automerge from "@automerge/automerge";
+import { next as automerge } from "@automerge/automerge";
 import { v4 } from "uuid";
 
 export async function sleep(ms: number) {

@@ -7,7 +7,6 @@ import {
 import { AutomergeMap } from "./replica-benchmark/implementations/automerge/map";
 import { AutomergeText } from "./replica-benchmark/implementations/automerge/text";
 import { AutomergeTextWithCursor } from "./replica-benchmark/implementations/automerge/text_with_cursor";
-import { AutomergeTodoList } from "./replica-benchmark/implementations/automerge/todo_list";
 import { AutomergeVariable } from "./replica-benchmark/implementations/automerge/variable";
 import { CollabsMap } from "./replica-benchmark/implementations/collabs/map";
 import { CollabsNestedNoop } from "./replica-benchmark/implementations/collabs/nested_noop";
@@ -28,21 +27,21 @@ import {
   ReplicaBenchmark,
   Trace,
 } from "./replica-benchmark/replica_benchmark";
-import { MicroMapRollingTrace } from "./replica-benchmark/traces/micro_map_rolling_trace";
-import { MicroMapTrace } from "./replica-benchmark/traces/micro_map_trace";
-import { MicroTextLtrTrace } from "./replica-benchmark/traces/micro_text_ltr_trace";
-import { MicroTextRandomTrace } from "./replica-benchmark/traces/micro_text_random_trace";
-import { MicroVariableTrace } from "./replica-benchmark/traces/micro_variable_trace";
+import { MapRollingTrace } from "./replica-benchmark/traces/map_rolling_trace";
+import { MapTrace } from "./replica-benchmark/traces/map_trace";
+import { TextLtrTrace } from "./replica-benchmark/traces/text_ltr_trace";
+import { TextRandomTrace } from "./replica-benchmark/traces/text_random_trace";
+import { VariableTrace } from "./replica-benchmark/traces/variable_trace";
 import { NoopTrace } from "./replica-benchmark/traces/noop_trace";
 import { RealTextTrace } from "./replica-benchmark/traces/real_text_trace";
 import { TodoListTrace } from "./replica-benchmark/traces/todo_list_trace";
 
 const traces: { [name: string]: Trace<unknown> } = {
-  MicroMapRolling: new MicroMapRollingTrace(),
-  MicroMap: new MicroMapTrace(),
-  MicroVariable: new MicroVariableTrace(),
-  MicroTextLtr: new MicroTextLtrTrace(),
-  MicroTextRandom: new MicroTextRandomTrace(),
+  MapRolling: new MapRollingTrace(),
+  Map: new MapTrace(),
+  Variable: new VariableTrace(),
+  TextLtr: new TextLtrTrace(),
+  TextRandom: new TextRandomTrace(),
   RealText: new RealTextTrace(),
   TodoList: new TodoListTrace(),
   Noop: new NoopTrace(),
@@ -53,27 +52,26 @@ const implementations: { [name: string]: Implementation<unknown> } = {
   AutomergeVariable: AutomergeVariable,
   AutomergeText: AutomergeText,
   AutomergeTextWithCursor: AutomergeTextWithCursor,
-  AutomergeTodoList: AutomergeTodoList,
   // For Collabs, we have two versions of each benchmark:
   // a default version that enforces causal ordering, and a
   // CG ("causality guaranteed") version that does not, i.e., it
   // assumes the network guarantees causal ordering.
   CollabsTodoList: CollabsTodoList(false),
-  CollabsCGTodoList: CollabsTodoList(true),
+  CollabsNoVCTodoList: CollabsTodoList(true),
   CollabsMap: CollabsMap(false),
-  CollabsCGMap: CollabsMap(true),
+  CollabsNoVCMap: CollabsMap(true),
   CollabsVariable: CollabsVariable(false),
-  CollabsCGVariable: CollabsVariable(true),
+  CollabsNoVCVariable: CollabsVariable(true),
   CollabsRichTextWithCursor: CollabsRichTextWithCursor(false),
-  CollabsCGRichTextWithCursor: CollabsRichTextWithCursor(true),
+  CollabsNoVCRichTextWithCursor: CollabsRichTextWithCursor(true),
   CollabsText: CollabsText(false),
-  CollabsCGText: CollabsText(true),
+  CollabsNoVCText: CollabsText(true),
   CollabsTextWithCursor: CollabsTextWithCursor(false),
-  CollabsCGTextWithCursor: CollabsTextWithCursor(true),
+  CollabsNoVCTextWithCursor: CollabsTextWithCursor(true),
   CollabsNoop: CollabsNoop(false),
-  CollabsCGNoop: CollabsNoop(true),
+  CollabsNoVCNoop: CollabsNoop(true),
   CollabsNestedNoop: CollabsNestedNoop(false),
-  CollabsCGNestedNoop: CollabsNestedNoop(true),
+  CollabsNoVCNestedNoop: CollabsNestedNoop(true),
   YjsMap: YjsMap,
   YjsVariable: YjsVariable,
   YjsText: YjsText,
