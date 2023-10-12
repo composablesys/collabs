@@ -17,6 +17,14 @@ import {
 import { PrimitiveCRDT } from "../base_collabs";
 import { CRDTMessageMeta } from "../runtime";
 
+export type Anchor = {
+  /** null for start/end of the list. */
+  pos: Position | null;
+  // TODO: "before" | "after" instead?
+  /** Else after. */
+  before: boolean;
+};
+
 export interface PartialSpan<
   // eslint-disable-next-line @typescript-eslint/no-explicit-any
   F extends Record<string, any>,
@@ -24,10 +32,8 @@ export interface PartialSpan<
 > {
   readonly key: K;
   readonly value: F[K] | undefined;
-  readonly startPosition: Position;
-  /** null for open end of the document */
-  readonly endPosition: Position | null;
-  readonly endClosed?: true;
+  readonly start: Anchor;
+  readonly end: Anchor;
 }
 
 export interface Span<
@@ -82,6 +88,10 @@ export interface SpanLogAddEvent<F extends Record<string, any>>
 // eslint-disable-next-line @typescript-eslint/no-explicit-any
 export interface SpanLogEventsRecord<F extends Record<string, any>>
   extends CollabEventsRecord {
+  /**
+   * Note: during loading, these are emitted in order for each senderID,
+   * but not necessarily in causal order.
+   */
   Add: SpanLogAddEvent<F>;
 }
 
@@ -114,9 +124,8 @@ export class CSpanLog<F extends Record<string, any>> extends PrimitiveCRDT<
   add<K extends keyof F & string>(
     key: K,
     value: F[K] | undefined,
-    startPos: Position,
-    endPos: Position | null,
-    endClosed: boolean
+    start: Anchor,
+    end: Anchor
   ) {
     super.sendCRDT(
       this.partialSpanSerializer.serialize({

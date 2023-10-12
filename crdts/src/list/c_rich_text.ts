@@ -208,12 +208,15 @@ export class CRichText<
   // that keys are strings for serialization, but they technically
   // could be number or Symbol (even though our index signature says
   // `string`).
-  private readonly noGrowAtEnd: Set<keyof F & string>;
+  private readonly expandDefaults: <K extends keyof F & string>(
+    key: K,
+    value: F[K] | undefined
+  ) => "before" | "after" | "both" | "none";
 
   /**
    * Constructs a CRichText.
    *
-   * @param options.noGrowAtEnd A collection of format keys whose spans will *not* grow
+   * @param options.expandDefaults TODO A collection of format keys whose spans will *not* grow
    * at the end: they will *not* affect concurrent and future characters inserted
    * at the end of their original range (but will still affect the middle).
    *
@@ -225,13 +228,16 @@ export class CRichText<
   constructor(
     init: InitToken,
     options?: {
-      noGrowAtEnd?: Iterable<keyof F & string>;
+      expandDefaults?: <K extends keyof F & string>(
+        key: K,
+        value: F[K] | undefined
+      ) => "before" | "after" | "both" | "none";
       formatSerializer?: Serializer<F[keyof F & string]>;
     }
   ) {
     super(init);
 
-    this.noGrowAtEnd = new Set(options?.noGrowAtEnd ?? []);
+    this.expandDefaults = options?.expandDefaults ?? (() => "after");
 
     this.text = super.registerCollab(
       "",
@@ -517,6 +523,9 @@ export class CRichText<
    * redundant. The span's grow-at-end behavior is determined by
    * the `noGrowAtEnd` constructor option.
    *
+   * TODO: if expand not specified, uses options.expandDefaults (which itself
+   * defaults to "after").
+   *
    * @param value If undefined, the format key is deleted, clearing its
    * current value.
    */
@@ -524,7 +533,8 @@ export class CRichText<
     startIndex: number,
     endIndex: number,
     key: K,
-    value: F[K] | undefined
+    value: F[K] | undefined,
+    expand?: "before" | "after" | "both" | "none"
   ) {
     if (startIndex < 0 || startIndex >= this.length) {
       throw new Error(
@@ -546,7 +556,7 @@ export class CRichText<
       return;
     }
 
-    const endClosed = value !== undefined && this.noGrowAtEnd.has(key);
+    expand = expand ?? this.expandDefaults(key, value);
 
     // From trivial span case, we're guaranteed endIndex >= 1, so this is
     // in [0, this.length].
