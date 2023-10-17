@@ -40,6 +40,8 @@ Collabs implements hybrid op-based/state-based [Conflict-free Replicated Data Ty
 
 Our [built-in CRDTs](./guide/built_in_collabs.html) implement modern [algorithms](./further_info/algorithms.html) including [Peritext](./api/collabs/classes/CRichText.html), [Fugue](./api/collabs/classes/CTotalOrder.html), and a [list with a move operation](./api/collabs/classes/CList.html).
 
+You can learn more in our [paper preprint](https://arxiv.org/abs/2212.02618). The paper also has benchmark results showing that a Collabs rich-text editor can scale to over 100 simultaneous users, and its memory usage and load/save times are comparable to Yjs.
+
 ## Principles
 
 See our talk at [LFW.dev](https://localfirstweb.dev/) meetup #5: [Video](https://www.youtube.com/watch?v=Z0nzsxhoToo&t=2346s), [Slides](https://docs.google.com/presentation/d/13I3L76R-wwiXxgTXI2ide3zlbjiWoTWXMSU9YbQdYXU/edit?usp=sharing), [Live demo](https://collabs-demos.herokuapp.com/recipe-editor/).
