@@ -70,7 +70,7 @@
     "build:protobuf:ts": "pbts -o generated/proto_compiled.d.ts generated/proto_compiled.js",
     "build:ts": "npm-run-all build:ts:*",
     "build:ts:tsc": "tsc -p tsconfig.json && tsc -p tsconfig.commonjs.json",
-    "build:ts:copy": "cp generated_esm/proto_compiled.js build/esm/generated/proto_compiled.js && cp --parents src/**/*.d.ts build/commonjs && cp --parents src/**/*.d.ts build/esm",
+    "build:ts:copy": "cp generated_esm/proto_compiled.js build/esm/generated/proto_compiled.js && rsync -R src/**/*.d.ts build/commonjs && rsync -R src/**/*.d.ts build/esm",
     "test": "npm-run-all test:*",
     "test:lint": "eslint --ext .ts,.js .",
     "test:unit": "cross-env TS_NODE_PROJECT='./tsconfig.commonjs.json' mocha",
