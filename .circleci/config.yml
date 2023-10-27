@@ -39,7 +39,7 @@ jobs:
       #     pkg-manager: yarn
       - run:
           name: Install rsync
-          command: sudo apt update && sudo apt install -y rsync
+          command: sudo apt-get update && sudo apt-get install -y rsync
       - run:
           name: Build project
           command: npm run build
