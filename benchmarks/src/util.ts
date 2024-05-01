@@ -1,4 +1,3 @@
-import memwatch from "@airbnb/node-memwatch";
 import { next as automerge } from "@automerge/automerge";
 import { v4 } from "uuid";
 
@@ -36,14 +35,8 @@ export async function getMemoryUsed(): Promise<number> {
   // a Promise using setImmediate (either order).
   await sleep(0);
   await sleep(0);
-  // @ts-ignore types forgot gc
-  memwatch.gc();
-  return new Promise<number>((resolve) => {
-    // @ts-ignore types forgot once
-    memwatch.once("stats", (stats: memwatch.GcStats) => {
-      resolve(stats.used_heap_size + process.memoryUsage.rss());
-    });
-  });
+  if (global.gc) global.gc();
+  return process.memoryUsage().heapUsed;
 }
 
 export const CHARS = (function () {
