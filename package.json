@@ -68,8 +68,5 @@
     "publish": "node foreach-workspace.js publish \"npm publish -w\"",
     "clean": "node foreach-workspace.js all \"npm run clean -w\"",
     "reset": "rimraf node_modules package-lock.json **/package-lock.json **/node_modules"
-  },
-  "engines": {
-    "node": ">=18.x"
   }
 }
