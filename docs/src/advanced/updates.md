@@ -37,7 +37,7 @@ Whenever a doc applies a non-redundant update (including at the end of a local t
 
 Our providers use these "Update" events to work together: if @collabs/ws-server applies an update to the document, @collabs/indexeddb learns of it from the "Update" event and saves it in IndexedDB, just like for local operations.
 
-Internally, messages are _not_ always applied immediately. Instead, they are buffered until all after applying all [causally prior](https://en.wikipedia.org/wiki/Happened-before) transactions, to enforce [causal consistency](https://en.wikipedia.org/wiki/Causal_consistency). Saved states _are_ always applied immediately, since they have all causally prior transactions built-in.
+Internally, messages are _not_ always applied immediately. Instead, they are buffered until after applying all [causally prior](https://en.wikipedia.org/wiki/Happened-before) transactions, to enforce [causal consistency](https://en.wikipedia.org/wiki/Causal_consistency). Saved states _are_ always applied immediately, since they have all causally prior transactions built-in.
 
 ## Patterns
 

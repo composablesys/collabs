@@ -75,11 +75,11 @@ class CPair<T, U> extends CObject {
     // Setup child Collabs.
     this.firstReg = this.registerCollab(
       "firstReg",
-      (init) => new Collabs.CVar(init, firstInitial)
+      (init) => new CVar(init, firstInitial)
     );
     this.secondReg = this.registerCollab(
       "secondReg",
-      (init) => new Collabs.CVar(init, secondInitial)
+      (init) => new CVar(init, secondInitial)
     );
   }
 
