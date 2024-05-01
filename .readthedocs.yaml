@@ -2,6 +2,8 @@ version: 2
 
 build:
   os: "ubuntu-20.04"
+  apt_packages:
+    - rsync
   tools:
     # Make sure to keep the python version in sync between here and
     # .circleci/config.yml's docker image version.
