@@ -70,6 +70,6 @@
     "reset": "rimraf node_modules package-lock.json **/package-lock.json **/node_modules"
   },
   "engines": {
-    "node": "18.x"
+    "node": ">=18.x"
   }
 }
