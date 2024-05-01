@@ -10,7 +10,7 @@ build:
   jobs:
     post_install:
       - npm ci
-    pre_build:
+    post_build:
       # Regular-build just the packages that have Typedocs.
       # This is necessary because some packages import others, hence
       # Typedoc expects the depenendency to be built, and some packages's
