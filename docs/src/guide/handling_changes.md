@@ -1,6 +1,6 @@
 # Handling Changes
 
-A Collab changes state not just when you mutate it locally, but also when you receive updates from a remote collaoborator, or when you load some state from storage. You need to know about these changes so that you can update your display.
+A Collab changes state not just when you mutate it locally, but also when you receive updates from a remote collaborator, or when you load some state from storage. You need to know about these changes so that you can update your display.
 
 ## Document "Change" Event
 
